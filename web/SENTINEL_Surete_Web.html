@@ -6349,6 +6349,13 @@ async function init() {
     document.getElementById('liveTxt').textContent='Collecte en cours';
   }
   tick(); renderCyList(); renderGeo(); renderAgenda(); renderSrcLeg();
+  // Tableau de bord (v-dashboard, vue par defaut a l'ouverture) : le rendu
+  // n'etait jusqu'ici declenche que par switchView('dashboard') ou apres la
+  // fin de la premiere collecte RSS (doCollect) — le conteneur dashContent
+  // restait donc vide plusieurs secondes a l'ouverture, alors meme que la
+  // heatmap des 54 pays se calcule uniquement a partir de PAYS_INFO/
+  // calcAlertScore et n'a besoin d'aucun article collecte pour s'afficher.
+  if (typeof renderDashboard === 'function' && document.getElementById('dashContent')) renderDashboard();
   // Amorcage silencieux des niveaux d'alerte (pas de notification de changement au tout premier calcul)
   if (typeof PAYS_INFO !== 'undefined' && typeof calcAlertScore === 'function') {
     Object.keys(PAYS_INFO).forEach(cy => { LAST_NIV_PAR_PAYS[cy] = calcAlertScore(cy).key; });
