@@ -676,6 +676,13 @@ input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px soli
 .ops-label .ops-dot{display:inline-block;width:5px;height:5px;border-radius:50%;background:#4ade80;margin-right:5px;animation:blink 1.4s infinite}
 @media (max-width:760px){html:not(.force-web) .ops-label{display:none}}
 html.force-mobile .ops-label{display:none}
+/* Boutons WEB/MOBILE : masques sur un ecran reellement etroit (telephone),
+   qu'il soit force ou non — la aussi, ils n'ont pas d'utilite (on est deja
+   sur mobile) et leur affichage y faisait deborder le bandeau superieur,
+   poussant "Actualiser" hors champ. Restent visibles sur un ecran large
+   (desktop), y compris en previsualisation .force-mobile, pour permettre
+   d'en sortir. */
+@media (max-width:760px){.disp-switch{display:none}}
 @media (prefers-reduced-motion:reduce){
   .ops-globe-wrap,.ops-node,.ops-arc,.ops-scan{animation:none !important}
   .ops-node{opacity:.7}
