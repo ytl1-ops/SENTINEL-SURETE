@@ -9776,14 +9776,25 @@ async function exportPPTX(type) {
       if (sub) sl.addText(sub, {x:1.28,y:0.98,w:11.2,h:0.35,fontSize:12,color:MUTED,fontFace:'Calibri'});
     };
 
+    // Logo radar SENTINEL (anneaux concentriques + point central), repris du
+    // logo de l'application — formes vectorielles pptxgenjs, aucune image.
+    const drawRadarPPTX = (sl, cx, cy0, r) => {
+      sl.addShape(pres.shapes.OVAL, {x:cx-r, y:cy0-r, w:r*2, h:r*2, fill:{type:'none'}, line:{color:SKY, width:1.25}});
+      sl.addShape(pres.shapes.OVAL, {x:cx-r*0.58, y:cy0-r*0.58, w:r*1.16, h:r*1.16, fill:{type:'none'}, line:{color:SKY, width:0.9}});
+      circle(sl, cx-r*0.13, cy0-r*0.13, r*0.26, SKY);
+    };
+
     // ── Slide 1 — Titre (fond sombre) ──────────────────────────────────
     let s = newSlide(NAVY);
     circle(s, 11.7, -0.6, 2.6, NAVY2);
     circle(s, 12.5, 5.6, 2.2, NAVY2);
+    drawRadarPPTX(s, 0.95, 1.55, 0.38);
     s.addText('SENTINEL', {x:0.7,y:2.35,w:9,h:0.8,fontSize:42,bold:true,color:'FFFFFF',fontFace:'Cambria',charSpacing:2});
     s.addText('SÛRETÉ', {x:0.7,y:2.95,w:9,h:0.8,fontSize:42,bold:true,color:SKY,fontFace:'Cambria',charSpacing:2});
     s.addText((titrePPTX+' '+periode.label+' — '+perimetre).toUpperCase(), {x:0.7,y:3.95,w:11,h:0.5,fontSize:17,color:'C7D3DF',fontFace:'Calibri',charSpacing:1});
     s.addText(fmtD(dateDebut)+'  →  '+fmtD(dateFin), {x:0.7,y:4.45,w:11,h:0.4,fontSize:12,italic:true,color:'8A99A8',fontFace:'Calibri'});
+    const nowPPTX = new Date();
+    s.addText((LANG==='en'?'Generated on: ':'Généré le : ')+nowPPTX.toLocaleDateString('fr-FR')+' '+nowPPTX.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit',second:'2-digit'})+'   |   '+(LANG==='en'?'Slot: ':'Créneau : ')+nowPPTX.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}), {x:0.7,y:4.85,w:11,h:0.35,fontSize:10.5,color:'8A99A8',fontFace:'Calibri'});
     s.addText('USAGE RESTREINT — RESPONSABLES SÛRETÉ', {x:0.7,y:6.7,w:9,h:0.4,fontSize:11,bold:true,color:RED,fontFace:'Calibri',charSpacing:1});
     s.addText(arts.length+' articles analysés · '+new Date().toLocaleDateString('fr-FR')+'', {x:0.7,y:7.05,w:9,h:0.35,fontSize:9,color:'6B7A88',fontFace:'Calibri'});
 
@@ -10029,27 +10040,24 @@ function _pdfBuilder(doc, fontReg, fontBold, rgb) {
   const W = 595.28, H = 841.89, M = 50; // A4 portrait, points
   const NAVY = rgb(0.051,0.106,0.161), BLUE = rgb(0.114,0.373,0.659),
         INK = rgb(0.043,0.086,0.129), MUTED = rgb(0.42,0.46,0.5),
-        SKY = rgb(0.49,0.83,0.99), LINE = rgb(0.82,0.85,0.88),
-        BOXBG = rgb(0.97,0.98,0.99);
+        LINE = rgb(0.82,0.85,0.88), BOXBG = rgb(0.97,0.98,0.99);
   const b = {
     page: null, y: 0, n: 0, secNum: 0,
     footerPerimetre: '', footerDate: '',
-    newPage(opts={}) {
+    newPage() {
       b.page = doc.addPage([W, H]);
       b.n++;
-      if (!opts.cover) {
-        const footY = 26, fsize = 8;
-        b.page.drawLine({start:{x:M,y:footY+16},end:{x:W-M,y:footY+16},thickness:0.6,color:LINE});
-        const brand = 'SENTINEL SÛRETÉ';
-        const sep = b.footerPerimetre ? '  ·  '+b.footerPerimetre : '';
-        const bw = fontBold.widthOfTextAtSize(brand, fsize), sw = fontReg.widthOfTextAtSize(sep, fsize);
-        const boxW = bw+sw+16, boxX = (W-boxW)/2;
-        b.page.drawRectangle({x:boxX, y:footY, width:boxW, height:15, borderColor:BLUE, borderWidth:0.8});
-        b.page.drawText(brand, {x:boxX+8, y:footY+4.5, size:fsize, font:fontBold, color:BLUE});
-        if (sep) b.page.drawText(sep, {x:boxX+8+bw, y:footY+4.5, size:fsize, font:fontReg, color:MUTED});
-        if (b.footerDate) b.page.drawText(_pdfSafe(b.footerDate), {x:M, y:footY+4.5, size:7.5, font:fontReg, color:MUTED});
-        b.page.drawText('Page '+b.n, {x:W-M-42, y:footY+4.5, size:7.5, font:fontBold, color:INK});
-      }
+      const footY = 26, fsize = 8;
+      b.page.drawLine({start:{x:M,y:footY+16},end:{x:W-M,y:footY+16},thickness:0.6,color:LINE});
+      const brand = 'SENTINEL SÛRETÉ';
+      const sep = b.footerPerimetre ? '  ·  '+b.footerPerimetre : '';
+      const bw = fontBold.widthOfTextAtSize(brand, fsize), sw = fontReg.widthOfTextAtSize(sep, fsize);
+      const boxW = bw+sw+16, boxX = (W-boxW)/2;
+      b.page.drawRectangle({x:boxX, y:footY, width:boxW, height:15, borderColor:BLUE, borderWidth:0.8});
+      b.page.drawText(brand, {x:boxX+8, y:footY+4.5, size:fsize, font:fontBold, color:BLUE});
+      if (sep) b.page.drawText(sep, {x:boxX+8+bw, y:footY+4.5, size:fsize, font:fontReg, color:MUTED});
+      if (b.footerDate) b.page.drawText(_pdfSafe(b.footerDate), {x:M, y:footY+4.5, size:7.5, font:fontReg, color:MUTED});
+      b.page.drawText('Page '+b.n, {x:W-M-42, y:footY+4.5, size:7.5, font:fontBold, color:INK});
       b.y = H - M;
     },
     ensure(h) { if (b.y - h < M + 30) b.newPage(); },
@@ -10064,16 +10072,96 @@ function _pdfBuilder(doc, fontReg, fontBold, rgb) {
       if (cur) lines.push(cur);
       return lines;
     },
-    titlePage(titre, sousTitre, perimetre, dateStr) {
-      b.newPage({cover:true});
-      b.page.drawRectangle({x:0,y:0,width:W,height:H,color:NAVY});
-      b.page.drawText('SENTINEL SÛRETÉ', {x:M,y:H-170,size:26,font:fontBold,color:rgb(1,1,1)});
-      b.page.drawText(_pdfSafe(titre), {x:M,y:H-202,size:15,font:fontBold,color:SKY});
-      b.page.drawText(_pdfSafe(perimetre), {x:M,y:H-228,size:11,font:fontReg,color:rgb(0.78,0.83,0.87)});
-      b.page.drawText(_pdfSafe(dateStr), {x:M,y:H-248,size:10,font:fontReg,color:MUTED});
-      b.page.drawText('USAGE RESTREINT — RESPONSABLES SÛRETÉ', {x:M,y:60,size:10,font:fontBold,color:rgb(0.86,0.15,0.15)});
-      b.page.drawText(_pdfSafe(sousTitre), {x:M,y:42,size:8,font:fontReg,color:rgb(0.55,0.6,0.65)});
+    // Logo radar SENTINEL (anneaux concentriques + reticule), repris du logo
+    // de l'application — dessine en formes vectorielles pdf-lib, aucune image.
+    drawRadarLogo(cx, cy0, r) {
+      b.page.drawEllipse({x:cx, y:cy0, xScale:r, yScale:r, borderColor:BLUE, borderWidth:1.1});
+      b.page.drawEllipse({x:cx, y:cy0, xScale:r*0.6, yScale:r*0.6, borderColor:BLUE, borderWidth:0.8});
+      b.page.drawEllipse({x:cx, y:cy0, xScale:r*0.22, yScale:r*0.22, color:BLUE});
+      b.page.drawLine({start:{x:cx,y:cy0+r+4}, end:{x:cx,y:cy0-r-4}, thickness:0.5, color:BLUE});
+      b.page.drawLine({start:{x:cx-r-4,y:cy0}, end:{x:cx+r+4,y:cy0}, thickness:0.5, color:BLUE});
+    },
+    // En-tete "Bulletin de veille" — logo radar + titre + date/heure de
+    // generation + creneau + phrase de synthese, sur fond clair (pas de
+    // couverture sombre separee). Remplace titlePage() pour synthese/flux.
+    bulletinHeader(titre, dateGenStr, creneauStr, syntheseTxt) {
       b.newPage();
+      const cx = W/2;
+      b.drawRadarLogo(cx, H-70, 13);
+      const ttxt = _pdfSafe(titre.toUpperCase());
+      const tsize = 19;
+      const tw = fontBold.widthOfTextAtSize(ttxt, tsize);
+      b.page.drawText(ttxt, {x:cx-tw/2, y:H-104, size:tsize, font:fontBold, color:NAVY});
+      b.page.drawLine({start:{x:M,y:H-116},end:{x:W-M,y:H-116},thickness:1.2,color:NAVY});
+      const meta = (LANG==='en'?'Generated on: ':'Généré le : ')+dateGenStr+'   |   '+(LANG==='en'?'Slot: ':'Créneau : ')+creneauStr;
+      const mw = fontReg.widthOfTextAtSize(meta, 9);
+      b.page.drawText(meta, {x:cx-mw/2, y:H-132, size:9, font:fontReg, color:MUTED});
+      b.y = H-155;
+      if (syntheseTxt) {
+        b.wrap(syntheseTxt, 10, fontReg, W-M*2).forEach(line => {
+          b.page.drawText(line, {x:M, y:b.y, size:10, font:fontReg, color:MUTED});
+          b.y -= 14.5;
+        });
+      }
+      b.y -= 8;
+      b.page.drawLine({start:{x:M,y:b.y+6},end:{x:W-M,y:b.y+6},thickness:0.6,color:LINE});
+      b.y -= 12;
+    },
+    // "Points cles strategiques" — liste a puces avec barre d'accent verticale,
+    // chaque entree "Zone | Heure : Titre" (jamais le site source).
+    bulletinSection(text) {
+      b.ensure(30);
+      const t = _pdfSafe(text);
+      b.page.drawText(t, {x:M, y:b.y, size:12, font:fontBold, color:NAVY});
+      b.y -= 6;
+      b.page.drawLine({start:{x:M,y:b.y},end:{x:W-M,y:b.y},thickness:1,color:NAVY});
+      b.y -= 16;
+    },
+    pointsCles(items) {
+      const pad = 12, size = 9.5;
+      const wrappedItems = items.map(it => b.wrap((it.zone||'—')+' | '+(it.heure||'—')+' : '+it.titre, size, fontReg, W-M*2-pad-16));
+      const totalLines = wrappedItems.reduce((s,l)=>s+l.length,0) || 1;
+      const h = totalLines*(size+5) + pad*2;
+      b.ensure(h+14);
+      const topY = b.y;
+      b.page.drawRectangle({x:M, y:topY-h, width:3, height:h, color:BLUE});
+      let cy = topY - pad;
+      wrappedItems.forEach(lines => {
+        lines.forEach((line,i) => {
+          b.page.drawText((i===0?'•  ':'    ')+line, {x:M+pad, y:cy, size, font:fontReg, color:INK});
+          cy -= size+5;
+        });
+      });
+      b.y = topY - h - 14;
+    },
+    // "Evenements des dernieres N heures" — liste chronologique. Metadonnee
+    // = date/heure + pays + niveau, JAMAIS le site/media source (demande
+    // explicite : rapports sans reference aux sites sources).
+    evenementsListe(items) {
+      items.forEach(it => {
+        b.ensure(34);
+        const meta = '['+it.dateStr+']  '+(it.pays.flag||'')+' '+it.pays.name+'  ·  '+it.niveauTxt;
+        b.page.drawText(_pdfSafe(meta), {x:M, y:b.y, size:9, font:fontBold, color:NAVY});
+        b.y -= 13;
+        b.wrap(it.titre, 9.5, fontReg, W-M*2).forEach(line => {
+          b.ensure(14);
+          b.page.drawText(line, {x:M, y:b.y, size:9.5, font:fontReg, color:INK});
+          b.y -= 13;
+        });
+        b.y -= 4;
+        b.page.drawLine({start:{x:M,y:b.y+4},end:{x:W-M,y:b.y+4},thickness:0.5,color:LINE});
+        b.y -= 10;
+      });
+    },
+    // "Analyse par zone" — groupes (ex. Afrique / International), titres seuls
+    // (sans date ni source), sur le modele de la section reference.
+    analyseParZone(groupes) {
+      groupes.forEach(g => {
+        if (!g.items.length) return;
+        b.sub(g.label.toUpperCase(), NAVY);
+        g.items.forEach(titre => b.bullet(titre));
+        b.y -= 6;
+      });
     },
     heading(text) {
       b.ensure(50);
@@ -10158,7 +10246,12 @@ async function exportPDF(type) {
     const nbSrcsSocialesPDF = SRCS.length - nbSrcsMediaPDF;
     b.footerPerimetre = perimetre;
     b.footerDate = new Date().toLocaleDateString('fr-FR');
-    b.titlePage(titre, SRCS.length+' sources ('+nbSrcsMediaPDF+' médias + '+nbSrcsSocialesPDF+' réseaux sociaux) · Filtre anti-hallucination < 12h', perimetre, dateStr);
+
+    // En-tête façon "Bulletin de veille" — logo radar, date/heure de
+    // génération, créneau — utilisée pour tous les types de rapport PDF.
+    const now = new Date();
+    const dateGenStr = now.toLocaleDateString('fr-FR') + ' ' + now.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+    const creneauStr = now.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
 
     if (type === 'synthese') {
       const arts = getExportData();
@@ -10166,31 +10259,32 @@ async function exportPDF(type) {
       // du PDF (page par page, synchrone) — aucune actu dans une autre langue
       // que FR (ou EN) ne doit apparaitre dans le document exporte.
       await preTraduireRapport(arts.flatMap(a => [a.title, a.analysis]));
-      b.heading('SYNTHÈSE ANALYTIQUE — ' + perimetre);
-      const nbCritS = arts.filter(a=>a.level==='crit').length;
-      const nbHighS = arts.filter(a=>a.level==='high').length;
-      const nbPaysS = new Set(arts.map(a=>a.cy)).size;
-      b.box(LANG==='en'?'KEY FIGURES':'CHIFFRES CLÉS', [
-        LANG==='en' ? arts.length+' articles analyzed over the last 12 hours.' : arts.length+' articles analysés sur les dernières 12 heures.',
-        LANG==='en' ? nbCritS+' critical alerts, '+nbHighS+' high-level, across '+nbPaysS+' countries.' : nbCritS+' alertes critiques, '+nbHighS+' élevées, réparties sur '+nbPaysS+' pays.',
-      ]);
-      b.divider();
-      const CATS = ['securite','humanitaire','politique','economique'];
-      CATS.forEach(cat => {
-        const liste = arts.filter(a=>a.cat===cat).sort((x,y)=>(y.pubDate||0)-(x.pubDate||0)).slice(0,6);
-        if (!liste.length) return;
-        b.sub(catFr(cat).toUpperCase()+' ('+liste.length+')');
-        liste.forEach(a => {
-          const pays = infoPays(a.cy);
-          b.para(pays.flag+' '+pays.name+' — '+lvlFr(a.level)+' — '+(a.time||''), {size:8.5, color:rgb(0.42,0.46,0.5)});
-          const survS = fmtSurvenance(a);
-          b.para('Survenance : '+survS.texte+(survS.inconnue?' — à vérifier':(survS.ancien?' — plus de 12h':'')), {size:8, color: survS.inconnue?rgb(0.71,0.32,0.04):(survS.ancien?rgb(0.86,0.15,0.15):rgb(0.42,0.46,0.5))});
-          b.para(L(a.title)||'', {bold:true, size:10.5});
-          if (a.analysis) b.para(L(a.analysis), {size:9});
-          b.y -= 4;
-        });
-        b.divider();
+      const nbSrcActifs = new Set(arts.map(a=>a.primary)).size;
+      b.bulletinHeader(titre+' — '+creneauStr, dateGenStr, creneauStr,
+        (LANG==='en'
+          ? 'Impact summary on the regional security situation and disruption to state activities. Analysis of '+nbSrcActifs+' consolidated feeds.'
+          : "Synthèse d'impact sur la situation sécuritaire régionale et la perturbation des activités étatiques. Analyse de "+nbSrcActifs+' flux consolidés.'));
+
+      const rangOrdreS = {crit:0, high:1, mod:2, ok:3};
+      const cmpS = (x,y) => { const r=(rangOrdreS[x.level]??3)-(rangOrdreS[y.level]??3); if (r!==0) return r; return (y.pubDate||0)-(x.pubDate||0); };
+
+      b.bulletinSection(LANG==='en'?'Key Strategic Points':'Points Clés Stratégiques');
+      const cles = arts.slice().sort(cmpS).slice(0, 8).map(a => {
+        const pays = infoPays(a.cy);
+        const heure = a.pubDate ? new Date(a.pubDate).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}) : (LANG==='en'?'Unknown':'Inconnu');
+        return { zone: pays.name, heure, titre: L(a.title) };
       });
+      if (cles.length) b.pointsCles(cles);
+      else b.empty(LANG==='en'?'No article available for this scope over the period.':'Aucun article disponible pour ce périmètre sur la période.');
+
+      b.bulletinSection(LANG==='en'?'Analysis by Zone':'Analyse par Zone');
+      const afriqueTitres = arts.filter(a=>a.cy!=='INT').slice().sort(cmpS).slice(0,8).map(a=>L(a.title));
+      const intlTitres = arts.filter(a=>a.cy==='INT').slice().sort(cmpS).slice(0,8).map(a=>L(a.title));
+      b.analyseParZone([
+        {label: LANG==='en'?'Africa':'Afrique', items: afriqueTitres},
+        {label: LANG==='en'?'International':'International', items: intlTitres},
+      ]);
+      if (!afriqueTitres.length && !intlTitres.length) b.empty(LANG==='en'?'No article available for this scope over the period.':'Aucun article disponible pour ce périmètre sur la période.');
 
       const socialArts = arts.filter(a=>a._isSocial);
       if (socialArts.length) {
@@ -10202,6 +10296,7 @@ async function exportPDF(type) {
         const postsPDF = getPostsPrioritaires(socialArts, 6);
         await preTraduireRapport(postsPDF.map(p => p.resume));
 
+        b.bulletinSection(LANG==='en'?'Social Networks':'Réseaux Sociaux');
         b.sub('BUZZ — Volume & activité', TI_BLUE);
         b.para(socialArts.length+' publications — '+posP+' positives, '+negP+' négatives, '+(socialArts.length-posP-negP)+' neutres.', {size:9});
         if (chainesP.length) b.para('Chaînes actives : '+chainesP.map(c=>c.nom+' ('+c.n+')').join(' · '), {size:8.5, color:rgb(0.42,0.46,0.5)});
@@ -10216,14 +10311,13 @@ async function exportPDF(type) {
           postsPDF.forEach(p => {
             b.para(L(p.pays.name)+' — '+p.sujets.map(s=>s.label).join(', '), {bold:true, size:10});
             b.para(L(p.resume), {size:9});
-            b.para('Source : '+p.source+' · '+p.date+' · Sentiment : '+p.sentiment+' · Criticité : '+p.criticite+' · Fiabilité : '+p.fiabilite, {size:8, color:rgb(0.42,0.46,0.5)});
+            b.para(p.date+' · Sentiment : '+p.sentiment+' · Criticité : '+p.criticite+' · Fiabilité : '+p.fiabilite, {size:8, color:rgb(0.42,0.46,0.5)});
             b.para('Action recommandée : '+p.action, {size:8.5});
             b.y -= 3;
           });
         } else {
           b.para('Aucune publication à sujet prioritaire détectée sur la période.', {size:9, color:rgb(0.42,0.46,0.5)});
         }
-        b.divider();
       }
 
       // ── Corrélations entre pays — memes signaux que le module Correlations
@@ -10231,8 +10325,8 @@ async function exportPDF(type) {
       // plus de la lecture pays par pays ci-dessus.
       if (typeof _corrBuildSignaux === 'function') {
         const signauxP = _corrBuildSignaux(arts);
-        b.sub('CORRÉLATIONS ENTRE PAYS — Signaux régionaux', rgb(0.294,0.333,0.388));
         if (signauxP.length) {
+          b.bulletinSection(LANG==='en'?'Cross-Country Correlations':'Corrélations Entre Pays');
           b.box('CONSTATATIONS', [signauxP.length+' thème'+(signauxP.length>1?'s':'')+' détecté'+(signauxP.length>1?'s':'')+' simultanément dans au moins 2 pays sur la période <12h.']);
           signauxP.slice(0,10).forEach(s => {
             const paysNomsP = s.pays.map(cy => (PAYS_INFO[cy]||{}).name || cy).join(', ');
@@ -10240,38 +10334,32 @@ async function exportPDF(type) {
             b.para(s.articles.length+' article'+(s.articles.length>1?'s':'')+' concordant'+(s.articles.length>1?'s':'')+' : '+s.articles.slice(0,4).map(a=>L(a.title)).join(' · '), {size:8, color:rgb(0.42,0.46,0.5)});
             b.y -= 3;
           });
-        } else {
-          b.para('Aucun thème commun détecté entre plusieurs pays sur la période.', {size:9, color:rgb(0.42,0.46,0.5)});
         }
-        b.divider();
       }
-
-      if (!arts.length) b.empty('Aucun article disponible pour ce périmètre sur la période.');
     }
 
     else if (type === 'flux') {
       const arts = getExportData();
       await preTraduireRapport(arts.map(a => a.title));
-      b.heading('FLUX OPÉRATIONNEL — ' + perimetre);
-      b.para(arts.length+' articles (< 12h), triés du plus récent au plus ancien.', {color:rgb(0.42,0.46,0.5)});
-      b.divider();
-      arts.slice().sort((x,y)=>(y.pubDate||0)-(x.pubDate||0)).forEach(a=>{
-        const pays = infoPays(a.cy);
-        const geo = (typeof detectGeo==='function') ? detectGeo(a.cy, a.title+' '+(a.analysis||'')) : {};
-        const villeTxt = geo.ville ? (' — '+geo.ville+(geo.estime?' (estimé)':'')) : '';
-        b.para('['+lvlFr(a.level)+']  '+pays.flag+' '+pays.name+villeTxt+'  ·  '+catFr(a.cat)+'  ·  '+(a.time||''), {size:8.5, color:rgb(0.42,0.46,0.5)});
-        const survF = fmtSurvenance(a);
-        b.para('Survenance : '+survF.texte+(survF.inconnue?' — à vérifier':(survF.ancien?' — plus de 12h':'')), {size:8, color: survF.inconnue?rgb(0.71,0.32,0.04):(survF.ancien?rgb(0.86,0.15,0.15):rgb(0.42,0.46,0.5))});
-        b.para(L(a.title)||'', {bold:true, size:10});
-        b.para('Source : '+srcName(a.primary)+' · Fiabilité '+(a.score||'')+'%', {size:8.5, color:rgb(0.42,0.46,0.5)});
-        b.y -= 6;
-      });
-      if (!arts.length) b.empty('Aucun article disponible pour ce périmètre sur la période.');
+      const nbSrcActifsF = new Set(arts.map(a=>a.primary)).size;
+      b.bulletinHeader(titre+' — '+creneauStr, dateGenStr, creneauStr,
+        (LANG==='en'
+          ? arts.length+' events collected over the last 12 hours, across '+nbSrcActifsF+' consolidated feeds.'
+          : arts.length+' événements collectés sur les 12 dernières heures, à partir de '+nbSrcActifsF+' flux consolidés.'));
+      b.bulletinSection(LANG==='en'?'Events of the Last 12 Hours':'Événements des Dernières 12 Heures');
+      const evts = arts.slice().sort((x,y)=>(y.pubDate||0)-(x.pubDate||0)).map(a => ({
+        dateStr: a.pubDate ? new Date(a.pubDate).toLocaleDateString('fr-FR')+' '+new Date(a.pubDate).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}) : (LANG==='en'?'Unknown':'Inconnu'),
+        pays: infoPays(a.cy), niveauTxt: lvlFr(a.level).toUpperCase(), titre: L(a.title)||'',
+      }));
+      if (evts.length) b.evenementsListe(evts);
+      else b.empty(LANG==='en'?'No article available for this scope over the period.':'Aucun article disponible pour ce périmètre sur la période.');
     }
 
     else if (type === 'agenda') {
       const agenda = (typeof getExportAgenda === 'function') ? getExportAgenda() : [];
       await preTraduireRapport(agenda.flatMap(e => [e.title, e.desc, e.reco]));
+      b.bulletinHeader(titre+' — '+creneauStr, dateGenStr, creneauStr,
+        (LANG==='en' ? agenda.length+' ongoing or upcoming events.' : agenda.length+' événement'+(agenda.length>1?'s':'')+' en cours ou à venir.'));
       b.heading('AGENDA SÛRETÉ — ' + perimetre);
       b.para(agenda.length+' événement'+(agenda.length>1?'s':'')+' en cours ou à venir.', {color:rgb(0.42,0.46,0.5)});
       b.divider();
@@ -10300,6 +10388,7 @@ async function exportPDF(type) {
       Object.values(MESURES).forEach(m=>{ textesATraduire.push(m.expatries[0], m.installations[0]); });
       await preTraduireRapport(textesATraduire);
 
+      b.bulletinHeader(titre+' — '+creneauStr, dateGenStr, creneauStr, rl('pays_perimetre')(scores.length));
       b.heading(rl('alertes_titre') + ' — ' + perimetre);
       b.para(rl('pays_perimetre')(scores.length), {color:rgb(0.42,0.46,0.5)});
       b.box(LANG==='en'?'READING GUIDE':'GUIDE DE LECTURE', [
@@ -10436,12 +10525,19 @@ async function exportWord(type){
 
     const children=[];
 
-    // ── Page de titre ──────────────────────────────────────────────
-    children.push(new Paragraph({spacing:{before:400}}));
+    // ── En-tête "Bulletin de veille" — logo radar + titre + date/heure de
+    // génération + créneau, sur le modèle des bulletins de veille stratégique.
+    children.push(new Paragraph({spacing:{before:300}}));
+    children.push(new Paragraph({
+      alignment:AlignmentType.CENTER,
+      children:[new TextRun({text:'🎯',size:44})],
+      spacing:{after:80}
+    }));
     children.push(new Paragraph({
       alignment:AlignmentType.CENTER,
       children:[new TextRun({text:'SENTINEL SÛRETÉ',bold:true,size:56,color:'0D1B2A'})],
-      spacing:{after:160}
+      spacing:{after:160},
+      border:{bottom:{style:BorderStyle.SINGLE,size:10,color:'0D1B2A',space:8}},
     }));
     children.push(new Paragraph({
       alignment:AlignmentType.CENTER,
@@ -10450,7 +10546,12 @@ async function exportWord(type){
     }));
     children.push(new Paragraph({
       alignment:AlignmentType.CENTER,
-      children:[new TextRun({text:libellePerimetreRapport()+' — '+dateStr+' UTC',size:22,color:'6B7280',italic:true})],
+      children:[new TextRun({text:'Généré le : '+dateStr+'  |  Créneau : '+now.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}),size:20,color:'6B7280'})],
+      spacing:{after:80}
+    }));
+    children.push(new Paragraph({
+      alignment:AlignmentType.CENTER,
+      children:[new TextRun({text:libellePerimetreRapport(),size:22,color:'6B7280',italic:true})],
       spacing:{after:120}
     }));
     children.push(new Paragraph({
@@ -10514,7 +10615,7 @@ async function exportWord(type){
             spacing:{after:40}
           }));
           children.push(new Paragraph({
-            children:[new TextRun({text:'Source : '+srcName(a.primary)+villeTxtW+' — '+a.time,size:18,italic:true,color:'9CA3AF'})],
+            children:[new TextRun({text:(infoPays(a.cy).flag||'')+' '+infoPays(a.cy).name+villeTxtW+' — '+a.time,size:18,italic:true,color:'9CA3AF'})],
             spacing:{after:120}
           }));
         }
@@ -10633,7 +10734,7 @@ async function exportWord(type){
             spacing:{after:40}
           }));
           children.push(new Paragraph({
-            children:[new TextRun({text:'📍 '+a.cy+' · '+catFr(a.cat)+' · '+srcName(a.primary)+' · '+a.time,size:18,italic:true,color:'9CA3AF'})],
+            children:[new TextRun({text:'📍 '+a.cy+' · '+catFr(a.cat)+' · '+a.time,size:18,italic:true,color:'9CA3AF'})],
             spacing:{after:80}
           }));
         }
