@@ -3209,19 +3209,12 @@ function detectLangue(texte) {
 
 // tr(texte, elId) : renvoie le texte tel quel si sa langue detectee correspond
 // deja a la langue active (LANG), sinon lance une traduction en tache de fond
-// (mise en cache) et patche le DOM (element elId) une fois recue — meme
-// principe que la version precedente, generalise a toute langue source
-// (fr/en/pt/ar) vers la langue active (fr ou en), et non plus seulement fr→en.
-// LANGUES_SCRIPT_ILLISIBLE : langues dont le script n'est pas lisible par
-// l'equipe FR/EN de la plateforme (arabe). Pour ces langues, le texte
-// source n'est JAMAIS affiche brut — ni pendant l'attente de traduction,
-// ni en cas d'echec de l'API — un texte-relais (placeholder) est affiche
-// a la place, remplace par la vraie traduction des qu'elle aboutit.
-// Pour fr/en/pt (script latin, au moins partiellement lisible/skimmable
-// par l'equipe), le texte original reste affiche le temps de la traduction :
-// moins perturbant, et jamais illisible.
-const LANGUES_SCRIPT_ILLISIBLE = new Set(['ar']);
-
+// (mise en cache) et patche le DOM (element elId) une fois recue.
+// Regle stricte : si FR est actif, seul le francais est affiche ; si EN est
+// actif, seul l'anglais est affiche — jamais de texte source dans une autre
+// langue (arabe ou non), ni pendant l'attente de traduction, ni en cas
+// d'echec de l'API. Un texte-relais (placeholder) est affiche a la place,
+// remplace par la vraie traduction des qu'elle aboutit.
 function _trNomLangue(l) {
   const noms = LANG === 'en'
     ? {ar:'Arabic', pt:'Portuguese', en:'English', fr:'French'}
@@ -3241,27 +3234,26 @@ function tr(texte, elId, transform) {
   if (!texte) return texte;
   const srcLang = detectLangue(texte);
   if (srcLang === LANG) return texte; // deja dans la langue active : rien a faire
-  const illisible = LANGUES_SCRIPT_ILLISIBLE.has(srcLang);
   const cacheKey = LANG + ':' + texte;
   if (TR_CACHE[cacheKey] !== undefined) {
     const cached = TR_CACHE[cacheKey];
     // cached === texte : trFetch a echoue et est retombe sur le texte source
-    // inchange — pour un script illisible, ne jamais l'afficher tel quel.
-    const val = (illisible && cached === texte) ? _trPlaceholderIndispo(srcLang) : cached;
+    // inchange — ne jamais l'afficher tel quel, quelle que soit la langue source.
+    const val = (cached === texte) ? _trPlaceholderIndispo(srcLang) : cached;
     return transform ? transform(val) : val;
   }
   trFetch(texte, srcLang, LANG).then(out => {
     if (detectLangue(texte) === LANG) return; // LANG a change entre-temps
     const el = elId ? document.getElementById(elId) : null;
     if (!el) return;
-    const val = (illisible && out === texte) ? _trPlaceholderIndispo(srcLang) : out;
+    const val = (out === texte) ? _trPlaceholderIndispo(srcLang) : out;
     // transform(val) : ex. re-appliquer extraitLoyal() apres traduction, pour
     // que le texte injecte dans le DOM respecte la meme limite de longueur
     // (usage loyal) que le texte original tronque affiche avant traduction.
     el.textContent = transform ? transform(val) : val;
   });
-  const placeholder = illisible ? _trPlaceholderEnCours() : texte;
-  return transform ? transform(placeholder) : placeholder; // jamais de script illisible affiche, meme brievement
+  const placeholder = _trPlaceholderEnCours();
+  return transform ? transform(placeholder) : placeholder; // jamais de texte source affiche, meme brievement
 }
 
 // trFetch(texte, srcLang, tgtLang) : traduction via MyMemory (API publique,
@@ -3324,21 +3316,19 @@ async function preTraduireRapport(textes) {
   const uniques = [...new Set(textes.filter(Boolean))].filter(t => detectLangue(t) !== LANG);
   await Promise.all(uniques.map(txt => trFetch(txt, detectLangue(txt), LANG)));
 }
-// L(texte) : version synchrone de tr(), pour les rapports. Renvoie la
-// traduction en cache si elle est déjà disponible (via preTraduireRapport),
-// sinon le texte d'origine (jamais de trou dans le document).
+// L(texte) : version synchrone de tr(), pour les rapports (Word/PDF/PPTX/
+// Excel/CSV). Renvoie la traduction en cache si elle est déjà disponible
+// (via preTraduireRapport(), à appeler avant de construire le document),
+// sinon un texte-relais — jamais le texte source dans une autre langue que
+// celle active (FR ou EN), quelle que soit sa langue d'origine.
 function L(texte) {
   if (!texte) return texte;
   const srcLang = detectLangue(texte);
   if (srcLang === LANG) return texte;
   const cacheKey = LANG + ':' + texte;
   const cached = TR_CACHE[cacheKey];
-  if (cached === undefined) {
-    // Traduction pas encore disponible (preTraduireRapport() pas appelee ou
-    // encore en cours) : jamais de script illisible dans un document exporte.
-    return LANGUES_SCRIPT_ILLISIBLE.has(srcLang) ? _trPlaceholderEnCours() : texte;
-  }
-  if (cached === texte && LANGUES_SCRIPT_ILLISIBLE.has(srcLang)) return _trPlaceholderIndispo(srcLang);
+  if (cached === undefined) return _trPlaceholderEnCours(); // preTraduireRapport() pas encore passee sur ce texte
+  if (cached === texte) return _trPlaceholderIndispo(srcLang);
   return cached;
 }
 
@@ -5953,12 +5943,26 @@ function majFlashInfo(force) {
 
   const cc = cy => (CYS.find(x => x.code === cy) || {flag:'🌐', name:'International'});
 
+  // shown : jamais le texte source si sa langue detectee differe de LANG —
+  // placeholder pendant la traduction (ou en cas d'echec), meme regle que
+  // tr()/L() ailleurs dans l'application. Logique reprise en ligne (plutot
+  // que d'appeler tr()) car un titre apparait ici en DEUX exemplaires
+  // dupliques (boucle de defilement), identifies par data-tt et non par un
+  // id DOM unique — le patch une-seule-fois de tr() ne convient pas.
   const unItem = a => {
     const c = cc(a.cy);
     const col = TT_NIV_COL[a.level] || '#4B5563';
     const lb = TT_NIV_LB[a.level] || 'INFO';
     const ttKey = 'tt-'+a.id;
-    const shown = (LANG === 'en' && TR_CACHE[a.title] !== undefined) ? TR_CACHE[a.title] : a.title;
+    const srcLang = detectLangue(a.title);
+    let shown;
+    if (srcLang === LANG) {
+      shown = a.title;
+    } else {
+      const cached = TR_CACHE[LANG+':'+a.title];
+      shown = (cached === undefined) ? _trPlaceholderEnCours()
+            : (cached === a.title) ? _trPlaceholderIndispo(srcLang) : cached;
+    }
     const d = a.pubDate ? new Date(a.pubDate) : null;
     const dateTxt = d ? d.toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'}) : '—';
     const heureTxt = d ? d.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}) : '—';
@@ -5975,17 +5979,19 @@ function majFlashInfo(force) {
   // Duplication du contenu pour un defilement en boucle continue sans coupure visible
   piste.innerHTML = htmlUneFois + htmlUneFois;
 
-  // Traduction asynchrone : chaque titre pas encore en cache est traduit une
-  // fois, puis patche sur ses DEUX occurrences (boucle de defilement dupliquee).
-  if (LANG === 'en') {
-    items.forEach(a => {
-      if (TR_CACHE[a.title] !== undefined) return;
-      trFetch(a.title).then(out => {
-        if (LANG !== 'en') return;
-        document.querySelectorAll('[data-tt="tt-'+a.id+'"]').forEach(el => { el.textContent = out; });
-      });
+  // Traduction asynchrone : chaque titre dont la langue source differe de
+  // LANG est traduit une fois, puis patche sur ses DEUX occurrences (boucle
+  // de defilement dupliquee). Jamais de texte source affiche entre-temps
+  // (placeholder deja pose par unItem ci-dessus).
+  items.forEach(a => {
+    const srcLang = detectLangue(a.title);
+    if (srcLang === LANG || TR_CACHE[LANG+':'+a.title] !== undefined) return;
+    trFetch(a.title, srcLang, LANG).then(out => {
+      if (detectLangue(a.title) === LANG) return; // LANG a change entre-temps
+      const val = (out === a.title) ? _trPlaceholderIndispo(srcLang) : out;
+      document.querySelectorAll('[data-tt="tt-'+a.id+'"]').forEach(el => { el.textContent = val; });
     });
-  }
+  });
 
   // Vitesse proportionnelle a la longueur du contenu pour garder un rythme de lecture constant
   requestAnimationFrame(() => {
@@ -9578,7 +9584,7 @@ function updateDLCounts(){
 // ════════════════════════════════════════════════════════════════════
 //  EXPORT EXCEL via SheetJS (XLSX)
 // ════════════════════════════════════════════════════════════════════
-function exportExcel(type){
+async function exportExcel(type){
   if(typeof XLSX==='undefined'){
     alert('SheetJS non chargé. Vérifiez votre connexion internet.'); return;
   }
@@ -9588,13 +9594,16 @@ function exportExcel(type){
 
     if(type==='flux'||type==='rapport_complet'){
       const arts=getExportData();
+      // Traduction vers la langue active avant construction du classeur —
+      // aucune actu dans une autre langue que FR (ou EN) ne doit apparaitre.
+      await preTraduireRapport(arts.flatMap(a=>[a.title,a.analysis]));
       const header=['Niveau','Pays','Ville','Portée','Titre','Analyse opérationnelle','Catégorie','Fiabilité (%)','Source','Lien','Publié il y a'];
       const rows=arts.map(a=>{
         const geo=detectGeo(a.cy, a.title+' '+(a.analysis||''));
         const villeTxt=geo.ville?(geo.ville+(geo.estime?' (estimé)':'')):'';
         return [
           lvlFr(a.level), a.cy||'', villeTxt, a.sc||'',
-          a.title, a.analysis||'',
+          L(a.title), L(a.analysis)||'',
           catFr(a.cat), a.score||'',
           srcName(a.primary), a.url||'',
           a.time||''
@@ -9615,7 +9624,9 @@ function exportExcel(type){
     if(type==='agenda'||type==='rapport_complet'){
       const header2=['Date','Statut','Événement','Description','Zone','Impact','Recommandation'];
       const SL={'en-cours':'EN COURS','urgent':'URGENT','planifie':'PLANIFIÉ','surveillance':'SURVEILLANCE'};
-      const rows2=getExportAgenda().map(e=>[e.day+' '+e.month, SL[e.status]||e.status, e.title, e.desc, e.cy, e.impact.toUpperCase(), e.reco||'']);
+      const agendaX=getExportAgenda();
+      await preTraduireRapport(agendaX.flatMap(e=>[e.title,e.desc,e.reco]));
+      const rows2=agendaX.map(e=>[e.day+' '+e.month, SL[e.status]||e.status, L(e.title), L(e.desc), e.cy, e.impact.toUpperCase(), L(e.reco)||'']);
       const ws2=XLSX.utils.aoa_to_sheet([header2,...rows2]);
       ws2['!cols']=[{wch:8},{wch:14},{wch:40},{wch:65},{wch:20},{wch:9},{wch:55}];
       XLSX.utils.book_append_sheet(wb, ws2, 'Agenda sûreté');
@@ -9649,10 +9660,13 @@ function exportExcel(type){
 // ════════════════════════════════════════════════════════════════════
 //  EXPORT CSV (fallback universel sans lib)
 // ════════════════════════════════════════════════════════════════════
-function exportCSV(type){
+async function exportCSV(type){
   const btn=event?.target;btnSpin(btn);
   try{
     const arts=getExportData();
+    // Traduction vers la langue active avant construction du CSV — aucune
+    // actu dans une autre langue que FR (ou EN) ne doit apparaitre.
+    await preTraduireRapport(arts.flatMap(a=>[a.title,a.analysis]));
     const esc=v=>('"'+(String(v||'').replace(/"/g,'""'))+'"');
     const lines=[
       ['Niveau','Pays','Ville','Portée','Titre','Analyse','Catégorie','Fiabilité','Source','Lien','Age'].map(esc).join(','),
@@ -9660,7 +9674,7 @@ function exportCSV(type){
         const geo=detectGeo(a.cy, a.title+' '+(a.analysis||''));
         const villeTxt=geo.ville?(geo.ville+(geo.estime?' (estimé)':'')):'';
         return [
-          lvlFr(a.level),a.cy,villeTxt,a.sc,a.title,a.analysis||'',
+          lvlFr(a.level),a.cy,villeTxt,a.sc,L(a.title),L(a.analysis)||'',
           catFr(a.cat),a.score,srcName(a.primary),a.url,a.time
         ].map(esc).join(',');
       })
@@ -9789,6 +9803,14 @@ async function exportPPTX(type) {
     const incSocial = (type==='rapport_complet' || type==='synthese') && postsPPTX.length;
     const incAgenda = (type==='rapport_complet' || type==='agenda') && agenda.length;
 
+    // Traduction vers la langue active avant construction des diapositives —
+    // aucune actu dans une autre langue que FR (ou EN) ne doit apparaitre.
+    await preTraduireRapport([
+      ...marquants.map(a=>a.title),
+      ...postsPPTX.map(p=>p.resume),
+      ...agenda.map(e=>e.title),
+    ]);
+
     // ── Slide 2 — Sommaire ──────────────────────────────────────────────
     s = newSlide('FFFFFF');
     s.addText('Sommaire', {x:0.6,y:0.5,w:8,h:0.7,fontSize:28,bold:true,color:INK,fontFace:'Cambria'});
@@ -9903,7 +9925,7 @@ async function exportPPTX(type) {
         const col = LVL_COL[a.level] || '9CA3AF';
         circle(s, 0.6, y+0.06, 0.16, col);
         s.addText((pays.flag||'')+' '+pays.name+'  ·  '+(a.time||''), {x:0.95,y:y-0.08,w:11.6,h:0.3,fontSize:10,color:MUTED,fontFace:'Calibri'});
-        s.addText(a.title||'', {x:0.95,y:y+0.18,w:11.6,h:0.55,fontSize:13,bold:true,color:INK,fontFace:'Calibri'});
+        s.addText(L(a.title)||'', {x:0.95,y:y+0.18,w:11.6,h:0.55,fontSize:13,bold:true,color:INK,fontFace:'Calibri'});
       });
     }
 
@@ -9915,8 +9937,8 @@ async function exportPPTX(type) {
         const y = 1.55 + i*1.08;
         const sentCol = p.sentiment==='positif'?GREEN:p.sentiment==='negatif'?RED:'9CA3AF';
         circle(s, 0.6, y+0.08, 0.16, sentCol);
-        s.addText(p.pays.flag+' '+p.pays.name+'  ·  '+p.sujets.map(x=>x.label).join(', ')+'  ·  '+p.date, {x:0.95,y:y-0.05,w:11.6,h:0.3,fontSize:10,bold:true,color:BLUE,fontFace:'Calibri'});
-        s.addText(p.resume, {x:0.95,y:y+0.22,w:11.6,h:0.5,fontSize:10.5,color:INK,fontFace:'Calibri'});
+        s.addText(p.pays.flag+' '+L(p.pays.name)+'  ·  '+p.sujets.map(x=>x.label).join(', ')+'  ·  '+p.date, {x:0.95,y:y-0.05,w:11.6,h:0.3,fontSize:10,bold:true,color:BLUE,fontFace:'Calibri'});
+        s.addText(L(p.resume), {x:0.95,y:y+0.22,w:11.6,h:0.5,fontSize:10.5,color:INK,fontFace:'Calibri'});
         s.addText('Source : '+p.source+' · Fiabilité : '+p.fiabilite, {x:0.95,y:y+0.68,w:11.6,h:0.25,fontSize:8,italic:true,color:MUTED,fontFace:'Calibri'});
       });
     }
@@ -9929,7 +9951,7 @@ async function exportPPTX(type) {
         const col = i % 2 === 0 ? BLUE : NAVY2;
         const y = 1.6 + i*0.68;
         s.addText((e.day||'')+' '+(e.month||''), {x:0.6,y:y,w:1.3,h:0.5,fontSize:12,bold:true,color:col,fontFace:'Calibri'});
-        s.addText(e.title||'', {x:2.05,y:y,w:10.6,h:0.5,fontSize:12,color:INK,fontFace:'Calibri'});
+        s.addText(L(e.title)||'', {x:2.05,y:y,w:10.6,h:0.5,fontSize:12,color:INK,fontFace:'Calibri'});
       });
     }
 
@@ -10132,6 +10154,10 @@ async function exportPDF(type) {
 
     if (type === 'synthese') {
       const arts = getExportData();
+      // Traduction des titres/analyses vers la langue active avant construction
+      // du PDF (page par page, synchrone) — aucune actu dans une autre langue
+      // que FR (ou EN) ne doit apparaitre dans le document exporte.
+      await preTraduireRapport(arts.flatMap(a => [a.title, a.analysis]));
       b.heading('SYNTHÈSE ANALYTIQUE — ' + perimetre);
       const nbCritS = arts.filter(a=>a.level==='crit').length;
       const nbHighS = arts.filter(a=>a.level==='high').length;
@@ -10151,8 +10177,8 @@ async function exportPDF(type) {
           b.para(pays.flag+' '+pays.name+' — '+lvlFr(a.level)+' — '+(a.time||''), {size:8.5, color:rgb(0.42,0.46,0.5)});
           const survS = fmtSurvenance(a);
           b.para('Survenance : '+survS.texte+(survS.inconnue?' — à vérifier':(survS.ancien?' — plus de 12h':'')), {size:8, color: survS.inconnue?rgb(0.71,0.32,0.04):(survS.ancien?rgb(0.86,0.15,0.15):rgb(0.42,0.46,0.5))});
-          b.para(a.title||'', {bold:true, size:10.5});
-          if (a.analysis) b.para(a.analysis, {size:9});
+          b.para(L(a.title)||'', {bold:true, size:10.5});
+          if (a.analysis) b.para(L(a.analysis), {size:9});
           b.y -= 4;
         });
         b.divider();
@@ -10166,6 +10192,7 @@ async function exportPDF(type) {
         const termesP = extractTopTermes(socialArts,5);
         const chainesP = getChainesActives(socialArts,5);
         const postsPDF = getPostsPrioritaires(socialArts, 6);
+        await preTraduireRapport(postsPDF.map(p => p.resume));
 
         b.sub('BUZZ — Volume & activité', TI_BLUE);
         b.para(socialArts.length+' publications — '+posP+' positives, '+negP+' négatives, '+(socialArts.length-posP-negP)+' neutres.', {size:9});
@@ -10179,8 +10206,8 @@ async function exportPDF(type) {
         b.sub('RISQUE — Alertes & menaces', rgb(0.545,0.102,0.102));
         if (postsPDF.length) {
           postsPDF.forEach(p => {
-            b.para(p.pays.name+' — '+p.sujets.map(s=>s.label).join(', '), {bold:true, size:10});
-            b.para(p.resume, {size:9});
+            b.para(L(p.pays.name)+' — '+p.sujets.map(s=>s.label).join(', '), {bold:true, size:10});
+            b.para(L(p.resume), {size:9});
             b.para('Source : '+p.source+' · '+p.date+' · Sentiment : '+p.sentiment+' · Criticité : '+p.criticite+' · Fiabilité : '+p.fiabilite, {size:8, color:rgb(0.42,0.46,0.5)});
             b.para('Action recommandée : '+p.action, {size:8.5});
             b.y -= 3;
@@ -10202,7 +10229,7 @@ async function exportPDF(type) {
           signauxP.slice(0,10).forEach(s => {
             const paysNomsP = s.pays.map(cy => (PAYS_INFO[cy]||{}).name || cy).join(', ');
             b.para('#'+s.terme+' — '+s.pays.length+' pays : '+paysNomsP, {bold:true, size:9.5});
-            b.para(s.articles.length+' article'+(s.articles.length>1?'s':'')+' concordant'+(s.articles.length>1?'s':'')+' : '+s.articles.slice(0,4).map(a=>a.title).join(' · '), {size:8, color:rgb(0.42,0.46,0.5)});
+            b.para(s.articles.length+' article'+(s.articles.length>1?'s':'')+' concordant'+(s.articles.length>1?'s':'')+' : '+s.articles.slice(0,4).map(a=>L(a.title)).join(' · '), {size:8, color:rgb(0.42,0.46,0.5)});
             b.y -= 3;
           });
         } else {
@@ -10216,6 +10243,7 @@ async function exportPDF(type) {
 
     else if (type === 'flux') {
       const arts = getExportData();
+      await preTraduireRapport(arts.map(a => a.title));
       b.heading('FLUX OPÉRATIONNEL — ' + perimetre);
       b.para(arts.length+' articles (< 12h), triés du plus récent au plus ancien.', {color:rgb(0.42,0.46,0.5)});
       b.divider();
@@ -10226,7 +10254,7 @@ async function exportPDF(type) {
         b.para('['+lvlFr(a.level)+']  '+pays.flag+' '+pays.name+villeTxt+'  ·  '+catFr(a.cat)+'  ·  '+(a.time||''), {size:8.5, color:rgb(0.42,0.46,0.5)});
         const survF = fmtSurvenance(a);
         b.para('Survenance : '+survF.texte+(survF.inconnue?' — à vérifier':(survF.ancien?' — plus de 12h':'')), {size:8, color: survF.inconnue?rgb(0.71,0.32,0.04):(survF.ancien?rgb(0.86,0.15,0.15):rgb(0.42,0.46,0.5))});
-        b.para(a.title||'', {bold:true, size:10});
+        b.para(L(a.title)||'', {bold:true, size:10});
         b.para('Source : '+srcName(a.primary)+' · Fiabilité '+(a.score||'')+'%', {size:8.5, color:rgb(0.42,0.46,0.5)});
         b.y -= 6;
       });
@@ -10235,15 +10263,16 @@ async function exportPDF(type) {
 
     else if (type === 'agenda') {
       const agenda = (typeof getExportAgenda === 'function') ? getExportAgenda() : [];
+      await preTraduireRapport(agenda.flatMap(e => [e.title, e.desc, e.reco]));
       b.heading('AGENDA SÛRETÉ — ' + perimetre);
       b.para(agenda.length+' événement'+(agenda.length>1?'s':'')+' en cours ou à venir.', {color:rgb(0.42,0.46,0.5)});
       b.divider();
       const SL = {'en-cours':'EN COURS','urgent':'URGENT','planifie':'PLANIFIÉ','surveillance':'SURVEILLANCE'};
       agenda.forEach(e=>{
         b.sub((e.day||'')+' '+(e.month||'')+'  —  '+(SL[e.status]||e.status||'').toUpperCase(), rgb(0.114,0.373,0.659));
-        b.para(e.title||'', {bold:true, size:10.5});
-        if (e.desc) b.para(e.desc, {size:9});
-        if (e.reco) b.para('Recommandation : '+e.reco, {size:8.5, color:rgb(0.42,0.46,0.5)});
+        b.para(L(e.title)||'', {bold:true, size:10.5});
+        if (e.desc) b.para(L(e.desc), {size:9});
+        if (e.reco) b.para('Recommandation : '+L(e.reco), {size:8.5, color:rgb(0.42,0.46,0.5)});
         b.y -= 4;
       });
       if (!agenda.length) b.empty('Aucun événement pour ce périmètre.');
@@ -10319,6 +10348,16 @@ async function exportWord(type){
     const arts=getExportData();
     const now=new Date();
     const dateStr=now.toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'})+' à '+now.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
+
+    // Traduction des titres/analyses/evenements vers la langue active avant
+    // construction du document — aucune actu dans une autre langue que FR
+    // (ou EN) ne doit apparaitre dans le rapport exporte, quel que soit le
+    // type (synthese/flux/agenda/rapport_complet reunit les trois).
+    await preTraduireRapport([
+      ...arts.flatMap(a=>[a.title,a.analysis]),
+      ...getPostsPrioritaires(arts.filter(a=>a._isSocial), 8).map(p=>p.resume),
+      ...getExportAgenda().flatMap(e=>[e.title,e.desc,e.reco]),
+    ]);
 
     // Helpers styles
     const lvlColor={crit:'8B1A1A',high:'7C4A00',mod:'1B5FA8',ok:'0F4F2A'};
@@ -10458,9 +10497,9 @@ async function exportWord(type){
           const villeTxtW=geoW.ville?(' — '+geoW.ville+(geoW.estime?' (estimé)':'')):'';
           children.push(new Paragraph({
             children:[new TextRun({text:'['+lvlFr(a.level)+'] ',bold:true,size:20,color:lvlColor[a.level]||'1B5FA8'}),
-                      new TextRun({text:a.title,bold:true,size:22,color:'111827'})],spacing:{after:60}
+                      new TextRun({text:L(a.title),bold:true,size:22,color:'111827'})],spacing:{after:60}
           }));
-          children.push(para(a.analysis||''));
+          children.push(para(L(a.analysis)||''));
           const survW=fmtSurvenance(a);
           children.push(new Paragraph({
             children:[new TextRun({text:'Survenance : '+survW.texte+(survW.inconnue?' — à vérifier':(survW.ancien?' — plus de 12h':'')),size:17,bold:survW.ancien,color:survW.inconnue?'B45309':(survW.ancien?'DC2626':'9CA3AF')})],
@@ -10511,11 +10550,11 @@ async function exportWord(type){
             const sentCol = p.sentiment==='positif'?'166534':p.sentiment==='negatif'?'B91C1C':'6B7280';
             children.push(new Paragraph({
               children:[
-                new TextRun({text:'▶ '+p.pays.name+' — ', bold:true, size:19, color:'0B1A27'}),
+                new TextRun({text:'▶ '+L(p.pays.name)+' — ', bold:true, size:19, color:'0B1A27'}),
                 new TextRun({text:p.sujets.map(s=>s.label).join(', '), bold:true, size:19, color:'1B5FA8'}),
               ], spacing:{before:100,after:30}
             }));
-            children.push(para(p.resume, {color:'374151'}));
+            children.push(para(L(p.resume), {color:'374151'}));
             children.push(new Paragraph({
               children:[new TextRun({
                 text:'Source : '+p.source+' · '+p.date+'  ·  Sentiment : '+p.sentiment+'  ·  Criticité : '+p.criticite+'  ·  Fiabilité : '+p.fiabilite,
@@ -10551,7 +10590,7 @@ async function exportWord(type){
               spacing:{before:80,after:30}
             }));
             children.push(new Paragraph({
-              children:[new TextRun({text:s.articles.length+' article'+(s.articles.length>1?'s':'')+' concordant'+(s.articles.length>1?'s':'')+' : '+s.articles.slice(0,4).map(a=>a.title).join(' · '), size:17, italic:true, color:'6B7280'})],
+              children:[new TextRun({text:s.articles.length+' article'+(s.articles.length>1?'s':'')+' concordant'+(s.articles.length>1?'s':'')+' : '+s.articles.slice(0,4).map(a=>L(a.title)).join(' · '), size:17, italic:true, color:'6B7280'})],
               spacing:{after:80}
             }));
           }
@@ -10576,10 +10615,10 @@ async function exportWord(type){
             shading:{type:ShadingType.CLEAR,fill:a.level==='crit'?'FEF2F2':'FFFBEB'},
             children:[
               new TextRun({text:'▶ ['+lvlFr(a.level)+'] ',bold:true,size:20,color}),
-              new TextRun({text:a.title,bold:true,size:20,color:'0B1A27'}),
+              new TextRun({text:L(a.title),bold:true,size:20,color:'0B1A27'}),
             ],spacing:{before:80,after:40}
           }));
-          children.push(para(a.analysis||'',{color:'374151'}));
+          children.push(para(L(a.analysis)||'',{color:'374151'}));
           const survH=fmtSurvenance(a);
           children.push(new Paragraph({
             children:[new TextRun({text:'Survenance : '+survH.texte+(survH.inconnue?' — à vérifier':(survH.ancien?' — plus de 12h':'')),size:17,bold:survH.ancien,color:survH.inconnue?'B45309':(survH.ancien?'DC2626':'9CA3AF')})],
@@ -10602,12 +10641,12 @@ async function exportWord(type){
           children:[
             new TextRun({text:e.day+' '+e.month+' — ',bold:true,size:22,color:'1B5FA8'}),
             new TextRun({text:'['+SL[e.status]+'] ',bold:true,size:20,color:e.status==='urgent'?'8B1A1A':e.status==='en-cours'?'0F4F2A':'1B5FA8'}),
-            new TextRun({text:e.title,bold:true,size:22,color:'0B1A27'}),
+            new TextRun({text:L(e.title),bold:true,size:22,color:'0B1A27'}),
           ],spacing:{before:100,after:40}
         }));
-        children.push(para(e.desc||''));
+        children.push(para(L(e.desc)||''));
         if(e.reco) children.push(new Paragraph({
-          children:[new TextRun({text:'▶ '+e.reco,size:20,italic:true,color:'1B5FA8'})],
+          children:[new TextRun({text:'▶ '+L(e.reco),size:20,italic:true,color:'1B5FA8'})],
           spacing:{after:80}
         }));
       }
