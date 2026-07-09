@@ -1,5 +1,4 @@
 <!DOCTYPE html>
-<!-- saved from url=(0073)file:///C:/Users/tchessiehi.yoro/Downloads/SENTINEL_SURETE_v4%20(56).html -->
 <html lang="fr"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 
 <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -1309,7 +1308,7 @@ button:not(:disabled){
 </div>
 
 <!-- ═══ AUTH OVERLAY ═══════════════════════════════════════════════ -->
-<div class="auth-overlay hidden" id="authOverlay">
+<div class="auth-overlay" id="authOverlay">
   <div class="auth-box">
     <div class="auth-logo">
       <div class="auth-logo-ico">
@@ -1462,16 +1461,16 @@ button:not(:disabled){
       <i class="ti ti-stethoscope"></i> <span data-i18n="btn_diagnostic">Diagnostic</span>
     </button>
     <span style="font-size:10px;color:rgba(255,255,255,.35);font-weight:500;white-space:nowrap" id="tbTime">04/07/2026 · 20:15</span>
-    <div class="user-wrap" id="userWrap" style="display:block">
+    <div class="user-wrap" id="userWrap" style="display:none">
       <div class="user-chip" onclick="toggleUserMenu(event)">
         <div class="user-avatar" id="userAvatar">A</div>
         <span class="user-name" id="userNameChip">Admin</span>
       </div>
       <div class="user-menu" id="userMenu">
-        <div class="user-menu-item" onclick="switchView(&#39;params&#39;,document.getElementById(&#39;tabParams&#39;))" id="adminMenuItem" style="display:flex">
+        <div class="user-menu-item" onclick="switchView(&#39;params&#39;,document.getElementById(&#39;tabParams&#39;))" id="adminMenuItem" style="display:none">
           <i class="ti ti-settings"></i> <span data-i18n="menu_params">Parametres &amp; Administration</span>
         </div>
-        <div class="user-menu-item" onclick="toggleUserMenu();openAdmin()" id="accessMenuItem" style="display:flex">
+        <div class="user-menu-item" onclick="toggleUserMenu();openAdmin()" id="accessMenuItem" style="display:none">
           <i class="ti ti-users-group"></i> <span data-i18n="menu_access">Gestion des acces</span>
         </div>
         <div class="user-menu-item" onclick="toggleUserMenu();doLogout()">
@@ -1520,7 +1519,7 @@ button:not(:disabled){
   <div class="ntab" onclick="switchView(&#39;rapports&#39;,this)"><i class="ti ti-download"></i><span data-i18n="nav_rapports">Rapports</span></div>
   <div class="ntab" onclick="switchView(&#39;alertes&#39;,this)"><i class="ti ti-shield-exclamation"></i><span data-i18n="nav_alertes">Alertes</span></div>
   <div class="ntab on" onclick="switchView(&#39;dashboard&#39;,this)"><i class="ti ti-layout-dashboard"></i><span>Tableau de bord</span></div>
-  <div class="ntab" id="tabParams" onclick="switchView(&#39;params&#39;,this)" style="display:flex"><i class="ti ti-settings"></i><span>Parametres</span></div>
+  <div class="ntab" id="tabParams" onclick="switchView(&#39;params&#39;,this)" style="display:none"><i class="ti ti-settings"></i><span>Parametres</span></div>
 </div>
 
 <div class="teletexte" id="teletexteBar">
@@ -6438,6 +6437,35 @@ function getSession()  { return _MEM_SESSION || {email:ADMIN_EMAIL, name:'Admini
 function saveSession(s){ _MEM_SESSION=s; _ls(()=>localStorage.setItem(STORE_KEY,JSON.stringify(s))); }
 function clearSession(){ _MEM_SESSION=null; _ls(()=>localStorage.removeItem(STORE_KEY)); }
 
+// restoreSession() : recharge la session sauvegardee par saveSession() (persistee
+// dans localStorage sous STORE_KEY) au demarrage, pour eviter de redemander une
+// connexion a chaque ouverture/rafraichissement de la page tant que la session
+// reste valide. Revalide contre la liste des utilisateurs actuelle : un compte
+// desactive ou supprime entre-temps par l'admin ne peut pas rester connecte.
+function restoreSession() {
+  const saved = _ls(()=>JSON.parse(localStorage.getItem(STORE_KEY)||'null'), null);
+  if (!saved || !saved.email) return null;
+  const user = getUsers().find(u=>u.email===saved.email);
+  if (!user || user.status!=='active') { clearSession(); return null; }
+  _MEM_SESSION = {email:user.email, name:user.name, role:user.role, loginAt:saved.loginAt};
+  return user;
+}
+
+// applyRoleMenus(role) : affiche/masque les entrees reservees aux administrateurs
+// (menu Administration, gestion des acces, onglet Parametres) selon le role de
+// la session active. Utilisee a la fois apres une connexion reussie (doLogin)
+// et apres restauration d'une session existante (checkAuth), pour que les deux
+// chemins appliquent exactement la meme regle d'acces.
+function applyRoleMenus(role) {
+  const isAdmin = role === 'admin';
+  const adminItem  = document.getElementById('adminMenuItem');
+  const accessItem = document.getElementById('accessMenuItem');
+  const paramsTab  = document.getElementById('tabParams');
+  if (adminItem)  adminItem.style.display  = isAdmin ? 'flex' : 'none';
+  if (accessItem) accessItem.style.display = isAdmin ? 'flex' : 'none';
+  if (paramsTab)  paramsTab.style.display  = isAdmin ? 'flex' : 'none';
+}
+
 function makeCode(email) {
   let h=0; for(const c of email.toLowerCase()) h=(h*31+c.charCodeAt(0))&0xffffffff;
   return 'S'+Math.abs(h).toString(36).toUpperCase().padStart(6,'0');
@@ -6482,14 +6510,13 @@ function doLogin() {
   user.lastLogin=new Date().toISOString(); saveUsers(users);
   saveSession({email:user.email,name:user.name,role:user.role,loginAt:new Date().toISOString()});
   document.getElementById('authOverlay').classList.add('hidden');
+  document.getElementById('userWrap').style.display='block';
   showUserChip(user);
-  if(user.role==='admin'){
-    document.getElementById('adminMenuItem').style.display='flex';
-    document.getElementById('accessMenuItem').style.display='flex';
-    document.getElementById('tabParams').style.display='flex';
-  } else {
-    document.getElementById('accessMenuItem').style.display='none';
-  }
+  applyRoleMenus(user.role);
+  // L'application (collecte RSS, rendu des modules) ne demarre qu'une fois
+  // l'utilisateur authentifie — verrou partage avec checkAuth() pour ne
+  // jamais initialiser deux fois (session restauree + connexion manuelle).
+  if (!window._appInitialized) { window._appInitialized = true; init(); }
 }
 
 function doLogout() {
@@ -6637,10 +6664,24 @@ function openAdmin() {
 function closeAdmin() { document.getElementById('adminPanel').classList.add('hidden'); }
 
 function checkAuth() {
-  // Connexion admin directe — aucune confirmation requise
   initUsers();
-  document.getElementById('authOverlay').classList.add('hidden');
-  if (!window._appInitialized) { window._appInitialized = true; init(); }
+  const user = restoreSession();
+  if (user) {
+    // Session valide deja en cours (reconnexion automatique tant que le
+    // compte reste actif) : on entre directement, sans repasser par le
+    // formulaire de connexion.
+    document.getElementById('authOverlay').classList.add('hidden');
+    document.getElementById('userWrap').style.display='block';
+    showUserChip(user);
+    applyRoleMenus(user.role);
+    if (!window._appInitialized) { window._appInitialized = true; init(); }
+  } else {
+    // Aucune session valide : ecran de connexion reel, l'application ne
+    // demarre (init()) qu'apres une authentification reussie via doLogin().
+    document.getElementById('authOverlay').classList.remove('hidden');
+    document.getElementById('userWrap').style.display='none';
+    showLoginForm();
+  }
 }
 
 
@@ -9148,15 +9189,11 @@ function initMobileCollapsibles() {
   });
 }
 
-// Point d'entrée : appelé ici, en toute fin de script, pour garantir que toutes
-// les constantes de référence (PAYS_INFO, ALERTE_EVENTS, FACTEURS_SPECIAUX, NIV,
-// MESURES, etc.) sont bien initialisées avant le tout premier rendu.
-// Protégé par le même verrou que checkAuth() (déclenché sur l'évènement
-// 'load') : sans lui, init() s'exécutait deux fois à chaque ouverture de
-// page (double collecte RSS, double rendu de tous les modules, double
-// intervalle d'auto-refresh potentiel) puisque cet appel direct ne posait
-// pas le verrou que checkAuth() vérifie ensuite.
-if (!window._appInitialized) { window._appInitialized = true; init(); }
+// Point d'entrée : desormais exclusivement déclenché par checkAuth() (session
+// restaurée valide) ou par doLogin() (connexion réussie) — voir plus haut.
+// L'application (collecte RSS, rendu des modules) ne doit démarrer qu'après
+// authentification ; un appel inconditionnel ici court-circuiterait l'écran
+// de connexion en initialisant l'app avant même que checkAuth() ne s'exécute.
 initMobileCollapsibles();
 
 </script>
