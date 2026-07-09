@@ -3432,7 +3432,14 @@ async function trFetch(texte, srcLang, tgtLang, force) {
   if (TR_CACHE[cacheKey] !== undefined && !(force && TR_CACHE[cacheKey] === texte && srcLang !== tgtLang)) return TR_CACHE[cacheKey];
   if (srcLang === tgtLang) { TR_CACHE[cacheKey] = texte; return texte; }
   try {
-    const r = await fetch('https://api.mymemory.translated.net/get?q=' + encodeURIComponent(texte) + '&langpair=' + srcLang + '|' + tgtLang);
+    // &de=email : identifie l'appelant aupres de MyMemory. Sans email, le
+    // quota gratuit est limite a 5000 mots/jour PAR IP (partage entre tous
+    // les visiteurs de l'appli derriere la meme IP/proxy) — beaucoup trop
+    // bas pour un flux multilingue actif, d'ou les blocages "MYMEMORY
+    // WARNING" observes. Avec un email enregistre, MyMemory porte ce quota
+    // a 50000 mots/jour (gratuit, sans cle API), ce qui reduit fortement
+    // la frequence des echecs de traduction.
+    const r = await fetch('https://api.mymemory.translated.net/get?q=' + encodeURIComponent(texte) + '&langpair=' + srcLang + '|' + tgtLang + '&de=yorot225@gmail.com');
     const d = await r.json();
     let out = (d && d.responseData && d.responseData.translatedText) ? d.responseData.translatedText : texte;
     if (_trReponseInvalide(d, out)) out = texte;
