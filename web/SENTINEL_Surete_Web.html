@@ -6201,7 +6201,11 @@ function renderFeed() {
             const pbadge=a.platform?'<span class="social-badge sb-'+a.platform+'">'+
               {twitter:'X/Twitter',telegram:'Telegram',youtube:'YouTube',reddit:'Reddit'}[a.platform]+
               '</span>':'<span class="social-badge sb-rss">RSS</span>';
-            return '<span class="pub-time '+cls+'" title="Publié le '+fmtFull(a.pubDate)+'"><i class="ti ti-clock"></i>'+fmtAge(a.pubDate)+' · '+fmtFull(a.pubDate)+'</span>'+pbadge;
+            // Une seule date affichee sur la carte : la survenance (en tete, .art-top),
+            // avec repli sur la publication quand elle n'est pas determinable — voir
+            // fmtSurvenance(). Ce badge ne repete donc plus la date/heure en toutes
+            // lettres, seulement l'age relatif ; la date complete reste en info-bulle.
+            return '<span class="pub-time '+cls+'" title="Publié le '+fmtFull(a.pubDate)+'"><i class="ti ti-clock"></i>'+fmtAge(a.pubDate)+'</span>'+pbadge;
           })()+
         '</div>'+
       '</div>'+
@@ -9152,7 +9156,7 @@ function ouvrirVuePays(cy) {
   const htmlActus = actus.length ? actus.map(a => `
     <div style="padding:7px 0;border-bottom:.5px solid var(--bd);cursor:pointer;" onclick="showDet('${a.id}');document.getElementById('vuePaysOverlay').remove();switchView('flux',document.querySelector('.ntab[onclick*=flux]'));">
       <div style="font-size:11px;font-weight:600;color:var(--t);line-height:1.4;" id="vpa-${a.id}">${tr(a.title,'vpa-'+a.id)}</div>
-      <div style="font-size:9px;color:var(--lg);margin-top:2px;">${a.time || ''} · ${(a.crosses||[])[0] || ''}</div>
+      <div style="font-size:9px;color:var(--lg);margin-top:2px;">${(a.crosses||[])[0] || ''}</div>
       ${(()=>{ const s=fmtSurvenance(a); if (s.inconnue) return `<div style="font-size:8.5px;color:#B45309;font-weight:700;margin-top:1px;">Survenance : ${s.texte} (à vérifier)</div>`; return s.ancien ? `<div style="font-size:8.5px;color:#DC2626;font-weight:700;margin-top:1px;">⚠ Survenance : ${s.texte} (plus de 12h)</div>` : `<div style="font-size:8.5px;color:var(--lg);margin-top:1px;">Survenance : ${s.texte}</div>`; })()}
     </div>`).join('') : '<div style="font-size:11px;color:var(--lg);font-style:italic;padding:6px 0;">Aucun article recent</div>';
 
