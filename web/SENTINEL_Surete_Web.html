@@ -6506,6 +6506,49 @@ function renderDashboard() {
        <div style="font-size:10px;color:var(--lg);text-transform:uppercase;letter-spacing:.06em;margin-top:3px;">${l}</div>
      </div>`;
 
+  // Cartogramme régional : les 54 pays regroupés par zone geographique
+  // (ZONES_GEO/CY_TO_ZONE, deja utilisees ailleurs dans l'app pour les
+  // filtres Synthese/Agenda) et disposees en macro-grille approximant la
+  // disposition reelle du continent (Nord en haut, bande Sahel/Corne au
+  // milieu-haut, bande cotiere/centrale/grands lacs au milieu, Afrique
+  // australe (+ iles ocean Indien) en bas). Remplace la simple grille
+  // plate par une vraie lecture geospatiale, cliquable par pays.
+  const cartogramme = () => {
+    const parZone = {};
+    scores.forEach(s => { const z = CY_TO_ZONE[s.cy] || 'autre'; (parZone[z] = parZone[z]||[]).push(s); });
+    const zoneArea = {
+      afrique_nord:'nord', sahel:'sahel', corne_afrique:'corne',
+      ao_cotiere:'cotiere', golfe_guinee:'golfe', afrique_centrale:'centrale', grands_lacs:'lacs',
+      afrique_australe:'austral',
+    };
+    const zonePanel = (zc) => {
+      const liste = (parZone[zc]||[]).sort((a,b)=>b.score-a.score);
+      if (!liste.length) return '';
+      const nom = (ZONES_GEO[zc]||{}).nom || zc;
+      const area = zoneArea[zc] || zc;
+      return `<div style="grid-area:${area};background:var(--sf);border:1px solid var(--bd);border-radius:8px;padding:8px;min-width:0;">
+        <div style="font-size:9px;font-weight:700;color:var(--lg);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${nom}</div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(108px,1fr));gap:4px;">
+          ${liste.map(s => {
+            const col = scoreColor(s);
+            return `<div onclick="ouvrirVuePays('${s.cy}')" title="${s.pays.name} — ${s.score}/100" style="cursor:pointer;padding:5px 6px;border-radius:5px;background:${col}14;border:1px solid ${col}44;${GLOBAL_CY_FILTER===s.cy?`box-shadow:0 0 0 2px ${col};`:''}">
+              <div style="font-size:9.5px;font-weight:700;color:var(--t);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${s.pays.flag} ${s.pays.name}</div>
+              <div style="font-family:var(--font-mono,'Roboto Mono',monospace);font-size:9px;font-weight:700;color:${col};">${s.score}</div>
+            </div>`;
+          }).join('')}
+        </div>
+      </div>`;
+    };
+    return `<div class="ops-carto-grid" style="display:grid;gap:8px;
+        grid-template-columns:1fr 1fr 1fr 1fr;
+        grid-template-areas:'nord nord nord nord' 'sahel sahel corne corne' 'cotiere golfe centrale lacs' 'austral austral austral austral';">
+      ${zonePanel('afrique_nord')}${zonePanel('sahel')}${zonePanel('corne_afrique')}
+      ${zonePanel('ao_cotiere')}${zonePanel('golfe_guinee')}${zonePanel('afrique_centrale')}${zonePanel('grands_lacs')}
+      ${zonePanel('afrique_australe')}
+    </div>
+    <style>@media (max-width:760px){#dashContent .ops-carto-grid{grid-template-columns:1fr!important;grid-template-areas:'nord' 'sahel' 'corne' 'cotiere' 'golfe' 'centrale' 'lacs' 'austral'!important;}}</style>`;
+  };
+
   const zoneCard = (titre, liste, couleur) => !liste.length ? '' :
     `<div style="background:var(--w);border:1px solid var(--bd);border-left:3px solid ${couleur};border-radius:9px;padding:12px;margin-bottom:8px;">
        <div style="font-size:10px;font-weight:700;color:${couleur};text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;">${titre} (${liste.length} pays)</div>
@@ -6531,27 +6574,13 @@ function renderDashboard() {
       <!-- Actualités a traiter (< 12h) -->
       ${renderPanelATraiter(GLOBAL_CY_FILTER)}
 
-      <!-- Heatmap des scores par pays -->
+      <!-- Cartogramme régional des scores par pays -->
       <div style="background:var(--w);border:1px solid var(--bd);border-radius:9px;padding:14px;margin-bottom:12px;">
         <div style="font-size:11px;font-weight:700;color:var(--t);margin-bottom:12px;display:flex;align-items:center;gap:6px;">
           <i class="ti ti-map-2" style="color:#1D7AB8"></i>
-          Carte de chaleur des risques — Score 0-100 par pays
+          Carte régionale des risques — Score 0-100 par pays, regroupés par zone
         </div>
-        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:6px;">
-          ${scores.map(s=>{
-            const col = scoreColor(s);
-            const pct = s.score;
-            return `<div onclick="ouvrirVuePays('${s.cy}')" style="cursor:pointer;padding:8px;border-radius:6px;border:1px solid ${col}33;background:${col}0D;${GLOBAL_CY_FILTER===s.cy?`box-shadow:0 0 0 2px ${col};`:''}" title="Voir toutes les données liées à ${s.pays.name}">
-              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
-                <span style="font-size:11px;font-weight:700;color:var(--t);">${s.pays.flag} ${s.pays.name}</span>
-                <span style="font-family:var(--font-mono,'Roboto Mono',monospace);font-size:10px;font-weight:700;color:${col};">${pct}</span>
-              </div>
-              <div style="height:4px;background:var(--bd);border-radius:2px;overflow:hidden;">
-                <div style="height:100%;width:${pct}%;background:${col};border-radius:2px;transition:width .4s;"></div>
-              </div>
-            </div>`;
-          }).join('')}
-        </div>
+        ${cartogramme()}
       </div>
 
       <!-- Zones de risque -->
