@@ -10638,6 +10638,33 @@ function _pdfBuilder(doc, fontReg, fontBold, rgb) {
       b.page.drawLine({start:{x:M,y:b.y+6},end:{x:W-M,y:b.y+6},thickness:0.6,color:LINE});
       b.y -= 12;
     },
+    // Bandeau de statistiques cle (ARTICLES / CRITIQUES / PAYS / SOURCES...) —
+    // colonnes egales separees par des filets, chiffre en gras + libellet
+    // mono en dessous, encadre par deux filets horizontaux.
+    statsGrid(items) {
+      const rowH = 46;
+      b.ensure(rowH + 22);
+      const topY = b.y;
+      b.page.drawLine({start:{x:M,y:topY},end:{x:W-M,y:topY},thickness:0.8,color:LINE});
+      const colW = (W-M*2)/items.length;
+      items.forEach((it, i) => {
+        const cx = M + colW*i + colW/2;
+        const vtxt = String(it.value);
+        const vsize = 20;
+        const vw = fontBold.widthOfTextAtSize(vtxt, vsize);
+        b.page.drawText(vtxt, {x:cx-vw/2, y:topY-30, size:vsize, font:fontBold, color:it.color||NAVY});
+        const ltxt = _pdfSafe(it.label.toUpperCase());
+        const lsize = 7;
+        const lw = fontReg.widthOfTextAtSize(ltxt, lsize);
+        b.page.drawText(ltxt, {x:cx-lw/2, y:topY-42, size:lsize, font:fontReg, color:MUTED});
+        if (i < items.length-1) {
+          b.page.drawLine({start:{x:M+colW*(i+1),y:topY-6},end:{x:M+colW*(i+1),y:topY-rowH+2},thickness:0.5,color:LINE});
+        }
+      });
+      b.y = topY - rowH;
+      b.page.drawLine({start:{x:M,y:b.y},end:{x:W-M,y:b.y},thickness:0.8,color:LINE});
+      b.y -= 16;
+    },
     // "Points cles strategiques" — liste a puces avec barre d'accent verticale,
     // chaque entree "Zone | Heure : Titre" (jamais le site source).
     bulletinSection(text) {
@@ -10795,6 +10822,17 @@ async function exportPDF(type) {
         (LANG==='en'
           ? 'Impact summary on the regional security situation and disruption to state activities. Analysis of '+nbSrcActifs+' consolidated feeds.'
           : "Synthèse d'impact sur la situation sécuritaire régionale et la perturbation des activités étatiques. Analyse de "+nbSrcActifs+' flux consolidés.'));
+
+      // Bandeau de statistiques cle (nombre d'articles / criticité / pays /
+      // sources), sur le modele du masthead de reference.
+      const nbCritiques = arts.filter(a => a.level === 'crit').length;
+      const nbPaysCouverts = new Set(arts.filter(a => a.cy && a.cy !== 'INT').map(a => a.cy)).size;
+      b.statsGrid([
+        { value: arts.length,     label: LANG==='en'?'Articles':'Articles',   color: rgb(0.051,0.106,0.161) },
+        { value: nbCritiques,     label: LANG==='en'?'Critical':'Critiques',  color: rgb(0.545,0.102,0.102) },
+        { value: nbPaysCouverts,  label: LANG==='en'?'Countries':'Pays',      color: rgb(0.106,0.373,0.659) },
+        { value: nbSrcActifs,     label: LANG==='en'?'Sources':'Sources',     color: rgb(0.059,0.310,0.165) },
+      ]);
 
       const rangOrdreS = {crit:0, high:1, mod:2, ok:3};
       const cmpS = (x,y) => { const r=(rangOrdreS[x.level]??3)-(rangOrdreS[y.level]??3); if (r!==0) return r; return (y.pubDate||0)-(x.pubDate||0); };
