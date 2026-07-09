@@ -5503,7 +5503,23 @@ function renderFeed() {
   // ── Groupement par ville (et commune) — actif avec ou sans filtre pays ──
   // Si un pays precis est filtre : groupement Ville > Commune
   // Si "Tous les pays" : groupement Pays > Ville > Commune
-  const paysAGrouper = (fGeo !== 'all' && VILLES_COMMUNES[fGeo]) ? [fGeo] : Object.keys(VILLES_COMMUNES);
+  // BUG CORRIGE : paysAGrouper etait fige sur Object.keys(VILLES_COMMUNES),
+  // soit uniquement les 12 pays d'Afrique de l'Ouest ayant une table de
+  // villes/communes dediee (CI, BF, ML, NE, SN, GN, NG, GH, BJ, TG, MR, LR).
+  // Consequence : en mode "Tous les pays", les articles des 42 AUTRES pays
+  // africains (Afrique de l'Est, australe, centrale, du Nord, iles) n'etaient
+  // JAMAIS ajoutes a cette boucle — ils disparaissaient purement et simplement
+  // du Flux, quel que soit le nombre d'articles reellement collectes pour eux.
+  // Et en filtrant sur un pays precis hors de cette liste (ex. Kenya, Maroc,
+  // Afrique du Sud...), le Flux retombait sur les 12 pays d'Afrique de l'Ouest
+  // au lieu du pays demande, affichant 0 resultat. detectGeo() gere deja
+  // correctement tout pays sans table VILLES_COMMUNES (repli sur la capitale
+  // via PAYS_INFO) : il suffit de construire la liste des pays a grouper a
+  // partir des articles reellement presents (tous les 54 pays), et non d'une
+  // liste figee.
+  const paysAGrouper = fGeo !== 'all'
+    ? [fGeo]
+    : [...new Set(arts.map(a => a.cy).filter(cy => cy && cy !== 'INT' && PAYS_INFO[cy]))];
 
   function buildVilleBlock(ville, g) {
     const total = g.sansCommune.length + Object.values(g.communes).flat().length;
