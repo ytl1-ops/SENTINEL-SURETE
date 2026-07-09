@@ -2369,9 +2369,9 @@ button:not(:disabled){
               </div>
             </div>
             <div class="pm-sec-body">
-              <div style="font-size:10px;color:var(--lg);padding:10px 16px 0">Les forfaits et statuts de paiement s'appliquent aux comptes de la section « Gestion des utilisateurs » ci-dessus. Le bouton « Payer » lance un encaissement CinetPay reel (voir configuration ci-dessous).</div>
+              <div style="font-size:10px;color:var(--lg);padding:10px 16px 0">Les forfaits et statuts de paiement s'appliquent aux comptes de la section « Gestion des utilisateurs » ci-dessus. Voir « Paiements déclarés » plus bas pour l'encaissement.</div>
               <table class="pm-users-table">
-                <thead><tr><th>Client</th><th>Email</th><th>Forfait</th><th>Paiement</th><th>Prochaine échéance</th><th>CinetPay</th></tr></thead>
+                <thead><tr><th>Client</th><th>Email</th><th>Forfait</th><th>Paiement</th><th>Prochaine échéance</th></tr></thead>
                 <tbody id="clienteleBody"></tbody>
               </table>
               <div style="padding:6px 16px 10px"><span class="pmu-msg" id="clienteleMsg" style="margin:0"></span></div>
@@ -2391,8 +2391,7 @@ button:not(:disabled){
                 L'application étant 100% statique (sans serveur), les moyens ci-dessous mènent à une confirmation
                 manuelle par l'administrateur : le client transfère vers le numéro/RIB indiqué ici, puis déclare son
                 paiement depuis son menu profil (référence de transaction à l'appui) — voir la file de vérification
-                ci-dessous. La passerelle CinetPay (plus bas) est une alternative automatisée, mais nécessite un
-                compte marchand/entreprise ; sans compte, utilisez la déclaration manuelle.
+                ci-dessous.
               </div>
               <div class="paymethod-grid" id="paymethodGrid"></div>
               <div style="margin-top:12px;display:flex;align-items:center;gap:10px">
@@ -2425,54 +2424,6 @@ button:not(:disabled){
             </div>
           </div>
 
-          <!-- Passerelle CinetPay -->
-          <div class="pm-section">
-            <div class="pm-sec-hd">
-              <div class="pm-sec-hd-l"><i class="ti ti-building-bank"></i>
-                <div><div class="pm-sec-title">Passerelle de paiement CinetPay (optionnel)</div>
-                <div class="pm-sec-sub">Nécessite un compte marchand/entreprise — utilisez « Paiements déclarés » ci-dessus si vous n'en avez pas</div></div>
-              </div>
-            </div>
-            <div class="pm-sec-body" style="padding:14px 16px">
-              <div style="font-size:10px;color:#8B1A1A;background:rgba(139,26,26,.06);border:1px solid rgba(139,26,26,.2);border-radius:6px;padding:10px 12px;margin-bottom:12px;line-height:1.6">
-                <b>Limite de sécurité :</b> cette application est 100% statique (sans serveur). Le paiement CinetPay
-                est réel (popup Mobile Money/carte), mais son retour "accepté" côté navigateur n'est pas vérifiable de
-                façon infalsifiable sans serveur pour recevoir la notification IPN. Chaque paiement est donc placé
-                dans une file <b>« à vérifier »</b> — confirmez-le seulement après avoir contrôlé la transaction dans
-                votre tableau de bord CinetPay (console.cinetpay.com), avant d'activer l'abonnement.
-              </div>
-              <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-bottom:12px">
-                <div>
-                  <label style="font-size:10px;color:var(--lg);display:block;margin-bottom:3px">Site ID</label>
-                  <input type="text" id="cpSiteId" placeholder="Ex. 105904523" style="width:100%;padding:6px 8px;border:1px solid var(--bd);border-radius:5px;font-size:12px">
-                </div>
-                <div>
-                  <label style="font-size:10px;color:var(--lg);display:block;margin-bottom:3px">Clé API</label>
-                  <input type="text" id="cpApiKey" placeholder="Clé API CinetPay" style="width:100%;padding:6px 8px;border:1px solid var(--bd);border-radius:5px;font-size:12px">
-                </div>
-                <div>
-                  <label style="font-size:10px;color:var(--lg);display:block;margin-bottom:3px">Mode</label>
-                  <select id="cpMode" style="width:100%;padding:6px 8px;border:1px solid var(--bd);border-radius:5px;font-size:12px">
-                    <option value="TEST">Test</option>
-                    <option value="PRODUCTION">Production</option>
-                  </select>
-                </div>
-              </div>
-              <div style="display:flex;align-items:center;gap:10px;margin-bottom:18px">
-                <button class="btn-action btn-rest" onclick="pmSaveCinetpayCfg()"><i class="ti ti-device-floppy"></i> Enregistrer la configuration CinetPay</button>
-                <span class="pmu-msg" id="cinetpayCfgMsg" style="margin:0"></span>
-              </div>
-              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-                <div class="pm-sec-title" style="font-size:11px">Transactions CinetPay à vérifier</div>
-                <div class="pm-sec-sub" id="cinetpayTxCount">0 en attente</div>
-              </div>
-              <table class="pm-users-table">
-                <thead><tr><th>Date</th><th>Client</th><th>Forfait</th><th>Montant</th><th>ID transaction</th><th>Statut</th></tr></thead>
-                <tbody id="cinetpayTxBody"></tbody>
-              </table>
-            </div>
-          </div>
-
           <!-- Envoi automatique du code d'activation (EmailJS) -->
           <div class="pm-section">
             <div class="pm-sec-hd">
@@ -2483,7 +2434,7 @@ button:not(:disabled){
             </div>
             <div class="pm-sec-body" style="padding:14px 16px">
               <div style="font-size:10px;color:var(--lg);margin-bottom:12px;line-height:1.6">
-                Dès que l'administrateur confirme une transaction CinetPay (ci-dessus), le code d'accès du client
+                Dès que l'administrateur confirme un paiement déclaré (ci-dessus), le code d'accès du client
                 (identique à celui utilisé pour la connexion) est envoyé automatiquement par email via
                 <a href="https://www.emailjs.com/" target="_blank" rel="noopener">EmailJS</a> — un service gratuit conçu
                 pour l'envoi d'emails depuis une page statique, sans serveur. Créez un compte, un service email et un
@@ -8358,8 +8309,6 @@ function loadParamsModule() {
   renderPaymethods();
   renderClientele();
   renderPaiementsAdmin();
-  renderCinetpayCfg();
-  renderCinetpayTx();
   renderEmailjsCfg();
   renderReclamationsAdmin();
   renderTraffic();
@@ -8488,11 +8437,6 @@ function renderClientele() {
         '<option value="impaye"'+(paiement==='impaye'?' selected':'')+'>Impayé</option>'+
       '</select></td>'+
       '<td>'+echeance+'</td>'+
-      '<td>'+(() => {
-        const p = plans.find(x => x.key === plan);
-        if (!p || !p.prix) return '<span style="font-size:10px;color:var(--lg)">—</span>';
-        return '<button class="btn-action btn-rest" onclick="cinetpayPayer(\''+u.email+'\')"><i class="ti ti-credit-card"></i> Payer</button>';
-      })()+'</td>'+
     '</tr>';
   }).join('');
 }
@@ -8513,160 +8457,9 @@ function pmSetClientPaiement(email, paiement) {
   renderClientele();
 }
 
-// ── PASSERELLE CINETPAY (encaissement) ───────────────────────────────────
-// Renseignez ces deux valeurs une fois le compte marchand CinetPay créé
-// (console.cinetpay.com > Paramètres > Intégration) : CINETPAY_SITE_ID et
-// CINETPAY_API_KEY. Tant qu'elles restent vides, le bouton "Payer via
-// CinetPay" affiche un message d'invitation à les configurer — aucun script
-// externe chargé avant.
-//
-// LIMITE DE SÉCURITÉ (app 100% statique, sans serveur) : le SDK CinetPay
-// lance un vrai paiement (popup Orange Money/MTN/Moov/Visa) et renvoie un
-// statut "ACCEPTED" côté navigateur une fois le règlement effectué — mais
-// ce retour n'est PAS vérifiable de façon infalsifiable sans serveur pour
-// recevoir la notification IPN de CinetPay. Un utilisateur technique
-// pourrait en théorie simuler ce retour sans payer réellement. C'est
-// pourquoi l'abonnement n'est PAS activé automatiquement ici : la
-// transaction est simplement placée dans une file "à vérifier", à confirmer
-// manuellement par l'administrateur après contrôle de l'ID de transaction
-// dans le tableau de bord CinetPay (paiement réellement encaissé).
-const CINETPAY_KEY = 'sentinel_cinetpay_cfg_v1';
-const CINETPAY_TX_KEY = 'sentinel_cinetpay_tx_v1';
-function getCinetpayCfg()  { return _ls(()=>JSON.parse(localStorage.getItem(CINETPAY_KEY)||'null'),null) || {siteId:'', apiKey:'', mode:'TEST'}; }
-function saveCinetpayCfg(c){ _ls(()=>localStorage.setItem(CINETPAY_KEY,JSON.stringify(c))); }
-function getCinetpayTx()   { return _ls(()=>JSON.parse(localStorage.getItem(CINETPAY_TX_KEY)||'[]'),[]); }
-function saveCinetpayTx(t) { _ls(()=>localStorage.setItem(CINETPAY_TX_KEY,JSON.stringify(t))); }
-
-function renderCinetpayCfg() {
-  const cfg = getCinetpayCfg();
-  const siteIdEl = document.getElementById('cpSiteId');
-  const apiKeyEl = document.getElementById('cpApiKey');
-  const modeEl   = document.getElementById('cpMode');
-  if (siteIdEl) siteIdEl.value = cfg.siteId || '';
-  if (apiKeyEl) apiKeyEl.value = cfg.apiKey || '';
-  if (modeEl)   modeEl.value   = cfg.mode || 'TEST';
-}
-function pmSaveCinetpayCfg() {
-  const cfg = {
-    siteId: (document.getElementById('cpSiteId').value||'').trim(),
-    apiKey: (document.getElementById('cpApiKey').value||'').trim(),
-    mode:   document.getElementById('cpMode').value || 'TEST',
-  };
-  saveCinetpayCfg(cfg);
-  pmMsg('Configuration CinetPay enregistrée.', 'ok', 'cinetpayCfgMsg');
-  renderClientele(); // reactive/desactive les boutons "Payer" selon la config
-}
-
-let _cinetpaySdkPromise = null;
-function _chargerSdkCinetpay() {
-  if (_cinetpaySdkPromise) return _cinetpaySdkPromise;
-  _cinetpaySdkPromise = new Promise((resolve, reject) => {
-    if (window.CinetPay) return resolve();
-    const s = document.createElement('script');
-    s.src = 'https://cdn.cinetpay.com/seamless/main.js';
-    s.onload = () => resolve();
-    s.onerror = () => reject(new Error('Impossible de charger le SDK CinetPay'));
-    document.head.appendChild(s);
-  });
-  return _cinetpaySdkPromise;
-}
-
-// cinetpayPayer(email) : lance un paiement CinetPay pour le forfait
-// actuellement selectionne du client (voir Gestion clientele). Le montant
-// et la description proviennent de la grille tarifaire (getPricing()).
-async function cinetpayPayer(email) {
-  const cfg = getCinetpayCfg();
-  if (!cfg.siteId || !cfg.apiKey) {
-    pmMsg('Configurez d\'abord le Site ID et la Cle API CinetPay ci-dessous.', 'err', 'clienteleMsg');
-    return;
-  }
-  const users = getUsers();
-  const u = users.find(x => x.email === email);
-  if (!u) return;
-  const plan = getPricing().find(p => p.key === (u.plan || 'gratuit'));
-  if (!plan || !plan.prix) {
-    pmMsg('Ce forfait n\'a pas de montant fixe (gratuit ou sur devis) — aucun paiement a lancer.', 'err', 'clienteleMsg');
-    return;
-  }
-  const telephone = prompt('Numero de telephone du client (requis par CinetPay, format local, ex. 0700000000) :', u.telephone || '');
-  if (!telephone) return;
-  u.telephone = telephone;
-  saveUsers(users);
-
-  try {
-    await _chargerSdkCinetpay();
-  } catch (e) {
-    pmMsg('Echec de chargement du SDK CinetPay (connexion internet requise).', 'err', 'clienteleMsg');
-    return;
-  }
-
-  const transactionId = 'SENT' + Date.now();
-  CinetPay.setConfig({
-    apikey: cfg.apiKey,
-    site_id: cfg.siteId,
-    mode: cfg.mode === 'PRODUCTION' ? 'PRODUCTION' : 'TEST',
-  });
-  CinetPay.getCheckout({
-    transaction_id: transactionId,
-    amount: plan.prix,
-    currency: 'XOF',
-    channels: 'ALL',
-    description: 'Abonnement ' + plan.nom + ' — SENTINEL SÛRETÉ',
-    customer_name: u.name || '',
-    customer_surname: '',
-    customer_email: u.email,
-    customer_phone_number: telephone,
-    customer_address: '', customer_city: '', customer_country: 'CI',
-    customer_state: 'CI', customer_zip_code: '00000',
-  });
-  CinetPay.waitResponse(function (data) {
-    const tx = getCinetpayTx();
-    tx.unshift({
-      id: transactionId, email: u.email, nom: u.name, plan: plan.nom, planKey: plan.key,
-      montant: plan.prix, date: new Date().toISOString(),
-      statutCinetpay: data && data.status, statut: 'a_verifier',
-    });
-    saveCinetpayTx(tx);
-    renderCinetpayTx();
-    if (data && data.status === 'REFUSED') {
-      pmMsg('Paiement refuse par CinetPay pour ' + u.email + ' (transaction ' + transactionId + ').', 'err', 'clienteleMsg');
-    } else {
-      pmMsg('Paiement transmis (transaction ' + transactionId + ') — a verifier dans le tableau de bord CinetPay avant activation, voir "Transactions CinetPay a verifier" ci-dessous.', 'ok', 'clienteleMsg');
-    }
-  });
-  CinetPay.onError(function (data) {
-    pmMsg('Erreur CinetPay : ' + (data && data.message || 'echec du paiement') + '.', 'err', 'clienteleMsg');
-  });
-}
-
-function renderCinetpayTx() {
-  const body = document.getElementById('cinetpayTxBody');
-  if (!body) return;
-  const tx = getCinetpayTx();
-  const enAttente = tx.filter(t => t.statut === 'a_verifier');
-  document.getElementById('cinetpayTxCount').textContent = enAttente.length + ' en attente';
-  if (!tx.length) {
-    body.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--lg);padding:16px">Aucune transaction CinetPay pour le moment.</td></tr>';
-    return;
-  }
-  const lbl = {a_verifier:['bs-nouveau','A verifier'], confirme:['bs-active','Confirme'], rejete:['bs-suspend','Rejete']};
-  body.innerHTML = tx.map(t => {
-    const [cls, txt] = lbl[t.statut] || lbl.a_verifier;
-    return '<tr>'+
-      '<td style="white-space:nowrap">'+new Date(t.date).toLocaleString('fr-FR')+'</td>'+
-      '<td>'+(t.nom||t.email)+'</td>'+
-      '<td>'+t.plan+'</td>'+
-      '<td>'+t.montant.toLocaleString('fr-FR')+' FCFA</td>'+
-      '<td style="font-family:monospace;font-size:10px">'+t.id+'</td>'+
-      '<td><span class="badge-status '+cls+'">'+txt+'</span>'+
-        (t.statut==='a_verifier' ? ' <button class="btn-action btn-rest" onclick="pmConfirmerCinetpayTx(\''+t.id+'\')" style="margin-left:4px">Confirmer</button>'+
-          '<button class="btn-action btn-del" onclick="pmRejeterCinetpayTx(\''+t.id+'\')">Rejeter</button>' : '')+
-      '</td></tr>';
-  }).join('');
-}
 // ── ENVOI AUTOMATIQUE DU CODE D'ACTIVATION PAR EMAIL (EmailJS) ───────────
 // EmailJS envoie un email directement depuis le navigateur, sans serveur —
-// meme principe que les cles publiques AdSense/CinetPay deja utilisees ici
+// meme principe que la cle publique AdSense deja utilisee ici
 // (Service ID / Template ID / Public Key sont concus pour etre visibles
 // cote client, voir emailjs.com). Renseignez ces trois valeurs dans
 // Parametres pour activer l'envoi automatique ; sans configuration, le code
@@ -8727,11 +8520,11 @@ async function envoyerCodeActivation(u) {
   }
 }
 
-// activerAbonnementEtEnvoyerCode(email, planKey, msgElId) : point commun aux
-// deux circuits de confirmation (CinetPay et paiement declare manuellement) —
-// active le forfait, marque le paiement a jour, et tente l'envoi automatique
-// du code d'acces par email (voir envoyerCodeActivation). Jamais d'activation
-// sans confirmation explicite de l'administrateur, quel que soit le circuit.
+// activerAbonnementEtEnvoyerCode(email, planKey, msgElId) : appelee apres
+// confirmation manuelle d'un paiement declare — active le forfait, marque
+// le paiement a jour, et tente l'envoi automatique du code d'acces par
+// email (voir envoyerCodeActivation). Jamais d'activation sans confirmation
+// explicite de l'administrateur.
 function activerAbonnementEtEnvoyerCode(email, planKey, msgElId) {
   const users = getUsers();
   const u = users.find(x => x.email === email);
@@ -8752,37 +8545,19 @@ function activerAbonnementEtEnvoyerCode(email, planKey, msgElId) {
   renderClientele();
 }
 
-function pmConfirmerCinetpayTx(id) {
-  const tx = getCinetpayTx();
-  const t = tx.find(x => x.id === id);
-  if (!t) return;
-  t.statut = 'confirme';
-  saveCinetpayTx(tx);
-  activerAbonnementEtEnvoyerCode(t.email, t.planKey, 'clienteleMsg');
-  renderCinetpayTx();
-}
-function pmRejeterCinetpayTx(id) {
-  const tx = getCinetpayTx();
-  const t = tx.find(x => x.id === id);
-  if (!t) return;
-  t.statut = 'rejete';
-  saveCinetpayTx(tx);
-  renderCinetpayTx();
-}
 
 // ── SUIVI DES RÉCLAMATIONS ───────────────────────────────────────────────
 const RECLAM_KEY = 'sentinel_reclamations_v1';
 function getReclamations()  { return _ls(()=>JSON.parse(localStorage.getItem(RECLAM_KEY)||'[]'),[]); }
 function saveReclamations(r){ _ls(()=>localStorage.setItem(RECLAM_KEY,JSON.stringify(r))); }
 
-// ── PAIEMENT DÉCLARÉ (alternative sans passerelle — pas de compte
-// entreprise requis) ──────────────────────────────────────────────────────
+// ── PAIEMENT DÉCLARÉ (pas de compte entreprise requis) ────────────────────
 // Le client transfère lui-même le montant vers un des numéros Mobile
 // Money/RIB configurés dans "Moyens de paiement", puis déclare son paiement
 // ici (référence de transaction fournie par l'opérateur). L'administrateur
 // vérifie cette référence dans son propre relevé Mobile Money/bancaire avant
-// de confirmer — même garde-fou que CinetPay (jamais d'activation sur simple
-// déclaration non vérifiée), mais sans dépendre d'un compte marchand.
+// de confirmer — jamais d'activation sur simple déclaration non vérifiée,
+// sans dépendre d'un compte marchand.
 const PAIEMENTS_KEY = 'sentinel_paiements_declares_v1';
 function getPaiementsDeclares()  { return _ls(()=>JSON.parse(localStorage.getItem(PAIEMENTS_KEY)||'[]'),[]); }
 function savePaiementsDeclares(p){ _ls(()=>localStorage.setItem(PAIEMENTS_KEY,JSON.stringify(p))); }
