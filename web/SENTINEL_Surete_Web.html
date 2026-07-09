@@ -9531,6 +9531,26 @@ async function exportPDF(type) {
         b.divider();
       }
 
+      // ── Corrélations entre pays — memes signaux que le module Correlations
+      // de l'interface (_corrBuildSignaux), pour une lecture regionale en
+      // plus de la lecture pays par pays ci-dessus.
+      if (typeof _corrBuildSignaux === 'function') {
+        const signauxP = _corrBuildSignaux(arts);
+        b.sub('CORRÉLATIONS ENTRE PAYS — Signaux régionaux', rgb(0.294,0.333,0.388));
+        if (signauxP.length) {
+          b.para(signauxP.length+' thème'+(signauxP.length>1?'s':'')+' détecté'+(signauxP.length>1?'s':'')+' simultanément dans au moins 2 pays sur la période <12h.', {size:9});
+          signauxP.slice(0,10).forEach(s => {
+            const paysNomsP = s.pays.map(cy => (PAYS_INFO[cy]||{}).name || cy).join(', ');
+            b.para('#'+s.terme+' — '+s.pays.length+' pays : '+paysNomsP, {bold:true, size:9.5});
+            b.para(s.articles.length+' article'+(s.articles.length>1?'s':'')+' concordant'+(s.articles.length>1?'s':'')+' : '+s.articles.slice(0,4).map(a=>a.title).join(' · '), {size:8, color:rgb(0.42,0.46,0.5)});
+            b.y -= 3;
+          });
+        } else {
+          b.para('Aucun thème commun détecté entre plusieurs pays sur la période.', {size:9, color:rgb(0.42,0.46,0.5)});
+        }
+        b.divider();
+      }
+
       if (!arts.length) b.empty('Aucun article disponible pour ce périmètre sur la période.');
     }
 
@@ -9773,6 +9793,33 @@ async function exportWord(type){
           }
         } else {
           children.push(para('Aucune publication correspondant aux sujets prioritaires (IA, politique, insécurité, incendie, attaque, vol, viol, corruption, blanchiment, vie chère...) sur la période.', {italic:true, color:'6B7280'}));
+        }
+      }
+
+      // ── F. Corrélations entre pays ────────────────────────────────
+      // Themes partages par plusieurs pays sur la fenetre <12h — memes
+      // signaux que le module Correlations de l'interface (voir
+      // _corrBuildSignaux), pour que le rapport reflete cette lecture
+      // regionale et pas seulement une liste d'articles pays par pays.
+      if (typeof _corrBuildSignaux === 'function') {
+        const signauxW = _corrBuildSignaux(arts);
+        children.push(heading('F. Corrélations entre pays — Signaux régionaux', 2, '4B5563'));
+        if (signauxW.length) {
+          children.push(para(signauxW.length+' thème'+(signauxW.length>1?'s':'')+' détecté'+(signauxW.length>1?'s':'')+' simultanément dans au moins 2 pays sur la période <12h — une dynamique régionale qu\'une lecture pays par pays ne révèle pas isolément.'));
+          for (const s of signauxW.slice(0, 10)) {
+            const paysNomsW = s.pays.map(cy => (PAYS_INFO[cy]||{}).name || cy).join(', ');
+            children.push(new Paragraph({
+              children:[new TextRun({text:'▶ #'+s.terme+' — ', bold:true, size:20, color:'0B1A27'}),
+                        new TextRun({text:s.pays.length+' pays : '+paysNomsW, bold:true, size:19, color:'1B5FA8'})],
+              spacing:{before:80,after:30}
+            }));
+            children.push(new Paragraph({
+              children:[new TextRun({text:s.articles.length+' article'+(s.articles.length>1?'s':'')+' concordant'+(s.articles.length>1?'s':'')+' : '+s.articles.slice(0,4).map(a=>a.title).join(' · '), size:17, italic:true, color:'6B7280'})],
+              spacing:{after:80}
+            }));
+          }
+        } else {
+          children.push(para('Aucun thème commun détecté entre plusieurs pays sur la période — pas de dynamique régionale identifiée dans le volume actuel.', {italic:true, color:'6B7280'}));
         }
       }
     }
