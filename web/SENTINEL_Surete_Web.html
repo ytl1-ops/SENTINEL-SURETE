@@ -52,7 +52,7 @@ input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px soli
 ::-webkit-scrollbar-track{background:transparent}
 ::-webkit-scrollbar-thumb{background:#B9C3CE;border-radius:5px;border:2px solid var(--sf)}
 ::-webkit-scrollbar-thumb:hover{background:#93A2B0}
-.nav::-webkit-scrollbar,.flashinfo-piste::-webkit-scrollbar{height:0} /* pas de scrollbar visible sur les bandeaux sombres */
+.nav::-webkit-scrollbar{height:0} /* pas de scrollbar visible sur les bandeaux sombres */
 
 /* Transition douce à l'affichage d'une vue (au lieu d'un basculement instantané) */
 .view{animation:viewIn .18s ease}
@@ -172,10 +172,11 @@ input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px soli
   max-width:170px;cursor:pointer}
 .cf-item select:focus{outline:2px solid var(--b);outline-offset:-1px}
 
-/* Ruban Flash Info : bandeau statique (pas de defilement continu) des
-   titres qui font la une en Afrique et dans le monde, regenere toutes les
-   3h (voir majFlashInfo). Parcouru au scroll horizontal manuel plutot que
-   par une animation permanente. */
+/* Ruban Flash Info : bandeau en mouvement (defilement continu) des titres
+   qui font la une en Afrique et dans le monde, regenere toutes les 3h (voir
+   majFlashInfo) — pas a chaque cycle de collecte. Chaque titre est un lien
+   cliquable vers l'actualite correspondante dans le Flux, avec pays, date
+   et heure affiches. */
 .flashinfo{background:#0E0E0E;border-bottom:2px solid var(--r);
   display:flex;align-items:center;height:30px;flex-shrink:0;overflow:hidden}
 .flashinfo-label{background:var(--r);color:#fff;font-size:10px;font-weight:800;
@@ -184,16 +185,21 @@ input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px soli
 .flashinfo-label .fi-dot{width:6px;height:6px;border-radius:50%;background:#fff;
   animation:flashinfoBlink 1.4s ease-in-out infinite;flex-shrink:0}
 @keyframes flashinfoBlink{0%,100%{opacity:1}50%{opacity:.3}}
-.flashinfo-piste{flex:1;overflow-x:auto;overflow-y:hidden;position:relative;height:100%;
-  scrollbar-width:none;-ms-overflow-style:none}
-.flashinfo-list{display:flex;align-items:center;height:100%;white-space:nowrap;width:max-content}
-.flashinfo-item{display:inline-flex;align-items:center;gap:8px;padding:0 26px;
+.flashinfo-piste{flex:1;overflow:hidden;position:relative;height:100%}
+.flashinfo-list{position:absolute;display:flex;align-items:center;height:100%;
+  white-space:nowrap;will-change:transform;animation:flashinfoScroll linear infinite}
+.flashinfo-item{display:inline-flex;align-items:center;gap:7px;padding:0 26px;
   font-size:11px;color:#EDEDED;font-weight:600;cursor:pointer}
 .flashinfo-item:hover{color:#fff}
 .flashinfo-item .tt-niv{font-size:8px;font-weight:800;padding:1px 6px;border-radius:3px;
   letter-spacing:.04em;flex-shrink:0}
 .flashinfo-item .tt-pays{color:#9CA3AF;font-weight:700;flex-shrink:0}
+.flashinfo-item .tt-date,.flashinfo-item .tt-heure{color:#6B7280;font-weight:600;
+  font-size:10px;flex-shrink:0;display:inline-flex;align-items:center;gap:2px}
+.flashinfo-item .tt-date i,.flashinfo-item .tt-heure i{font-size:10px}
 .flashinfo-sep{color:#4B5563;flex-shrink:0}
+@keyframes flashinfoScroll{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+.flashinfo-piste:hover .flashinfo-list{animation-play-state:paused}
 /* Replie : ne garde qu'une fine bande coloree + le libelle, cliquable pour
    redeplier. Fusionne visuellement avec la barre d'onglets plutot que
    d'occuper en permanence 30px de hauteur utile, surtout sensible sur mobile. */
@@ -5731,10 +5737,11 @@ function dismissToastManual(id) {
 }
 
 // ── RUBAN FLASH INFO ─────────────────────────────────────────────────────
-// Bandeau statique (pas de defilement continu) des titres qui font la une
-// en Afrique et dans le monde, regenere au plus toutes les 3h — pas a
-// chaque cycle de collecte comme l'ancien ruban "EN DIRECT". Les articles
-// restent consultables : un clic ouvre le Flux sur l'article concerne.
+// Bandeau en mouvement (defilement continu) des titres qui font la une en
+// Afrique et dans le monde, regenere au plus toutes les 3h — pas a chaque
+// cycle de collecte comme l'ancien ruban "EN DIRECT". Chaque titre est un
+// lien vers l'actualite concernee (ouvre le Flux + le detail de l'article)
+// et affiche pays, date et heure de publication.
 const TT_NIV_COL = {crit:'#DC2626',high:'#D97706',mod:'#4B5563',ok:'#059669'};
 const TT_NIV_LB  = {crit:'CRITIQUE',high:'ÉLEVÉ',mod:'MODÉRÉ',ok:'STABLE'};
 const FLASH_INFO_INTERVAL = 3*60*60*1000; // 3 heures
@@ -5764,6 +5771,7 @@ function majFlashInfo(force) {
 
   if (!items.length) {
     piste.innerHTML = '<div class="flashinfo-item" style="color:#6B7280">En attente de collecte des flux en direct</div>';
+    piste.style.animation = 'none';
     piste.dataset.empty = '1';
     return; // ne compte pas comme une generation aboutie : retente au prochain appel
   }
@@ -5778,16 +5786,24 @@ function majFlashInfo(force) {
     const lb = TT_NIV_LB[a.level] || 'INFO';
     const ttKey = 'tt-'+a.id;
     const shown = (LANG === 'en' && TR_CACHE[a.title] !== undefined) ? TR_CACHE[a.title] : a.title;
+    const d = a.pubDate ? new Date(a.pubDate) : null;
+    const dateTxt = d ? d.toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'}) : '—';
+    const heureTxt = d ? d.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}) : '—';
     return '<span class="flashinfo-item" onclick="switchView(\'flux\',document.querySelector(\'.ntab[onclick*=flux]\'));showDet(\''+a.id+'\')">'+
       '<span class="tt-niv" style="background:'+col+';color:#fff;">'+lb+'</span>'+
       '<span class="tt-pays">'+c.flag+' '+c.name+'</span>'+
+      '<span class="tt-date"><i class="ti ti-calendar"></i>'+dateTxt+'</span>'+
+      '<span class="tt-heure"><i class="ti ti-clock"></i>'+heureTxt+'</span>'+
       '<span data-tt="'+ttKey+'">'+shown+'</span>'+
       '</span><span class="flashinfo-sep">•</span>';
   };
 
-  piste.innerHTML = items.map(unItem).join('');
+  const htmlUneFois = items.map(unItem).join('');
+  // Duplication du contenu pour un defilement en boucle continue sans coupure visible
+  piste.innerHTML = htmlUneFois + htmlUneFois;
 
-  // Traduction asynchrone : chaque titre pas encore en cache est traduit une fois.
+  // Traduction asynchrone : chaque titre pas encore en cache est traduit une
+  // fois, puis patche sur ses DEUX occurrences (boucle de defilement dupliquee).
   if (LANG === 'en') {
     items.forEach(a => {
       if (TR_CACHE[a.title] !== undefined) return;
@@ -5797,6 +5813,15 @@ function majFlashInfo(force) {
       });
     });
   }
+
+  // Vitesse proportionnelle a la longueur du contenu pour garder un rythme de lecture constant
+  requestAnimationFrame(() => {
+    const largeurUnite = piste.scrollWidth / 2;
+    const vitessePxParSeconde = 55;
+    const duree = Math.max(20, largeurUnite / vitessePxParSeconde);
+    piste.style.animationDuration = duree + 's';
+    piste.style.animationName = 'flashinfoScroll';
+  });
 }
 
 function renderFeed() {
