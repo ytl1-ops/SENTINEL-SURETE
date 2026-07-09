@@ -1946,10 +1946,17 @@ button:not(:disabled){
               <div style="font-size:10px;color:var(--lg)" id="alerteLastUpdate">Mis à jour le 29/06/2026 à 12h45 UTC — Calculé sur les 24 dernières heures</div>
             </div>
           </div>
-          <button onclick="recalcAlertes()" style="padding:6px 14px;background:rgba(156,163,175,.12);border:1px solid #9CA3AF;border-radius:6px;color:#9CA3AF;font-size:11px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:5px;">
-            <i class="ti ti-calculator"></i> Recalculer
-          </button>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <div style="display:flex;border:1px solid var(--bd);border-radius:6px;overflow:hidden;">
+              <button class="corr-dim on" id="alVueGrille" onclick="setAlerteVue('grille')" style="border:none;border-radius:0;background:var(--n);color:#fff;"><i class="ti ti-layout-grid"></i>Grille</button>
+              <button class="corr-dim" id="alVueChrono" onclick="setAlerteVue('chrono')" style="border:none;border-radius:0;background:var(--sf);color:var(--t2);"><i class="ti ti-timeline"></i>Chronologie</button>
+            </div>
+            <button onclick="recalcAlertes()" style="padding:6px 14px;background:rgba(156,163,175,.12);border:1px solid #9CA3AF;border-radius:6px;color:#9CA3AF;font-size:11px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:5px;">
+              <i class="ti ti-calculator"></i> Recalculer
+            </button>
+          </div>
         </div>
+        <div id="alerteVueGrille">
         <!-- Légende niveaux -->
         <div style="display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap;">
           <span style="padding:3px 10px;border-radius:4px;background:#CC0000;border:1px solid #FF3333;color:#fff;font-size:9px;font-weight:700;letter-spacing:.05em;">ROUGE — Situation grave</span>
@@ -1978,6 +1985,21 @@ button:not(:disabled){
             <br><strong>Facteurs aggravants :</strong> rupture accès humanitaire (+2), attaque capitale (+3), rupture diplomatique (+2), inondations actives (+1).
             <br><strong>Sources :</strong> Flux RSS agences nationales, réseaux sociaux, ACLED, OCHA, ReliefWeb — actualisés à chaque collecte.
           </div>
+        </div>
+        </div>
+
+        <!-- Vue Chronologie : timeline verticale des incidents verifies (ALERTE_EVENTS)
+             et des articles critiques/eleves recents, pour suivre l'evolution
+             d'une situation dans le temps (esprit timeline d'enquete Palantir). -->
+        <div id="alerteVueChrono" style="display:none;">
+          <div class="tlbr" style="margin-bottom:12px;">
+            <span style="font-size:11px;font-weight:700;color:var(--t);display:flex;align-items:center;gap:5px;"><i class="ti ti-timeline" style="font-size:14px"></i>Chronologie</span>
+            <select id="chronoCy" onchange="setChronoCy(this.value)" style="padding:4px 8px;border:1px solid var(--bd);border-radius:5px;font-size:11px;font-weight:600;color:var(--t);background:var(--w);">
+              <option value="all">Tous les pays</option>
+            </select>
+            <span style="margin-left:auto;font-size:9px;color:var(--lg);" id="chronoCount"></span>
+          </div>
+          <div id="chronoCont"></div>
         </div>
       </div>
     </div>
@@ -8832,6 +8854,114 @@ function goToAlerteIncident(cy) {
     card.style.boxShadow = '0 0 0 4px rgba(156,163,175,.55), 0 4px 16px rgba(0,0,0,.15)';
     setTimeout(() => { card.style.boxShadow = '0 1px 3px rgba(0,0,0,.06)'; card.style.transition = originalTransition; }, 2200);
   }, 220);
+}
+
+// ════════════════════════════════════════════════════════════════════
+//  CHRONOLOGIE — vue "timeline" du module Alertes : suit l'evolution
+//  d'une situation dans le temps (incidents verifies ALERTE_EVENTS +
+//  articles critiques/eleves recents du Flux), triee du plus recent au
+//  plus ancien. Esprit timeline d'enquete (link analysis chronologique).
+// ════════════════════════════════════════════════════════════════════
+let fChronoCy = 'all';
+
+function setAlerteVue(vue) {
+  const grille = document.getElementById('alerteVueGrille');
+  const chrono = document.getElementById('alerteVueChrono');
+  const btnG = document.getElementById('alVueGrille');
+  const btnC = document.getElementById('alVueChrono');
+  if (grille) grille.style.display = (vue==='chrono') ? 'none' : 'block';
+  if (chrono) chrono.style.display = (vue==='chrono') ? 'block' : 'none';
+  [btnG, btnC].forEach(b => { if (b) { b.classList.remove('on'); b.style.background='var(--sf)'; b.style.color='var(--t2)'; } });
+  const active = (vue==='chrono') ? btnC : btnG;
+  if (active) { active.classList.add('on'); active.style.background='var(--n)'; active.style.color='#fff'; }
+  if (vue === 'chrono') { peuplerFiltresChrono(); renderAlerteChronologie(); }
+}
+
+function setChronoCy(cy) { fChronoCy = cy; renderAlerteChronologie(); }
+
+function peuplerFiltresChrono() {
+  const sel = document.getElementById('chronoCy');
+  if (!sel || sel.options.length > 1) return;
+  Object.keys(PAYS_INFO).sort((a,b) => PAYS_INFO[a].name.localeCompare(PAYS_INFO[b].name)).forEach(cy => {
+    const opt = document.createElement('option');
+    opt.value = cy;
+    opt.textContent = PAYS_INFO[cy].flag + ' ' + PAYS_INFO[cy].name;
+    sel.appendChild(opt);
+  });
+}
+
+// _chronoParseDate(dateStr) : ALERTE_EVENTS.date est une chaine libre
+// "DD/MM/YYYY" ou "DD/MM/YYYY HHhMM" — convertie ici en timestamp pour
+// pouvoir trier/regrouper la chronologie. Repli sur 0 (fin de liste) si
+// le format est inattendu, plutot que de planter le tri.
+function _chronoParseDate(dateStr) {
+  if (!dateStr) return 0;
+  const m = dateStr.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+(\d{1,2})h(\d{2}))?/);
+  if (!m) return 0;
+  const [, d, mo, y, h, mi] = m;
+  const dt = new Date(+y, +mo-1, +d, h?+h:0, mi?+mi:0);
+  return isNaN(dt.getTime()) ? 0 : dt.getTime();
+}
+
+const NIV_TO_LEVELMETA = { rouge:'crit', marron:'high', orange:'high', jaune:'mod', vert:'ok' };
+
+function renderAlerteChronologie() {
+  const cont = document.getElementById('chronoCont');
+  const countEl = document.getElementById('chronoCount');
+  if (!cont) return;
+
+  // Incidents verifies (reference historique/actuelle)
+  const items = ALERTE_EVENTS
+    .filter(e => fChronoCy === 'all' || e.cy === fChronoCy)
+    .map(e => ({ ts: _chronoParseDate(e.date), dateLabel: e.date, cy: e.cy, title: e.title,
+      level: NIV_TO_LEVELMETA[e.level] || 'mod', src: e.src, type:'incident' }));
+
+  // Articles critiques/eleves recents du Flux (<12h), pour prolonger la
+  // chronologie jusqu'a l'instant present avec les tout derniers signaux.
+  (ALL||[]).filter(a => estRecentReel(a) && (a.level==='crit'||a.level==='high') && (fChronoCy==='all'||a.cy===fChronoCy))
+    .forEach(a => items.push({ ts:a.pubDate||0, dateLabel: fmtFull(a.pubDate), cy:a.cy, title:a.title,
+      level:a.level, src: srcName(a.primary), type:'flux', id:a.id }));
+
+  items.sort((a,b) => b.ts - a.ts);
+  const shown = items.slice(0, 200);
+
+  if (countEl) countEl.textContent = shown.length + ' evenement' + (shown.length>1?'s':'') + ' · trie du plus recent au plus ancien';
+  if (!shown.length) {
+    cont.innerHTML = '<div class="empty"><i class="ti ti-timeline"></i><p>Aucun evenement pour ce perimetre.</p></div>';
+    return;
+  }
+
+  // Regroupement par jour (libelle de date) pour des en-tetes de section lisibles
+  let lastDay = null;
+  const rows = shown.map(it => {
+    const day = it.ts ? new Date(it.ts).toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'}) : (it.dateLabel||'Date inconnue');
+    const lvl = levelMeta(it.level);
+    const pys = PAYS_INFO[it.cy] || {flag:'🌍',name:it.cy};
+    let header = '';
+    if (day !== lastDay) {
+      header = `<div style="font-size:10px;font-weight:700;color:var(--lg);text-transform:uppercase;letter-spacing:.06em;margin:14px 0 8px 28px;">${day}</div>`;
+      lastDay = day;
+    }
+    const onclick = it.type==='flux' ? `switchView('flux',document.querySelector('.ntab'));showDet('${_seEsc(it.id)}')`
+                                      : `switchView('flux',document.querySelector('.ntab'));setGeo('${_seEsc(it.cy)}','${_seEsc(pys.name)}')`;
+    return header + `<div style="display:flex;gap:12px;padding-left:8px;position:relative;">
+        <div style="width:20px;flex-shrink:0;position:relative;display:flex;justify-content:center;">
+          <div style="position:absolute;top:0;bottom:-4px;width:2px;background:var(--bd);"></div>
+          <div style="position:relative;width:11px;height:11px;border-radius:50%;background:${lvl.col};border:2px solid var(--w);box-shadow:0 0 0 1px ${lvl.col};margin-top:4px;"></div>
+        </div>
+        <div onclick="${onclick}" style="flex:1;cursor:pointer;background:var(--w);border:1px solid var(--bd);border-left:3px solid ${lvl.col};border-radius:8px;padding:9px 12px;margin-bottom:8px;">
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;flex-wrap:wrap;">
+            <span style="font-size:9px;font-weight:700;padding:1px 7px;border-radius:3px;background:${lvl.bg};color:${lvl.col};">${lvl.label}</span>
+            <span style="font-size:10px;color:var(--lg);">${pys.flag} ${pys.name}</span>
+            <span style="margin-left:auto;font-size:9px;color:var(--lg);">${it.ts ? new Date(it.ts).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}) : ''}</span>
+          </div>
+          <div style="font-size:12px;font-weight:600;color:var(--t);line-height:1.35;">${it.title}</div>
+          ${it.src ? `<div style="font-size:9.5px;color:var(--lg);margin-top:2px;"><i class="ti ti-antenna" style="font-size:10px"></i> ${it.src}</div>` : ''}
+        </div>
+      </div>`;
+  }).join('');
+
+  cont.innerHTML = rows;
 }
 
 // Memorise le dernier niveau connu par pays pour detecter les changements
