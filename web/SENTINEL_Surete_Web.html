@@ -1623,6 +1623,31 @@ button:not(:disabled){
   </div>
 </div>
 
+<!-- ═══ DÉCLARATION DE PAIEMENT (accessible a tous les roles, via le menu profil) ═══ -->
+<div class="admin-panel hidden" id="paiementPanel">
+  <div class="admin-box" style="max-width:480px">
+    <div class="admin-hd">
+      <div class="admin-title"><i class="ti ti-receipt"></i>Déclarer un paiement</div>
+      <span class="admin-close" onclick="closePaiementDeclare()">✕</span>
+    </div>
+    <div class="admin-sec">
+      <div style="font-size:11px;color:rgba(255,255,255,.55);margin-bottom:10px;line-height:1.6">
+        Transférez d'abord le montant vers l'un des moyens de paiement indiqués dans Paramètres, puis renseignez ici
+        la référence de transaction fournie par l'opérateur (SMS de confirmation). Un administrateur vérifiera le
+        paiement avant d'activer votre abonnement — vous recevrez votre code d'accès par email.
+      </div>
+      <div class="user-form" style="flex-direction:column;align-items:stretch">
+        <select id="pdForfait" style="padding:10px 12px;border:1px solid rgba(255,255,255,.15);border-radius:8px;background:rgba(255,255,255,.05);color:#fff;font-size:13px;font-family:inherit"></select>
+        <select id="pdMoyen" style="padding:10px 12px;border:1px solid rgba(255,255,255,.15);border-radius:8px;background:rgba(255,255,255,.05);color:#fff;font-size:13px;font-family:inherit"></select>
+        <input type="text" id="pdReference" placeholder="Référence de transaction (SMS de confirmation)">
+        <textarea id="pdNote" placeholder="Note complémentaire (optionnel)" rows="2" style="padding:10px 12px;border:1px solid rgba(255,255,255,.15);border-radius:8px;background:rgba(255,255,255,.05);color:#fff;font-size:13px;font-family:inherit;resize:vertical"></textarea>
+        <button onclick="submitPaiementDeclare()"><i class="ti ti-send"></i> Déclarer le paiement</button>
+      </div>
+      <div class="admin-msg" id="pdMsg"></div>
+    </div>
+  </div>
+</div>
+
 <!-- TOPBAR -->
 <div class="tb">
   <div class="logo">
@@ -1668,6 +1693,9 @@ button:not(:disabled){
         <span class="user-name" id="userNameChip">Admin</span>
       </div>
       <div class="user-menu" id="userMenu">
+        <div class="user-menu-item" onclick="toggleUserMenu();openPaiementDeclare()">
+          <i class="ti ti-receipt"></i> <span data-i18n="menu_paiement">Déclarer un paiement</span>
+        </div>
         <div class="user-menu-item" onclick="toggleUserMenu();openReclamation()">
           <i class="ti ti-message-report"></i> <span data-i18n="menu_reclam">Signaler un problème</span>
         </div>
@@ -2360,10 +2388,11 @@ button:not(:disabled){
             </div>
             <div class="pm-sec-body" style="padding:14px 16px">
               <div style="font-size:10px;color:var(--lg);margin-bottom:12px;line-height:1.6">
-                L'application étant 100% statique (sans serveur), les moyens ci-dessous mènent en principe à une
-                confirmation manuelle par l'administrateur (référence transmise par le client). La passerelle
-                CinetPay ci-dessous permet de lancer un vrai paiement, avec verification manuelle avant activation
-                (voir l'encadre de securite plus bas).
+                L'application étant 100% statique (sans serveur), les moyens ci-dessous mènent à une confirmation
+                manuelle par l'administrateur : le client transfère vers le numéro/RIB indiqué ici, puis déclare son
+                paiement depuis son menu profil (référence de transaction à l'appui) — voir la file de vérification
+                ci-dessous. La passerelle CinetPay (plus bas) est une alternative automatisée, mais nécessite un
+                compte marchand/entreprise ; sans compte, utilisez la déclaration manuelle.
               </div>
               <div class="paymethod-grid" id="paymethodGrid"></div>
               <div style="margin-top:12px;display:flex;align-items:center;gap:10px">
@@ -2373,12 +2402,35 @@ button:not(:disabled){
             </div>
           </div>
 
+          <!-- Paiements déclarés (alternative sans passerelle) -->
+          <div class="pm-section">
+            <div class="pm-sec-hd">
+              <div class="pm-sec-hd-l"><i class="ti ti-receipt"></i>
+                <div><div class="pm-sec-title">Paiements déclarés à vérifier</div>
+                <div class="pm-sec-sub" id="paiementsCount">0 en attente</div></div>
+              </div>
+            </div>
+            <div class="pm-sec-body">
+              <div style="font-size:10px;color:var(--lg);padding:10px 16px 0;line-height:1.6">
+                Le client transfère lui-même le montant vers un moyen de paiement ci-dessus, puis déclare son
+                paiement (menu profil → « Déclarer un paiement »). Vérifiez la référence dans votre propre relevé
+                Mobile Money/bancaire avant de confirmer — l'abonnement s'active et le code d'accès part par email
+                automatiquement dès la confirmation.
+              </div>
+              <table class="pm-users-table">
+                <thead><tr><th>Date</th><th>Client</th><th>Forfait</th><th>Moyen</th><th>Référence</th><th>Note</th><th>Statut</th></tr></thead>
+                <tbody id="paiementsBody"></tbody>
+              </table>
+              <div style="padding:6px 16px 10px"><span class="pmu-msg" id="paiementsMsg" style="margin:0"></span></div>
+            </div>
+          </div>
+
           <!-- Passerelle CinetPay -->
           <div class="pm-section">
             <div class="pm-sec-hd">
               <div class="pm-sec-hd-l"><i class="ti ti-building-bank"></i>
-                <div><div class="pm-sec-title">Passerelle de paiement CinetPay</div>
-                <div class="pm-sec-sub">Encaissement reel — Orange Money, MTN, Moov, Visa/Mastercard</div></div>
+                <div><div class="pm-sec-title">Passerelle de paiement CinetPay (optionnel)</div>
+                <div class="pm-sec-sub">Nécessite un compte marchand/entreprise — utilisez « Paiements déclarés » ci-dessus si vous n'en avez pas</div></div>
               </div>
             </div>
             <div class="pm-sec-body" style="padding:14px 16px">
@@ -3287,7 +3339,7 @@ const I18N = {
     logo_sub:"Veille multi-sources · Médias + Réseaux sociaux · 54 pays d'Afrique",
     live_pret:'Collecte...', btn_actualiser:'Actualiser', btn_diagnostic:'Diagnostic',
     menu_params:'Paramètres & Administration', menu_access:'Gestion des accès', menu_logout:'Se déconnecter',
-    menu_reclam:'Signaler un problème',
+    menu_reclam:'Signaler un problème', menu_paiement:'Déclarer un paiement',
     proxy_title:'Collecte RSS automatique — Cliquez Actualiser',
     cbar_lbl:'Collecte RSS', cbar_init:'Collecte en parallèle : Malijet... (15/195)',
     nav_flux:'Flux', nav_analyse:'Synthèse', nav_agenda:'Agenda', nav_rapports:'Rapports',
@@ -3315,7 +3367,7 @@ const I18N = {
     logo_sub:'Multi-source monitoring · Media + Social networks · 54 African countries',
     live_pret:'Collecting...', btn_actualiser:'Refresh', btn_diagnostic:'Diagnostic',
     menu_params:'Settings & Administration', menu_access:'Access management', menu_logout:'Log out',
-    menu_reclam:'Report an issue',
+    menu_reclam:'Report an issue', menu_paiement:'Declare a payment',
     proxy_title:'Automatic RSS collection — Click Refresh',
     cbar_lbl:'RSS Collection', cbar_init:'Parallel collection: Malijet... (15/195)',
     nav_flux:'Feed', nav_analyse:'Synthesis', nav_agenda:'Agenda', nav_rapports:'Reports',
@@ -8305,6 +8357,7 @@ function loadParamsModule() {
   renderPricing();
   renderPaymethods();
   renderClientele();
+  renderPaiementsAdmin();
   renderCinetpayCfg();
   renderCinetpayTx();
   renderEmailjsCfg();
@@ -8674,35 +8727,39 @@ async function envoyerCodeActivation(u) {
   }
 }
 
+// activerAbonnementEtEnvoyerCode(email, planKey, msgElId) : point commun aux
+// deux circuits de confirmation (CinetPay et paiement declare manuellement) —
+// active le forfait, marque le paiement a jour, et tente l'envoi automatique
+// du code d'acces par email (voir envoyerCodeActivation). Jamais d'activation
+// sans confirmation explicite de l'administrateur, quel que soit le circuit.
+function activerAbonnementEtEnvoyerCode(email, planKey, msgElId) {
+  const users = getUsers();
+  const u = users.find(x => x.email === email);
+  if (!u) return;
+  u.plan = planKey;
+  u.paiement = 'a_jour';
+  const echeance = new Date(); echeance.setMonth(echeance.getMonth() + 1);
+  u.echeance = echeance.toLocaleDateString('fr-FR');
+  saveUsers(users);
+  const code = makeCode(u.email);
+  envoyerCodeActivation(u).then(res => {
+    if (res.ok) {
+      pmMsg('Abonnement activé pour ' + u.email + ' — code d\'activation envoyé par email automatiquement.', 'ok', msgElId);
+    } else {
+      pmMsg('Abonnement activé pour ' + u.email + '. Envoi automatique indisponible (' + res.raison + ') — code à transmettre manuellement : <b>' + code + '</b>', 'ok', msgElId);
+    }
+  });
+  renderClientele();
+}
+
 function pmConfirmerCinetpayTx(id) {
   const tx = getCinetpayTx();
   const t = tx.find(x => x.id === id);
   if (!t) return;
   t.statut = 'confirme';
   saveCinetpayTx(tx);
-  const users = getUsers();
-  const u = users.find(x => x.email === t.email);
-  if (u) {
-    u.plan = t.planKey;
-    u.paiement = 'a_jour';
-    const echeance = new Date(); echeance.setMonth(echeance.getMonth() + 1);
-    u.echeance = echeance.toLocaleDateString('fr-FR');
-    saveUsers(users);
-    // Envoi automatique du code d'activation par email des que le paiement
-    // est confirme (declencheur : confirmation manuelle admin apres controle
-    // de la transaction CinetPay, jamais le seul retour "accepte" cote
-    // navigateur — voir l'encadre de securite de la section CinetPay).
-    const code = makeCode(u.email);
-    envoyerCodeActivation(u).then(res => {
-      if (res.ok) {
-        pmMsg('Abonnement activé pour ' + u.email + ' — code d\'activation envoyé par email automatiquement.', 'ok', 'clienteleMsg');
-      } else {
-        pmMsg('Abonnement activé pour ' + u.email + '. Envoi automatique indisponible (' + res.raison + ') — code à transmettre manuellement : <b>' + code + '</b>', 'ok', 'clienteleMsg');
-      }
-    });
-  }
+  activerAbonnementEtEnvoyerCode(t.email, t.planKey, 'clienteleMsg');
   renderCinetpayTx();
-  renderClientele();
 }
 function pmRejeterCinetpayTx(id) {
   const tx = getCinetpayTx();
@@ -8717,6 +8774,101 @@ function pmRejeterCinetpayTx(id) {
 const RECLAM_KEY = 'sentinel_reclamations_v1';
 function getReclamations()  { return _ls(()=>JSON.parse(localStorage.getItem(RECLAM_KEY)||'[]'),[]); }
 function saveReclamations(r){ _ls(()=>localStorage.setItem(RECLAM_KEY,JSON.stringify(r))); }
+
+// ── PAIEMENT DÉCLARÉ (alternative sans passerelle — pas de compte
+// entreprise requis) ──────────────────────────────────────────────────────
+// Le client transfère lui-même le montant vers un des numéros Mobile
+// Money/RIB configurés dans "Moyens de paiement", puis déclare son paiement
+// ici (référence de transaction fournie par l'opérateur). L'administrateur
+// vérifie cette référence dans son propre relevé Mobile Money/bancaire avant
+// de confirmer — même garde-fou que CinetPay (jamais d'activation sur simple
+// déclaration non vérifiée), mais sans dépendre d'un compte marchand.
+const PAIEMENTS_KEY = 'sentinel_paiements_declares_v1';
+function getPaiementsDeclares()  { return _ls(()=>JSON.parse(localStorage.getItem(PAIEMENTS_KEY)||'[]'),[]); }
+function savePaiementsDeclares(p){ _ls(()=>localStorage.setItem(PAIEMENTS_KEY,JSON.stringify(p))); }
+
+function openPaiementDeclare() {
+  const sel = document.getElementById('pdForfait');
+  const plans = getPricing().filter(p => p.prix);
+  sel.innerHTML = plans.map(p => '<option value="'+p.key+'">'+p.nom+' — '+p.prix.toLocaleString('fr-FR')+' FCFA'+p.periode+'</option>').join('');
+  const moyenSel = document.getElementById('pdMoyen');
+  const moyens = getPaymethods().filter(m => m.actif);
+  moyenSel.innerHTML = moyens.map(m => '<option value="'+m.id+'">'+m.nom+(m.detail?' — '+m.detail:'')+'</option>').join('');
+  document.getElementById('pdReference').value = '';
+  document.getElementById('pdNote').value = '';
+  const msgEl = document.getElementById('pdMsg');
+  msgEl.innerHTML=''; msgEl.className='admin-msg';
+  document.getElementById('paiementPanel').classList.remove('hidden');
+}
+function closePaiementDeclare() { document.getElementById('paiementPanel').classList.add('hidden'); }
+
+function submitPaiementDeclare() {
+  const forfait   = document.getElementById('pdForfait').value;
+  const moyen     = document.getElementById('pdMoyen').value;
+  const reference = document.getElementById('pdReference').value.trim();
+  const note      = document.getElementById('pdNote').value.trim();
+  const msgEl = document.getElementById('pdMsg');
+  if (!forfait || !moyen || !reference) { msgEl.textContent = 'Forfait, moyen de paiement et référence de transaction sont requis.'; msgEl.className = 'admin-msg err'; return; }
+  const session = getSession();
+  const plan = getPricing().find(p => p.key === forfait);
+  const methode = getPaymethods().find(m => m.id === moyen);
+  const list = getPaiementsDeclares();
+  list.unshift({
+    id: 'pd'+Date.now().toString(36), email: session.email, nom: session.name,
+    planKey: forfait, plan: plan ? plan.nom : forfait, montant: plan ? plan.prix : null,
+    moyen: methode ? methode.nom : moyen, reference, note, statut: 'a_verifier',
+    date: new Date().toISOString(),
+  });
+  savePaiementsDeclares(list);
+  msgEl.innerHTML = '<b>Paiement déclaré.</b> Un administrateur va vérifier la référence et activer votre abonnement.';
+  msgEl.className = 'admin-msg ok';
+  renderPaiementsAdmin();
+  setTimeout(closePaiementDeclare, 1500);
+}
+
+function renderPaiementsAdmin() {
+  const body = document.getElementById('paiementsBody');
+  if (!body) return;
+  const list = getPaiementsDeclares();
+  const enAttente = list.filter(p => p.statut === 'a_verifier');
+  document.getElementById('paiementsCount').textContent = enAttente.length + ' en attente';
+  if (!list.length) {
+    body.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--lg);padding:16px">Aucun paiement déclaré pour le moment.</td></tr>';
+    return;
+  }
+  const lbl = {a_verifier:['bs-nouveau','A vérifier'], confirme:['bs-active','Confirmé'], rejete:['bs-suspend','Rejeté']};
+  body.innerHTML = list.map(p => {
+    const [cls, txt] = lbl[p.statut] || lbl.a_verifier;
+    return '<tr>'+
+      '<td style="white-space:nowrap">'+new Date(p.date).toLocaleString('fr-FR')+'</td>'+
+      '<td>'+(p.nom||p.email)+'</td>'+
+      '<td>'+p.plan+'</td>'+
+      '<td>'+p.moyen+'</td>'+
+      '<td style="font-family:monospace;font-size:10px">'+p.reference+'</td>'+
+      '<td>'+(p.note||'—')+'</td>'+
+      '<td><span class="badge-status '+cls+'">'+txt+'</span>'+
+        (p.statut==='a_verifier' ? ' <button class="btn-action btn-rest" onclick="pmConfirmerPaiement(\''+p.id+'\')" style="margin-left:4px">Confirmer</button>'+
+          '<button class="btn-action btn-del" onclick="pmRejeterPaiement(\''+p.id+'\')">Rejeter</button>' : '')+
+      '</td></tr>';
+  }).join('');
+}
+function pmConfirmerPaiement(id) {
+  const list = getPaiementsDeclares();
+  const p = list.find(x => x.id === id);
+  if (!p) return;
+  p.statut = 'confirme';
+  savePaiementsDeclares(list);
+  activerAbonnementEtEnvoyerCode(p.email, p.planKey, 'paiementsMsg');
+  renderPaiementsAdmin();
+}
+function pmRejeterPaiement(id) {
+  const list = getPaiementsDeclares();
+  const p = list.find(x => x.id === id);
+  if (!p) return;
+  p.statut = 'rejete';
+  savePaiementsDeclares(list);
+  renderPaiementsAdmin();
+}
 
 function openReclamation() {
   document.getElementById('reclamSujet').value='';
