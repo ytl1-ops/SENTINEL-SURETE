@@ -111,6 +111,16 @@ input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px soli
 .corr-tag{display:inline-flex;align-items:center;gap:3px;font-size:8px;font-weight:700;padding:2px 7px;border-radius:10px;white-space:nowrap}
 .corr-link{display:flex;align-items:flex-start;gap:8px;padding:8px 0;border-bottom:.5px solid var(--bd);cursor:pointer}
 .corr-link:hover{background:var(--sf);margin:0 -4px;padding:8px 4px}
+/* Graphe de liens (module Corrélations > Graphe) */
+.cg-edge{fill:none;stroke:var(--bd);stroke-width:1.1;opacity:.55;transition:opacity .15s,stroke .15s}
+.cg-hover-active .cg-edge{opacity:.08}
+.cg-hover-active .cg-edge.cg-edge-on{opacity:1;stroke:var(--b);stroke-width:1.6}
+.cg-node{transition:opacity .15s}
+.cg-hover-active .cg-node:not(.cg-node-on){opacity:.25}
+.cg-dot{stroke-width:2;fill-opacity:.18}
+.cg-dot-theme{fill:var(--b);stroke:var(--b)}
+.cg-lbl{font-size:11px;font-weight:700;fill:var(--t)}
+.cg-lbl-sub{font-size:9px;fill:var(--lg)}
 .lang-switch{display:flex;border:1px solid rgba(255,255,255,.2);border-radius:5px;overflow:hidden;flex-shrink:0}
 .lang-btn{background:transparent;border:none;color:rgba(255,255,255,.5);font-size:10px;font-weight:700;
   padding:5px 10px;cursor:pointer;letter-spacing:.05em;transition:background .12s,color .12s}
@@ -1762,6 +1772,7 @@ button:not(:disabled){
           <span style="font-size:11px;font-weight:700;color:var(--t);display:flex;align-items:center;gap:5px;"><i class="ti ti-affiliate" style="font-size:14px"></i>Corrélations</span>
           <button class="corr-dim on" data-dim="themes" onclick="setCorrDim('themes',this)"><i class="ti ti-tags"></i>Par thème</button>
           <button class="corr-dim" data-dim="pays" onclick="setCorrDim('pays',this)"><i class="ti ti-world"></i>Par pays</button>
+          <button class="corr-dim" data-dim="graphe" onclick="setCorrDim('graphe',this)"><i class="ti ti-topology-star-3"></i>Graphe</button>
           <span style="margin-left:auto;font-size:9px;color:var(--lg);" id="corrCount"></span>
         </div>
         <div style="overflow-y:auto;flex:1;padding:12px 14px;" id="corrCont">
@@ -4485,6 +4496,11 @@ function renderCorrelations() {
     return;
   }
 
+  if (fCorrDim === 'graphe') {
+    renderCorrGraphe(arts, cont, countEl);
+    return;
+  }
+
   // Dimension "themes" (par defaut) : signaux correles entre plusieurs pays
   const signaux = _corrBuildSignaux(arts);
   if (countEl) countEl.textContent = signaux.length + ' signal' + (signaux.length>1?'aux':'') + ' corrélé' + (signaux.length>1?'s':'') + ' entre pays';
@@ -4512,6 +4528,101 @@ function renderCorrelations() {
       '</div>' + rows +
     '</div>';
   }).join('');
+}
+
+// renderCorrGraphe(arts, cont, countEl) : vue "graphe" du module Corrélations
+// — graphe biparti thèmes⇄pays (nœuds à gauche = thèmes détectés, nœuds à
+// droite = pays concernés, arêtes = ce thème est présent dans cet article
+// pour ce pays). C'est le visuel d'analyse de liens (link analysis) façon
+// Palantir Gotham, construit uniquement avec des formes SVG (cercles/lignes)
+// et interactif au survol/clic — aucune librairie externe, aucun asset tiers.
+function renderCorrGraphe(arts, cont, countEl) {
+  const signaux = _corrBuildSignaux(arts).slice(0, 12);
+  if (countEl) countEl.textContent = signaux.length ? (signaux.length+' thème(s), graphe de liens') : '';
+  if (!signaux.length) {
+    cont.innerHTML = '<div class="empty"><i class="ti ti-topology-star-3"></i><p>Aucun thème commun détecté entre plusieurs pays pour le moment.</p></div>';
+    return;
+  }
+  // Liste des pays distincts impliques, ordonnee par nombre de connexions (degre)
+  const paysDegre = {};
+  signaux.forEach(s => s.pays.forEach(cy => { paysDegre[cy] = (paysDegre[cy]||0)+1; }));
+  const paysListe = Object.keys(paysDegre).sort((a,b) => paysDegre[b]-paysDegre[a]);
+
+  const W = 900, PADV = 36;
+  const rowH = 46;
+  const H = Math.max(signaux.length, paysListe.length) * rowH + PADV*2;
+  const XT = 190, XP = W - 190;
+
+  const themePos = {}; signaux.forEach((s, i) => { themePos[s.terme] = PADV + i*rowH + rowH/2; });
+  const paysPos = {}; paysListe.forEach((cy, i) => { paysPos[cy] = PADV + i*rowH + rowH/2; });
+
+  const edges = [];
+  signaux.forEach(s => {
+    s.pays.forEach(cy => {
+      edges.push({ terme: s.terme, cy, y1: themePos[s.terme], y2: paysPos[cy] });
+    });
+  });
+
+  const edgesSvg = edges.map((e,i) =>
+    `<path class="cg-edge" data-theme="t_${_seEsc(e.terme)}" data-pays="p_${e.cy}" d="M${XT+10},${e.y1} C${(XT+XP)/2},${e.y1} ${(XT+XP)/2},${e.y2} ${XP-10},${e.y2}"/>`
+  ).join('');
+
+  const themeNodesSvg = signaux.map(s => {
+    const r = 6 + Math.min(s.pays.length, 8);
+    return `<g class="cg-node" data-id="t_${_seEsc(s.terme)}">` +
+      `<circle cx="${XT}" cy="${themePos[s.terme]}" r="${r}" class="cg-dot cg-dot-theme"/>` +
+      `<text x="${XT-r-8}" y="${themePos[s.terme]+4}" text-anchor="end" class="cg-lbl">#${s.terme}</text>` +
+      `<text x="${XT+r+8}" y="${themePos[s.terme]+4}" class="cg-lbl-sub">${s.pays.length} pays</text>` +
+    `</g>`;
+  }).join('');
+
+  const paysNodesSvg = paysListe.map(cy => {
+    const pys = PAYS_INFO[cy] || {flag:'🌍',name:cy};
+    const sc = (typeof calcAlertScore === 'function') ? calcAlertScore(cy) : null;
+    const col = sc ? sc.niv.col : '#4B5563';
+    const r = 6 + Math.min(paysDegre[cy], 8);
+    return `<g class="cg-node" data-id="p_${cy}" onclick="switchView('flux',document.querySelector('.ntab'));setGeo('${_seEsc(cy)}','${_seEsc(pys.name)}')" style="cursor:pointer;">` +
+      `<circle cx="${XP}" cy="${paysPos[cy]}" r="${r}" class="cg-dot" style="fill:${col};stroke:${col};"/>` +
+      `<text x="${XP+r+8}" y="${paysPos[cy]+4}" class="cg-lbl">${pys.flag} ${pys.name}</text>` +
+    `</g>`;
+  }).join('');
+
+  cont.innerHTML =
+    `<div style="font-size:10px;color:var(--lg);margin-bottom:8px;">Survolez un nœud pour isoler ses connexions · cliquez un pays pour l'ouvrir dans le Flux.</div>` +
+    `<div style="overflow-x:auto;">` +
+    `<svg id="corrGraphSvg" viewBox="0 0 ${W} ${H}" style="width:100%;min-width:640px;height:${H}px;" font-family="var(--font-body,system-ui)">` +
+      `<g id="corrGraphEdges">${edgesSvg}</g>` +
+      `<g id="corrGraphNodes">${themeNodesSvg}${paysNodesSvg}</g>` +
+    `</svg></div>`;
+
+  // Survol : isole les aretes/noeuds connectes au noeud survole, estompe le reste.
+  const svgEl = document.getElementById('corrGraphSvg');
+  if (svgEl) {
+    svgEl.querySelectorAll('.cg-node').forEach(node => {
+      node.addEventListener('mouseenter', () => {
+        const id = node.getAttribute('data-id');
+        const isTheme = id.startsWith('t_');
+        const key = isTheme ? 'data-theme' : 'data-pays';
+        const val = isTheme ? id : id;
+        svgEl.classList.add('cg-hover-active');
+        svgEl.querySelectorAll('.cg-edge').forEach(e => {
+          const match = isTheme ? (e.getAttribute('data-theme')===id) : (e.getAttribute('data-pays')===id);
+          e.classList.toggle('cg-edge-on', match);
+        });
+        svgEl.querySelectorAll('.cg-node').forEach(n2 => {
+          if (n2 === node) { n2.classList.add('cg-node-on'); return; }
+          const n2id = n2.getAttribute('data-id');
+          const connected = edges.some(e => (id==='t_'+e.terme || id==='p_'+e.cy) && (n2id==='t_'+e.terme || n2id==='p_'+e.cy));
+          n2.classList.toggle('cg-node-on', connected);
+        });
+      });
+      node.addEventListener('mouseleave', () => {
+        svgEl.classList.remove('cg-hover-active');
+        svgEl.querySelectorAll('.cg-edge').forEach(e => e.classList.remove('cg-edge-on'));
+        svgEl.querySelectorAll('.cg-node').forEach(n2 => n2.classList.remove('cg-node-on'));
+      });
+    });
+  }
 }
 
 // ── Registre des plateformes sociales ──────────────────────────────────────
