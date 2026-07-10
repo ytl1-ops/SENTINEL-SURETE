@@ -520,6 +520,7 @@ input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px soli
 .ev.urgent{border-left:4px solid var(--r)}
 .ev.planifie{border-left:4px solid var(--b)}
 .ev.surveillance{border-left:4px solid #7C4A00}
+.ev.acheve{border-left:4px solid #9CA3AF}
 .ev-dt{display:flex;flex-direction:column;align-items:center;
   flex-shrink:0;width:42px}
 .ev-d{font-size:17px;font-weight:700;color:var(--t);line-height:1}
@@ -535,6 +536,7 @@ input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px soli
 .bu{background:var(--rl);color:var(--r);border:1px solid var(--rb)}
 .bp{background:var(--bl);color:var(--b);border:1px solid var(--bb)}
 .bs{background:var(--al);color:#7C4A00;border:1px solid var(--ab)}
+.ba{background:rgba(156,163,175,.15);color:#6B7280;border:1px solid rgba(156,163,175,.3)}
 .ev-dc{font-size:11px;color:var(--t2);line-height:1.5;margin-bottom:5px}
 .ev-mt{display:flex;align-items:center;gap:5px;flex-wrap:wrap}
 .ev-cy{font-size:10px;color:var(--lg);display:flex;align-items:center;gap:3px}
@@ -4758,33 +4760,108 @@ function detectPaysFromText(titre, contenu, srcCy) {
 
 // EVENT_PLANIFIE_KW : mots-cles indiquant un evenement PLANIFIE/PROGRAMME
 // (colloque, seminaire, concert, conseil des ministres, reunion du senat,
-// conseil economique et social...) plutot qu'une actualite factuelle. Ces
-// contenus sont achemines vers le module Agenda plutot que le Flux.
+// conseil economique et social, grands travaux...) plutot qu'une actualite
+// factuelle. Ces contenus sont achemines vers le module Agenda plutot que
+// le Flux. Une seule forme (accentuee) suffit par mot-cle : typeEvenementDetecte()
+// normalise les accents des deux cotes de la comparaison (voir plus bas).
 const EVENT_PLANIFIE_KW = {
   colloque:      ['colloque'],
-  seminaire:     ['seminaire', 'séminaire', 'atelier de formation', 'workshop'],
+  seminaire:     ['séminaire', 'atelier de formation', 'workshop'],
   concert:       ['concert', 'spectacle musical'],
   festival:      ['festival'],
-  gouvernemental:['conseil des ministres', 'conseil de ministres', 'reunion du senat',
-                  'réunion du sénat', 'seance pleniere', 'séance plénière',
-                  "conseil economique et social", "conseil économique et social", 'cese',
-                  'assemblee nationale', 'assemblée nationale', 'assemblee generale',
-                  'assemblée générale', 'reunion pleniere', 'réunion plénière',
-                  'sommet', 'conference', 'conférence', 'congres', 'congrès', 'forum', 'salon'],
+  gouvernemental:['conseil des ministres', 'conseil de ministres', 'réunion du sénat',
+                  'séance plénière', 'conseil économique et social', 'cese',
+                  'assemblée nationale', 'assemblée générale', 'réunion plénière',
+                  'sommet', 'conférence', 'congrès', 'forum', 'salon'],
+  // Grands travaux perturbant significativement les deplacements (routes,
+  // ponts, aeroports, frontieres...) — objectif explicite de l'agent de
+  // collecte Agenda : un responsable surete doit voir ces perturbations
+  // logistiques au meme titre que les evenements institutionnels, meme
+  // quand aucun mot-cle de securite classique (CK_CRIT/CK_HIGH) n'apparait.
+  travaux:       ['travaux routiers', "travaux d'infrastructure", 'travaux de réhabilitation',
+                  'travaux de voirie', 'fermeture de route', 'fermeture de pont', 'route barrée',
+                  'route fermée', 'pont fermé', 'déviation de circulation', 'chantier routier',
+                  'construction du pont', 'réhabilitation de la route', 'réfection de la route',
+                  'fermeture temporaire de la route', "fermeture de l'aéroport", 'aéroport fermé',
+                  'fermeture de la frontière', 'frontière fermée', 'élargissement de la route',
+                  'coupure de circulation', 'circulation perturbée', 'circulation interrompue',
+                  'route impraticable', 'pont impraticable', 'bac hors service', 'traversier hors service'],
 };
 
 // estEvenementPlanifie(texte) : vrai si le texte correspond a un evenement
 // planifie reconnu. typeEvenementDetecte(texte) : la categorie associee
-// (utilisee pour le badge/type dans le module Agenda).
+// (utilisee pour le badge/type dans le module Agenda). Accents normalises
+// des deux cotes (texte ET mots-cles) : un texte source sans accents (RSS
+// mal encode, apostrophe typographique...) doit quand meme matcher un
+// mot-cle ecrit avec ses accents normaux.
 function typeEvenementDetecte(texte) {
-  const t = (texte||'').toLowerCase();
+  const t = normaliserAccents((texte||'').toLowerCase());
   for (const [type, mots] of Object.entries(EVENT_PLANIFIE_KW)) {
-    if (mots.some(m => t.includes(m))) return type;
+    if (mots.some(m => t.includes(normaliserAccents(m)))) return type;
   }
   return null;
 }
 function estEvenementPlanifie(texte) {
   return typeEvenementDetecte(texte) !== null;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  AGENT DE COLLECTE AGENDA — classe chaque evenement planifie detecte
+//  (cf. EVENT_PLANIFIE_KW) selon son etat reel (en cours / a venir / urgent /
+//  acheve) au lieu du statut fixe 'planifie' utilise auparavant pour TOUT
+//  evenement auto-detecte, quel que soit son contenu. S'applique de la meme
+//  facon a tous les articles collectes des 54 pays (agences nationales,
+//  presse locale...), sans distinction ville/region — aucune restriction
+//  geographique dans ce pipeline, les actualites de zones reculees sont
+//  traitees au meme titre que celles de la capitale, selon ce que les
+//  sources RSS couvrent.
+// ═══════════════════════════════════════════════════════════════════════════
+
+const STATUT_EN_COURS_KW = ['en cours', 'actuellement', 'depuis ce matin', 'depuis hier',
+  'deja debute', 'deja commence', 'se poursuit', 'toujours en cours',
+  "jusqu'a nouvel ordre", 'a debute', 'a commence', 'en cours depuis'];
+const STATUT_A_VENIR_KW = ['prevu', 'prevue', 'prevus', 'prevues', 'aura lieu', 'se tiendra',
+  'se tiendront', 'annonce pour', 'a partir du', 'a compter du', 'debutera',
+  'commencera', 'prochain', 'prochaine', 'des le'];
+
+// Fenetre d'affichage de l'Agenda : plus longue que celle du Flux (12h) —
+// un evenement (grands travaux, sommet...) reste pertinent pour un
+// responsable surete plusieurs jours apres sa detection, le temps que la
+// perturbation se resorbe reellement sur le terrain. Cf. estAgendaRecent().
+const AGENDA_MAX_AGE = 72*60*60*1000;
+function estAgendaRecent(a) {
+  return !!a.pubDate && (Date.now() - a.pubDate) < AGENDA_MAX_AGE;
+}
+
+// detecterStatutAgenda(texte, niveau, pubDate) : statut reel d'un evenement
+// planifie detecte automatiquement — plus le statut fixe 'planifie' utilise
+// auparavant pour tout, quel que soit le contenu du texte. Passe 24h apres
+// la detection, l'evenement est considere acheve (mais reste affiche
+// jusqu'a AGENDA_MAX_AGE, cf. estAgendaRecent) : un responsable surete garde
+// une trace recente d'une perturbation meme terminee, au lieu de la voir
+// disparaitre du jour au lendemain.
+function detecterStatutAgenda(texte, niveau, pubDate) {
+  const ageH = pubDate ? (Date.now() - pubDate) / 3600000 : 0;
+  if (ageH >= 24) return 'acheve';
+  const t = normaliserAccents((texte||'').toLowerCase());
+  if (STATUT_EN_COURS_KW.some(k => t.includes(k))) return 'en-cours';
+  if (STATUT_A_VENIR_KW.some(k => t.includes(k))) return 'planifie';
+  if (niveau === 'crit' || niveau === 'high') return 'urgent';
+  return 'planifie';
+}
+
+// recoAgendaAuto(agendaType) : recommandation par defaut pour les types
+// d'evenements auto-detectes dont l'impact operationnel appelle une action
+// concrete (les entrees AGENDA curees manuellement ont deja leur propre
+// champ reco). Pour l'instant, seul le type 'travaux' (objectif explicite
+// de l'agent : perturbation significative des deplacements) en a une.
+function recoAgendaAuto(agendaType) {
+  if (agendaType === 'travaux') {
+    return LANG === 'en'
+      ? 'Anticipate travel — plan an alternative route and factor delays into field visits.'
+      : 'Anticiper les déplacements — prévoir un itinéraire alternatif et intégrer les délais dans les visites de terrain.';
+  }
+  return '';
 }
 
 // articleVersAgenda(a) : convertit un article detecte comme evenement
@@ -4793,13 +4870,20 @@ function estEvenementPlanifie(texte) {
 function articleVersAgenda(a) {
   const MOIS_ABBR = ['Jan','Fev','Mar','Avr','Mai','Jun','Jul','Aou','Sep','Oct','Nov','Dec'];
   const d = new Date(a.pubDate || Date.now());
+  const texteComplet = a.title+' '+(a.analysis||'');
+  // Travaux de grande envergure perturbant les deplacements : impact au
+  // moins "moyen" meme quand le texte ne contient aucun mot-cle de securite
+  // classique (CK_CRIT/CK_HIGH), qui laisserait sinon a.level a 'mod' par
+  // defaut et l'impact retomberait a tort a "faible".
+  const impactTravaux = a._agendaType === 'travaux' ? 'moyen' : null;
   return {
     day: String(d.getDate()).padStart(2,'0'), month: MOIS_ABBR[d.getMonth()], year: String(d.getFullYear()),
     hour: d.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}),
     title: a.title, desc: extraitLoyal(a.analysis, 220),
-    status: 'planifie', type: a._agendaType || 'securite', cy: a.cy,
-    impact: a.level==='crit'?'haut':a.level==='high'?'moyen':'faible',
-    surl: a.url, src: srcName(a.primary), reco: '', _detecteAuto: true,
+    status: detecterStatutAgenda(texteComplet, a.level, a.pubDate),
+    type: a._agendaType || 'securite', cy: a.cy,
+    impact: impactTravaux || (a.level==='crit'?'haut':a.level==='high'?'moyen':'faible'),
+    surl: a.url, src: srcName(a.primary), reco: recoAgendaAuto(a._agendaType), _detecteAuto: true,
   };
 }
 
@@ -7671,7 +7755,7 @@ function buildRecherche(query, scope, cyFilter, catFilter) {
     });
   }
   if (inScope('agenda')) {
-    const detectes = (ALL||[]).filter(a => a._estAgenda && estRecentReel(a)).map(a => articleVersAgenda(a));
+    const detectes = (ALL||[]).filter(a => a._estAgenda && estAgendaRecent(a)).map(a => articleVersAgenda(a));
     [...AGENDA, ...detectes].forEach((e, idx) => {
       const cy = resolveAgendaCy(e.cy);
       if (cyFilter !== 'all' && cy !== cyFilter) return;
@@ -7801,7 +7885,7 @@ function renderAgenda() {
   // cure manuellement. Seuls les articles reellement recents (<12h) sont pris
   // en compte pour ne pas dupliquer indefiniment les memes annonces.
   const detectes = (ALL||[])
-    .filter(a => a._estAgenda && estRecentReel(a))
+    .filter(a => a._estAgenda && estAgendaRecent(a))
     .map(a => articleVersAgenda(a));
 
   let filt = fAg==='all' ? [...AGENDA, ...detectes] : [...AGENDA, ...detectes].filter(e=>e.status===fAg);
@@ -7822,12 +7906,13 @@ function renderAgenda() {
   const cntEl = document.getElementById('agTotalCount');
   if (cntEl) cntEl.textContent = (AGENDA.length+detectes.length)+' evenement'+((AGENDA.length+detectes.length)>1?'s':'');
 
-  const SL={'en-cours':['bc','EN COURS'],'urgent':['bu','URGENT'],'planifie':['bp','PLANIFIE'],'surveillance':['bs','SURVEILLANCE']};
+  const SL={'en-cours':['bc','EN COURS'],'urgent':['bu','URGENT'],'planifie':['bp','PLANIFIE'],'surveillance':['bs','SURVEILLANCE'],'acheve':['ba','ACHEVE']};
   const IC={'haut':'ih','moyen':'im','faible':'if'};
   const TYP={gouvernemental:['🏛️','Gouvernemental','#1B5FA8'],seminaire:['📋','Seminaire','#4B5563'],
     colloque:['🎓','Colloque','#4B5563'],sportif:['🏅','Sportif','#0F766E'],concert:['🎵','Concert','#7C3AED'],
     festival:['🎭','Festival','#7C3AED'],securite:['🛡️','Securite','#8B1A1A'],humanitaire:['🤝','Humanitaire','#7C4A00'],
-    politique:['🗳️','Politique','#1B5FA8'],economique:['📊','Economique','#0F4F2A'],sanitaire:['⚕️','Sanitaire','#0E7490']};
+    politique:['🗳️','Politique','#1B5FA8'],economique:['📊','Economique','#0F4F2A'],sanitaire:['⚕️','Sanitaire','#0E7490'],
+    travaux:['🚧','Travaux','#B45309']};
   if(!filt.length){document.getElementById('agTl').innerHTML='<div class="empty"><i class="ti ti-calendar-off"></i><p>Aucun evenement pour ce filtre</p></div>';return;}
   const agHtml = filt.map((e,i)=>{
     const sl=SL[e.status]||SL.planifie;
@@ -10540,7 +10625,14 @@ function filtreZonePaysActif(cy) {
 }
 
 function getExportAgenda() {
-  return AGENDA.filter(e => {
+  // Fusionne l'agenda cure manuellement avec les evenements detectes
+  // automatiquement dans les flux (colloque, seminaire, travaux...) — sans
+  // cela, ces derniers n'apparaissaient jamais dans les rapports exportes
+  // (Word/PDF/PPTX), uniquement dans l'interface live (renderAgenda).
+  const detectesExp = (typeof ALL !== 'undefined' ? ALL : [])
+    .filter(a => a._estAgenda && estAgendaRecent(a))
+    .map(a => articleVersAgenda(a));
+  return [...AGENDA, ...detectesExp].filter(e => {
     if (fRapportCy === 'all' && fRapportZone === 'all') return true;
     if (fRapportCy !== 'all') return resolveAgendaCy(e.cy) === fRapportCy;
     return resolveAgendaZone(e.cy) === fRapportZone;
@@ -10635,7 +10727,7 @@ async function exportExcel(type){
 
     if(type==='agenda'||type==='rapport_complet'){
       const header2=['Date','Statut','Événement','Description','Zone','Impact','Recommandation'];
-      const SL={'en-cours':'EN COURS','urgent':'URGENT','planifie':'PLANIFIÉ','surveillance':'SURVEILLANCE'};
+      const SL={'en-cours':'EN COURS','urgent':'URGENT','planifie':'PLANIFIÉ','surveillance':'SURVEILLANCE','acheve':'ACHEVÉ'};
       const agendaX=getExportAgenda();
       await preTraduireRapport(agendaX.flatMap(e=>[e.title,e.desc,e.reco]));
       const rows2=agendaX.map(e=>[e.day+' '+e.month, SL[e.status]||e.status, L(e.title), L(e.desc), e.cy, e.impact.toUpperCase(), L(e.reco)||'']);
@@ -11682,7 +11774,7 @@ async function exportPDF(type) {
         { value: nbPlanifieA,    label: LANG==='en'?'Planned':'Planifié',  color: rgb(0.059,0.310,0.165) },
       ]);
       b.bulletinSection((LANG==='en'?'Security Agenda — ':'Agenda Sûreté — ') + perimetre);
-      const SL = {'en-cours':'EN COURS','urgent':'URGENT','planifie':'PLANIFIÉ','surveillance':'SURVEILLANCE'};
+      const SL = {'en-cours':'EN COURS','urgent':'URGENT','planifie':'PLANIFIÉ','surveillance':'SURVEILLANCE','acheve':'ACHEVÉ'};
       agenda.forEach(e=>{
         b.sub((e.day||'')+' '+(e.month||'')+'  —  '+(SL[e.status]||e.status||'').toUpperCase(), rgb(0.114,0.373,0.659));
         b.para(L(e.title)||'', {bold:true, size:10.5});
@@ -11854,7 +11946,7 @@ async function exportPDF(type) {
 
       // III. Agenda sûreté — événements en cours ou à venir.
       b.bulletinSection(LANG==='en'?'III. Security Agenda — Ongoing or Upcoming Events':'III. Agenda Sûreté — Événements en Cours ou à Venir');
-      const SLC = {'en-cours':'EN COURS','urgent':'URGENT','planifie':'PLANIFIÉ','surveillance':'SURVEILLANCE'};
+      const SLC = {'en-cours':'EN COURS','urgent':'URGENT','planifie':'PLANIFIÉ','surveillance':'SURVEILLANCE','acheve':'ACHEVÉ'};
       agendaC.forEach(e=>{
         b.sub((e.day||'')+' '+(e.month||'')+'  —  '+(SLC[e.status]||e.status||'').toUpperCase(), rgb(0.114,0.373,0.659));
         b.para(L(e.title)||'', {bold:true, size:10.5});
@@ -12522,7 +12614,7 @@ async function exportWord(type){
       children.push(divider());
       children.push(topBar('III. AGENDA SÛRETÉ — Événements & échéances'));
       const agendaW=getExportAgenda();
-      const SL={'en-cours':'EN COURS','urgent':'URGENT','planifie':'PLANIFIÉ','surveillance':'SURVEILLANCE'};
+      const SL={'en-cours':'EN COURS','urgent':'URGENT','planifie':'PLANIFIÉ','surveillance':'SURVEILLANCE','acheve':'ACHEVÉ'};
       for(const e of agendaW){
         children.push(new Paragraph({
           children:[
