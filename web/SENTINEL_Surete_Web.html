@@ -466,9 +466,14 @@ input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px soli
   font-size:9px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0;}
 .share-trigger:hover,.share-trigger.on{background:var(--n);color:#fff;border-color:var(--n)}
 .share-trigger i{font-size:10px}
-.share-menu{position:fixed;z-index:3000;min-width:170px;background:var(--w);
+.share-menu{position:fixed;z-index:3000;min-width:190px;background:var(--w);
   border:1px solid var(--bd);border-radius:8px;box-shadow:0 8px 24px rgba(13,27,42,.18);
   padding:5px;font-size:12px;}
+.share-fmt-row{display:flex;gap:4px;padding:2px 2px 7px;border-bottom:1px solid var(--bd);margin-bottom:4px;}
+.share-fmt{flex:1;padding:5px 3px;border:1px solid var(--bd);border-radius:5px;background:var(--sf);
+  color:var(--gr);font-size:9px;font-weight:700;cursor:pointer;text-align:center;white-space:nowrap;}
+.share-fmt:hover{border-color:var(--n)}
+.share-fmt.on{background:var(--n);color:#fff;border-color:var(--n)}
 .share-mi{display:flex;align-items:center;gap:8px;padding:7px 9px;border-radius:5px;
   cursor:pointer;color:var(--t);font-weight:600;white-space:nowrap;}
 .share-mi:hover{background:var(--sf)}
@@ -2627,6 +2632,34 @@ button:not(:disabled){
               <div style="display:flex;align-items:center;gap:10px">
                 <button class="btn-action btn-rest" id="marqueSaveBtn" onclick="pmSaveMarquePerso()"><i class="ti ti-device-floppy"></i> Enregistrer la personnalisation</button>
                 <span class="pmu-msg" id="marqueMsg" style="margin:0"></span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Statistiques de partage (agent de partage) -->
+          <div class="pm-section">
+            <div class="pm-sec-hd">
+              <div class="pm-sec-hd-l"><i class="ti ti-chart-bar"></i>
+                <div><div class="pm-sec-title">Statistiques de partage</div>
+                <div class="pm-sec-sub" id="partageStatsCount">0 partage(s)</div></div>
+              </div>
+            </div>
+            <div class="pm-sec-body" style="padding:14px 16px">
+              <div style="font-size:10px;color:var(--lg);margin-bottom:12px;line-height:1.6">
+                Chaque partage réussi (WhatsApp, Telegram, Email, presse-papiers, partage natif) est
+                journalisé localement — répartition par canal et par format, activité récente et pays
+                les plus partagés.
+              </div>
+              <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(100px,1fr));gap:8px;margin-bottom:14px" id="partageStatsGrid"></div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+                <div>
+                  <div style="font-size:10px;font-weight:700;color:var(--lg);text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px">Par format</div>
+                  <div id="partageStatsFormat" style="font-size:11px;color:var(--t2);line-height:2"></div>
+                </div>
+                <div>
+                  <div style="font-size:10px;font-weight:700;color:var(--lg);text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px">Pays les plus partagés</div>
+                  <div id="partageStatsPays" style="font-size:11px;color:var(--t2);line-height:2"></div>
+                </div>
               </div>
             </div>
           </div>
@@ -6724,21 +6757,199 @@ function signatureEnvoiActuelle() {
   return '\n\n— ' + [identite, contact].filter(Boolean).join(' · ');
 }
 
-// whatsappMessageActu(a) : construit le texte du message pre-rempli, avec
-// le lien direct vers l'article (meme lien que "Lire l'article complet",
-// deja verifie par l'agent de liens — voir agentValiderLiensArticles).
-function whatsappMessageActu(a) {
+// ═══════════════════════════════════════════════════════════════════════════
+//  AGENT DE PARTAGE — journalise chaque partage reussi (canal, format,
+//  pays, niveau, horodatage) pour un suivi statistique consultable dans
+//  Parametres > Statistiques de partage, et centralise la construction du
+//  contenu partage quel que soit le canal (WhatsApp, Telegram, Email,
+//  presse-papiers, partage natif du systeme) et le format choisi par
+//  l'utilisateur (texte seul / texte + lien / image dimensionnee).
+// ═══════════════════════════════════════════════════════════════════════════
+const PARTAGE_STATS_KEY = 'sentinel_partage_stats';
+const PARTAGE_STATS_MAX = 500; // plafond : evite une croissance illimitee du localStorage
+function getPartageStats() {
+  try { return JSON.parse(localStorage.getItem(PARTAGE_STATS_KEY) || '[]'); } catch (e) { return []; }
+}
+function enregistrerPartage(a, canal, format) {
+  try {
+    const stats = getPartageStats();
+    stats.push({ ts: Date.now(), articleId: a.id, cy: a.cy, level: a.level, canal, format });
+    if (stats.length > PARTAGE_STATS_MAX) stats.splice(0, stats.length - PARTAGE_STATS_MAX);
+    localStorage.setItem(PARTAGE_STATS_KEY, JSON.stringify(stats));
+  } catch (e) {}
+}
+// statsPartageAgregees() : agregats consultables dans Parametres (repartition
+// par canal/format, activite des 7 derniers jours, pays les plus partages).
+function statsPartageAgregees() {
+  const stats = getPartageStats();
+  const parCanal = {}, parFormat = {}, parPays = {};
+  const semaineMs = 7 * 24 * 60 * 60 * 1000;
+  let derniers7j = 0;
+  stats.forEach(s => {
+    parCanal[s.canal] = (parCanal[s.canal] || 0) + 1;
+    parFormat[s.format] = (parFormat[s.format] || 0) + 1;
+    if (s.cy) parPays[s.cy] = (parPays[s.cy] || 0) + 1;
+    if (Date.now() - s.ts < semaineMs) derniers7j++;
+  });
+  const topPays = Object.entries(parPays).sort((a, b) => b[1] - a[1]).slice(0, 5)
+    .map(([cy, n]) => ({ cy, n, nom: (typeof PAYS_INFO !== 'undefined' && PAYS_INFO[cy]) ? PAYS_INFO[cy].flag + ' ' + PAYS_INFO[cy].name : cy }));
+  return { total: stats.length, parCanal, parFormat, derniers7j, topPays };
+}
+
+// construireContenuPartage(a, format) : texte adapte au format choisi par
+// l'utilisateur dans le menu de partage.
+// - 'texte'      : sans lien (envoi tres court, ou quand l'image jointe
+//                  porte deja la source visuellement).
+// - 'texte_lien' : comportement historique — titre + lien direct verifie
+//                  (meme lien que "Lire l'article complet").
+// - 'image'      : legende courte accompagnant l'image generee
+//                  (genererImageActuBlob), qui porte le detail visuel.
+function construireContenuPartage(a, format) {
   const cc = (typeof CYS !== 'undefined' ? CYS.find(x => x.code === a.cy) : null) || { flag: '🌍', name: a.cy };
   const niveauLbl = { crit: 'CRITIQUE', high: 'ÉLEVÉ', mod: 'MODÉRÉ', ok: 'STABLE' }[a.level] || 'INFO';
   const villeTxt = a._ville ? (' — ' + a._ville + (a._villeEstimee ? ' (estimé)' : '')) : '';
-  const lien = safeUrl(articleLienDirect(a), a.title);
-  return '🚨 ' + nomMarqueActuelle() + ' — ' + niveauLbl + '\n' + cc.flag + ' ' + cc.name + villeTxt + '\n\n' + a.title + '\n\n' + lien + signatureEnvoiActuelle();
+  const entete = '🚨 ' + nomMarqueActuelle() + ' — ' + niveauLbl + '\n' + cc.flag + ' ' + cc.name + villeTxt;
+  if (format === 'texte_lien') {
+    const lien = safeUrl(articleLienDirect(a), a.title);
+    return entete + '\n\n' + a.title + '\n\n' + lien + signatureEnvoiActuelle();
+  }
+  // 'texte' et 'image' : meme legende courte, sans lien
+  return entete + '\n\n' + a.title + signatureEnvoiActuelle();
+}
+// whatsappMessageActu(a) : conserve pour compatibilite (utilise par
+// certains appels existants) — equivaut a construireContenuPartage(a,'texte_lien').
+function whatsappMessageActu(a) { return construireContenuPartage(a, 'texte_lien'); }
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  GENERATION D'IMAGE — dessine une carte visuelle de l'actu (marque,
+//  niveau, pays/ville, titre, date) sur un <canvas>, dimensionnee pour le
+//  canal cible. 100% cote client (Canvas 2D natif du navigateur), aucune
+//  bibliotheque externe. wa.me/t.me/mailto: ne peuvent pas transporter de
+//  piece jointe binaire (limite du schema d'URL, incontournable) : l'image
+//  generee est donc telechargee sur l'appareil pour un envoi via un canal
+//  precis (l'utilisateur la joint manuellement), ou transmise directement
+//  via le partage natif du systeme (navigator.share avec fichiers) quand
+//  aucun canal precis n'est impose — voir partagerActuNatif.
+// ═══════════════════════════════════════════════════════════════════════════
+const DIMENSIONS_IMAGE_PARTAGE = {
+  mail:     { w: 1200, h: 630 },  // ratio bandeau/apercu de lien courant
+  whatsapp: { w: 1080, h: 1080 }, // carre, format media standard WhatsApp
+  telegram: { w: 1280, h: 720 },  // 16:9, format media courant Telegram
+  natif:    { w: 1200, h: 630 },
+};
+function _roundRectCanvas(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+function _wrapCanvasText(ctx, texte, maxW) {
+  const mots = (texte || '').split(' ');
+  const lignes = []; let cur = '';
+  mots.forEach(mot => {
+    const test = cur ? cur + ' ' + mot : mot;
+    if (ctx.measureText(test).width > maxW && cur) { lignes.push(cur); cur = mot; }
+    else cur = test;
+  });
+  if (cur) lignes.push(cur);
+  return lignes;
+}
+async function genererImageActuBlob(a, canal) {
+  const dim = DIMENSIONS_IMAGE_PARTAGE[canal] || DIMENSIONS_IMAGE_PARTAGE.natif;
+  const cv = document.createElement('canvas');
+  cv.width = dim.w; cv.height = dim.h;
+  const ctx = cv.getContext('2d');
+  const NIVEAU_COL = { crit: '#8B1A1A', high: '#7C4A00', mod: '#1B5FA8', ok: '#0F4F2A' };
+  const niveauLbl = { crit: 'CRITIQUE', high: 'ÉLEVÉ', mod: 'MODÉRÉ', ok: 'STABLE' }[a.level] || 'INFO';
+  const col = NIVEAU_COL[a.level] || '#4B5563';
+  const cc = (typeof CYS !== 'undefined' ? CYS.find(x => x.code === a.cy) : null) || { flag: '🌍', name: a.cy };
+
+  ctx.fillStyle = '#0D1B2A';
+  ctx.fillRect(0, 0, dim.w, dim.h);
+  ctx.fillStyle = col;
+  ctx.fillRect(0, 0, dim.w, Math.round(dim.h * 0.045));
+
+  const pad = Math.round(dim.w * 0.06);
+  let y = Math.round(dim.h * 0.15);
+
+  ctx.fillStyle = '#7DD3FC';
+  ctx.font = '700 ' + Math.round(dim.w * 0.026) + 'px "IBM Plex Mono", monospace';
+  ctx.textBaseline = 'top';
+  ctx.fillText(nomMarqueActuelle().toUpperCase(), pad, y);
+  y += Math.round(dim.w * 0.055);
+
+  const badgeTxt = niveauLbl;
+  ctx.font = '700 ' + Math.round(dim.w * 0.026) + 'px "IBM Plex Sans", sans-serif';
+  const badgeW = ctx.measureText(badgeTxt).width + Math.round(dim.w * 0.045);
+  const badgeH = Math.round(dim.w * 0.05);
+  ctx.fillStyle = col;
+  _roundRectCanvas(ctx, pad, y, badgeW, badgeH, 6);
+  ctx.fill();
+  ctx.fillStyle = '#fff';
+  ctx.fillText(badgeTxt, pad + Math.round(dim.w * 0.022), y + Math.round(badgeH * 0.24));
+  y += badgeH + Math.round(dim.w * 0.04);
+
+  ctx.fillStyle = '#C7D3DF';
+  ctx.font = '600 ' + Math.round(dim.w * 0.028) + 'px "IBM Plex Sans", sans-serif';
+  const villeTxt = a._ville ? (' — ' + a._ville) : '';
+  ctx.fillText(cc.flag + ' ' + cc.name + villeTxt, pad, y);
+  y += Math.round(dim.w * 0.065);
+
+  ctx.fillStyle = '#FFFFFF';
+  const titreSize = Math.round(dim.w * 0.042);
+  ctx.font = '800 ' + titreSize + 'px "Source Serif 4", Georgia, serif';
+  const maxW = dim.w - pad * 2;
+  const lignes = _wrapCanvasText(ctx, a.title, maxW);
+  const zoneRestante = dim.h - y - Math.round(dim.h * 0.13);
+  const maxLignes = Math.max(2, Math.floor(zoneRestante / (titreSize * 1.28)));
+  lignes.slice(0, maxLignes).forEach((ligne, i) => {
+    ctx.fillText(ligne, pad, y + i * titreSize * 1.28);
+  });
+
+  ctx.fillStyle = '#8CA0B8';
+  ctx.font = '500 ' + Math.round(dim.w * 0.02) + 'px "IBM Plex Mono", monospace';
+  ctx.textBaseline = 'bottom';
+  ctx.fillText((typeof fmtFull === 'function' ? fmtFull(a.pubDate) : ''), pad, dim.h - Math.round(dim.h * 0.05));
+
+  return new Promise(resolve => cv.toBlob(resolve, 'image/png'));
+}
+function _telechargerImage(blob, nomFichier) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = nomFichier; a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1500);
 }
 
-// envoyerActuWhatsapp(id) : ouvre un onglet wa.me pre-rempli par contact
-// designe (tous, pas de selection au clic — ce sont des contacts deja
-// choisis a l'avance dans Parametres pour recevoir ces alertes).
-function envoyerActuWhatsapp(id) {
+// _toastRapide(texte, icone) : notification ephemere generique (copie
+// reussie, action confirmee...), reutilise le conteneur de toasts deja en
+// place pour les notifications de nouvelles actus.
+function _toastRapide(texte, icone) {
+  const container = document.getElementById('toastContainer');
+  if (!container) return;
+  const el = document.createElement('div');
+  el.style.cssText = 'pointer-events:none;background:#0F4F2A;color:#fff;border-radius:8px;'+
+    'box-shadow:0 8px 24px rgba(0,0,0,.18);padding:9px 14px;font-size:11px;font-weight:700;'+
+    'display:flex;align-items:center;gap:7px;transform:translateX(360px);opacity:0;'+
+    'transition:transform .3s ease,opacity .3s ease;max-width:300px;';
+  el.innerHTML = '<i class="ti ' + (icone || 'ti-check') + '"></i>' + texte;
+  container.appendChild(el);
+  requestAnimationFrame(() => { el.style.transform = 'translateX(0)'; el.style.opacity = '1'; });
+  setTimeout(() => {
+    el.style.transform = 'translateX(360px)'; el.style.opacity = '0';
+    setTimeout(() => el.remove(), 350);
+  }, 2200);
+}
+
+// envoyerActuWhatsapp(id, format) : ouvre un onglet wa.me pre-rempli par
+// contact designe (tous, pas de selection au clic — ce sont des contacts
+// deja choisis a l'avance dans Parametres pour recevoir ces alertes). En
+// format 'image', l'image dimensionnee WhatsApp (carre) est telechargee —
+// wa.me ne peut pas transporter de piece jointe, voir note ci-dessus.
+async function envoyerActuWhatsapp(id, format) {
+  format = format || 'texte_lien';
   const a = (typeof ALL !== 'undefined' ? ALL : []).find(x => x.id === id);
   if (!a) return;
   const contacts = getWhatsappContacts();
@@ -6748,38 +6959,94 @@ function envoyerActuWhatsapp(id) {
       : 'Aucun contact WhatsApp configuré. Ajoutez-en un dans Paramètres > Contacts WhatsApp.');
     return;
   }
-  const msg = encodeURIComponent(whatsappMessageActu(a));
+  if (format === 'image') {
+    const blob = await genererImageActuBlob(a, 'whatsapp');
+    _telechargerImage(blob, 'sentinel_' + a.id + '_whatsapp.png');
+    _toastRapide(LANG === 'en' ? 'Image downloaded — attach it in WhatsApp before sending.' : 'Image téléchargée — joignez-la dans WhatsApp avant d\'envoyer.', 'ti-photo');
+  }
+  const msg = encodeURIComponent(construireContenuPartage(a, format));
   contacts.forEach(c => {
     const numero = (c.tel || '').replace(/[^\d]/g, ''); // wa.me exige des chiffres seuls (indicatif inclus, sans +)
     if (!numero) return;
     window.open('https://wa.me/' + numero + '?text=' + msg, '_blank', 'noopener');
   });
+  enregistrerPartage(a, 'whatsapp', format);
 }
 
-// envoyerActuEmail(id) : partage par email — ouvre le client mail par
-// defaut (mailto:) avec sujet/corps deja rediges, destinataire au choix
-// de l'utilisateur (pas de carnet de contacts dedie ici, a la difference
-// de WhatsApp : le partage par email vise n'importe quel destinataire au
-// coup par coup). Gratuit, aucun serveur, aucun envoi en tache de fond —
-// mailto: ouvre une fenetre de composition, l'envoi reste manuel.
-function envoyerActuEmail(id) {
+// envoyerActuTelegram(id, format) : partage via le lien officiel Telegram
+// (t.me/share/url) — meme principe que wa.me pour WhatsApp : gratuit, sans
+// bot ni API, Telegram propose lui-meme la liste des discussions/canaux ou
+// coller le message. En format 'image', memes contraintes que WhatsApp/Email
+// (telechargement + jonction manuelle).
+async function envoyerActuTelegram(id, format) {
+  format = format || 'texte_lien';
+  const a = (typeof ALL !== 'undefined' ? ALL : []).find(x => x.id === id);
+  if (!a) return;
+  if (format === 'image') {
+    const blob = await genererImageActuBlob(a, 'telegram');
+    _telechargerImage(blob, 'sentinel_' + a.id + '_telegram.png');
+    _toastRapide(LANG === 'en' ? 'Image downloaded — attach it in Telegram before sending.' : 'Image téléchargée — joignez-la dans Telegram avant d\'envoyer.', 'ti-photo');
+  }
+  let url;
+  if (format === 'texte_lien') {
+    const lien = safeUrl(articleLienDirect(a), a.title);
+    const caption = nomMarqueActuelle() + ' — ' + a.title + signatureEnvoiActuelle();
+    url = 'https://t.me/share/url?url=' + encodeURIComponent(lien) + '&text=' + encodeURIComponent(caption);
+  } else {
+    url = 'https://t.me/share/url?url=&text=' + encodeURIComponent(construireContenuPartage(a, format));
+  }
+  window.open(url, '_blank', 'noopener');
+  enregistrerPartage(a, 'telegram', format);
+}
+
+// envoyerActuEmail(id, format) : partage par email — ouvre le client mail
+// par defaut (mailto:) avec sujet/corps deja rediges, destinataire au choix
+// de l'utilisateur (pas de carnet de contacts dedie ici, a la difference de
+// WhatsApp : le partage par email vise n'importe quel destinataire au coup
+// par coup). En format 'image', l'image dimensionnee email (bandeau 1200x630)
+// est telechargee pour jonction manuelle — mailto: ne transporte pas de
+// piece jointe.
+async function envoyerActuEmail(id, format) {
+  format = format || 'texte_lien';
   const a = (typeof ALL !== 'undefined' ? ALL : []).find(x => x.id === id);
   if (!a) return;
   const cc = (typeof CYS !== 'undefined' ? CYS.find(x => x.code === a.cy) : null) || { flag: '🌍', name: a.cy };
   const niveauLbl = { crit: 'CRITIQUE', high: 'ÉLEVÉ', mod: 'MODÉRÉ', ok: 'STABLE' }[a.level] || 'INFO';
   const sujet = nomMarqueActuelle() + ' — ' + niveauLbl + ' — ' + cc.name;
-  const corps = whatsappMessageActu(a); // meme contenu (niveau, pays/ville, titre, lien) que le partage WhatsApp
+  if (format === 'image') {
+    const blob = await genererImageActuBlob(a, 'mail');
+    _telechargerImage(blob, 'sentinel_' + a.id + '_email.png');
+    _toastRapide(LANG === 'en' ? 'Image downloaded — attach it to your email.' : 'Image téléchargée — joignez-la à votre email.', 'ti-photo');
+  }
+  const corps = construireContenuPartage(a, format);
   window.location.href = 'mailto:?subject=' + encodeURIComponent(sujet) + '&body=' + encodeURIComponent(corps);
+  enregistrerPartage(a, 'email', format);
 }
 
-// copierActuTexte(id) : copie le message pre-redige (meme contenu que
-// WhatsApp/Email) dans le presse-papiers — le filet de partage le plus
-// universel : ne depend d'aucune application installee, se colle ensuite
-// n'importe ou (Signal, Teams, SMS, Slack...).
-async function copierActuTexte(id) {
+// copierActuTexte(id, format) : copie le contenu adapte au format dans le
+// presse-papiers — le filet de partage le plus universel : ne depend
+// d'aucune application installee, se colle ensuite n'importe ou (Signal,
+// Teams, SMS, Slack...). En format 'image', copie l'image elle-meme
+// (Clipboard API images, largement supportee) plutot que du texte.
+async function copierActuTexte(id, format) {
+  format = format || 'texte_lien';
   const a = (typeof ALL !== 'undefined' ? ALL : []).find(x => x.id === id);
   if (!a) return;
-  const texte = whatsappMessageActu(a);
+  if (format === 'image') {
+    const blob = await genererImageActuBlob(a, 'natif');
+    try {
+      await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+      _toastRapide(LANG === 'en' ? 'Image copied to clipboard' : 'Image copiée dans le presse-papiers', 'ti-check');
+    } catch (e) {
+      // Le presse-papiers image n'est pas supporte partout (navigateur/
+      // contexte non securise) : repli sur le telechargement.
+      _telechargerImage(blob, 'sentinel_' + a.id + '.png');
+      _toastRapide(LANG === 'en' ? 'Image downloaded (clipboard image unsupported here)' : 'Image téléchargée (presse-papiers image non pris en charge ici)', 'ti-download');
+    }
+    enregistrerPartage(a, 'copier', format);
+    return;
+  }
+  const texte = construireContenuPartage(a, format);
   try {
     await navigator.clipboard.writeText(texte);
   } catch (e) {
@@ -6798,54 +7065,60 @@ async function copierActuTexte(id) {
     }
   }
   _toastRapide(LANG === 'en' ? 'Copied to clipboard' : 'Copié dans le presse-papiers', 'ti-check');
+  enregistrerPartage(a, 'copier', format);
 }
 
-// _toastRapide(texte, icone) : notification ephemere generique (copie
-// reussie, action confirmee...), reutilise le conteneur de toasts deja en
-// place pour les notifications de nouvelles actus.
-function _toastRapide(texte, icone) {
-  const container = document.getElementById('toastContainer');
-  if (!container) return;
-  const el = document.createElement('div');
-  el.style.cssText = 'pointer-events:none;background:#0F4F2A;color:#fff;border-radius:8px;'+
-    'box-shadow:0 8px 24px rgba(0,0,0,.18);padding:9px 14px;font-size:11px;font-weight:700;'+
-    'display:flex;align-items:center;gap:7px;transform:translateX(360px);opacity:0;'+
-    'transition:transform .3s ease,opacity .3s ease;';
-  el.innerHTML = '<i class="ti ' + (icone || 'ti-check') + '"></i>' + texte;
-  container.appendChild(el);
-  requestAnimationFrame(() => { el.style.transform = 'translateX(0)'; el.style.opacity = '1'; });
-  setTimeout(() => {
-    el.style.transform = 'translateX(360px)'; el.style.opacity = '0';
-    setTimeout(() => el.remove(), 350);
-  }, 1600);
-}
-
-// partagerActuNatif(id) : partage natif du systeme (Web Share API) quand
-// disponible — ouvre le selecteur natif du telephone/PC (Signal, Teams,
-// Messages, AirDrop, Mail, WhatsApp, tout ce qui est installe), sans coder
-// chaque destination une par une. Repli automatique sur le presse-papiers
-// (copierActuTexte) si l'API n'est pas supportee par le navigateur.
-async function partagerActuNatif(id) {
+// partagerActuNatif(id, format) : partage natif du systeme (Web Share API)
+// quand disponible — ouvre le selecteur natif du telephone/PC (Signal,
+// Teams, Messages, AirDrop, Mail, WhatsApp, tout ce qui est installe), sans
+// coder chaque destination une par une. En format 'image', c'est ICI que
+// l'image est transmise directement en piece jointe (navigator.share avec
+// fichiers) : aucun canal precis n'etant impose par ce bouton, le systeme
+// peut relayer le fichier binaire a l'application choisie par l'utilisateur
+// — contrairement a wa.me/t.me/mailto:, qui ne le peuvent pas. Repli sur le
+// presse-papiers (copierActuTexte) si l'API n'est pas supportee.
+async function partagerActuNatif(id, format) {
+  format = format || 'texte_lien';
   const a = (typeof ALL !== 'undefined' ? ALL : []).find(x => x.id === id);
   if (!a) return;
+  if (format === 'image') {
+    const blob = await genererImageActuBlob(a, 'natif');
+    if (navigator.share && navigator.canShare) {
+      try {
+        const file = new File([blob], 'sentinel_' + a.id + '.png', { type: 'image/png' });
+        if (navigator.canShare({ files: [file] })) {
+          await navigator.share({ title: nomMarqueActuelle(), text: a.title, files: [file] });
+          enregistrerPartage(a, 'natif', format);
+          return;
+        }
+      } catch (e) {
+        if (e && e.name === 'AbortError') return; // annule par l'utilisateur
+      }
+    }
+    _telechargerImage(blob, 'sentinel_' + a.id + '.png');
+    _toastRapide(LANG === 'en' ? 'Image downloaded (file sharing unsupported here)' : 'Image téléchargée (partage de fichier non pris en charge ici)', 'ti-download');
+    enregistrerPartage(a, 'natif', format);
+    return;
+  }
   if (navigator.share) {
     try {
-      await navigator.share({ title: nomMarqueActuelle(), text: whatsappMessageActu(a) });
+      await navigator.share({ title: nomMarqueActuelle(), text: construireContenuPartage(a, format) });
+      enregistrerPartage(a, 'natif', format);
       return;
     } catch (e) {
       if (e && e.name === 'AbortError') return; // annule par l'utilisateur : rien de plus a faire
     }
   }
-  copierActuTexte(id);
+  copierActuTexte(id, format); // journalise deja le partage (canal 'copier')
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-//  MENU DE PARTAGE — un seul bouton "Partager" par actu (WhatsApp, Email,
-//  Copier le texte, Partage natif du systeme regroupes dans un menu
-//  deroulant) plutot qu'un bouton distinct par mode — plus compact sur les
-//  cartes du Flux/Synthese. Un seul menu existe dans le DOM a la fois
+//  MENU DE PARTAGE — un seul bouton "Partager" par actu (choix du format en
+//  tete, puis WhatsApp/Telegram/Email/Copier/Partage natif regroupes dans un
+//  menu deroulant) plutot qu'un bouton distinct par mode — plus compact sur
+//  les cartes du Flux/Synthese. Un seul menu existe dans le DOM a la fois
 //  (repositionne dynamiquement pres du bouton clique), ferme au clic
-//  exterieur, a l'echap, ou apres selection d'une option.
+//  exterieur, a l'echap, ou apres selection d'un canal.
 // ═══════════════════════════════════════════════════════════════════════════
 function toggleShareMenu(ev, id) {
   ev.stopPropagation();
@@ -6859,17 +7132,24 @@ function toggleShareMenu(ev, id) {
   menu.id = 'shareMenuGlobal';
   menu.className = 'share-menu';
   menu.dataset.actid = id;
+  menu.dataset.format = 'texte_lien';
   menu.innerHTML =
-    '<div class="share-mi" onclick="envoyerActuWhatsapp(\''+id+'\');closeShareMenu()"><i class="ti ti-brand-whatsapp" style="color:#0F4F2A"></i>WhatsApp</div>'+
-    '<div class="share-mi" onclick="envoyerActuEmail(\''+id+'\');closeShareMenu()"><i class="ti ti-mail" style="color:var(--b)"></i>Email</div>'+
-    '<div class="share-mi" onclick="copierActuTexte(\''+id+'\');closeShareMenu()"><i class="ti ti-copy" style="color:var(--gr)"></i>'+(LANG==='en'?'Copy text':'Copier le texte')+'</div>'+
-    '<div class="share-mi" onclick="partagerActuNatif(\''+id+'\');closeShareMenu()"><i class="ti ti-share-2" style="color:var(--gr)"></i>'+(LANG==='en'?'Other apps…':'Autres applications…')+'</div>';
+    '<div class="share-fmt-row">'+
+      '<button type="button" class="share-fmt on" onclick="_choisirFormatPartage(this,\'texte_lien\')">'+(LANG==='en'?'Text+link':'Texte+lien')+'</button>'+
+      '<button type="button" class="share-fmt" onclick="_choisirFormatPartage(this,\'texte\')">'+(LANG==='en'?'Text only':'Texte seul')+'</button>'+
+      '<button type="button" class="share-fmt" onclick="_choisirFormatPartage(this,\'image\')">'+(LANG==='en'?'Image':'Image')+'</button>'+
+    '</div>'+
+    '<div class="share-mi" onclick="envoyerActuWhatsapp(\''+id+'\',shareFormatCourant());closeShareMenu()"><i class="ti ti-brand-whatsapp" style="color:#0F4F2A"></i>WhatsApp</div>'+
+    '<div class="share-mi" onclick="envoyerActuTelegram(\''+id+'\',shareFormatCourant());closeShareMenu()"><i class="ti ti-brand-telegram" style="color:#1B5FA8"></i>Telegram</div>'+
+    '<div class="share-mi" onclick="envoyerActuEmail(\''+id+'\',shareFormatCourant());closeShareMenu()"><i class="ti ti-mail" style="color:var(--b)"></i>Email</div>'+
+    '<div class="share-mi" onclick="copierActuTexte(\''+id+'\',shareFormatCourant());closeShareMenu()"><i class="ti ti-copy" style="color:var(--gr)"></i>'+(LANG==='en'?'Copy':'Copier')+'</div>'+
+    '<div class="share-mi" onclick="partagerActuNatif(\''+id+'\',shareFormatCourant());closeShareMenu()"><i class="ti ti-share-2" style="color:var(--gr)"></i>'+(LANG==='en'?'Other apps…':'Autres applications…')+'</div>';
   document.body.appendChild(menu);
 
   // Positionnement sous le bouton (position:fixed -> coordonnees viewport,
   // pas besoin d'ajouter le scroll), ajuste pour ne jamais deborder de l'ecran.
   const rect = btn.getBoundingClientRect();
-  const mw = 200, mh = menu.offsetHeight || 180;
+  const mw = 210, mh = menu.offsetHeight || 230;
   let left = Math.min(rect.left, window.innerWidth - mw - 8);
   let top = rect.bottom + 4;
   if (top + mh > window.innerHeight) top = rect.top - mh - 4;
@@ -6881,6 +7161,20 @@ function toggleShareMenu(ev, id) {
     document.addEventListener('click', _closeShareMenuOnOutsideClick);
     document.addEventListener('keydown', _closeShareMenuOnEscape);
   }, 0);
+}
+// _choisirFormatPartage(btn, fmt) : change le format actif SANS fermer le
+// menu — seule la selection d'un canal (WhatsApp/Telegram/Email/Copier/
+// Autres) declenche le partage et referme le menu.
+function _choisirFormatPartage(btn, fmt) {
+  const menu = document.getElementById('shareMenuGlobal');
+  if (!menu) return;
+  menu.dataset.format = fmt;
+  menu.querySelectorAll('.share-fmt').forEach(b => b.classList.remove('on'));
+  btn.classList.add('on');
+}
+function shareFormatCourant() {
+  const menu = document.getElementById('shareMenuGlobal');
+  return (menu && menu.dataset.format) || 'texte_lien';
 }
 function _closeShareMenuOnOutsideClick(e) {
   const menu = document.getElementById('shareMenuGlobal');
@@ -9355,6 +9649,7 @@ function loadParamsModule() {
   renderEmailjsCfg();
   renderWhatsappContacts();
   renderMarquePerso();
+  renderPartageStats();
   renderReclamationsAdmin();
   renderTraffic();
 }
@@ -9604,6 +9899,36 @@ function pmSaveMarquePerso() {
     contactPartage: (document.getElementById('marqueContact').value || '').trim(),
   });
   pmMsg('Personnalisation enregistrée.', 'ok', 'marqueMsg');
+}
+
+// ── Statistiques de partage (voir enregistrerPartage/statsPartageAgregees) ──
+function renderPartageStats() {
+  const grid = document.getElementById('partageStatsGrid');
+  if (!grid) return;
+  const s = statsPartageAgregees();
+  const cntEl = document.getElementById('partageStatsCount');
+  if (cntEl) cntEl.textContent = s.total + ' partage(s) · ' + s.derniers7j + ' sur 7 jours';
+
+  const LBL_CANAL = { whatsapp: 'WhatsApp', telegram: 'Telegram', email: 'Email', copier: 'Copié', natif: 'Partage natif' };
+  grid.innerHTML = Object.keys(LBL_CANAL).map(c =>
+    '<div style="background:var(--w);border:1px solid var(--bd);border-radius:8px;padding:10px;text-align:center">'+
+      '<div style="font-family:var(--font-mono);font-size:20px;font-weight:700;color:var(--n)">'+(s.parCanal[c]||0)+'</div>'+
+      '<div style="font-size:9px;color:var(--lg);margin-top:2px">'+LBL_CANAL[c]+'</div>'+
+    '</div>'
+  ).join('');
+
+  const LBL_FORMAT = { texte: 'Texte seul', texte_lien: 'Texte + lien', image: 'Image' };
+  const fmtEl = document.getElementById('partageStatsFormat');
+  if (fmtEl) {
+    const lignes = Object.keys(LBL_FORMAT).map(f => LBL_FORMAT[f] + ' — <b>' + (s.parFormat[f] || 0) + '</b>');
+    fmtEl.innerHTML = s.total ? lignes.join('<br>') : '<span style="color:var(--lg)">Aucun partage enregistré pour le moment.</span>';
+  }
+  const paysEl = document.getElementById('partageStatsPays');
+  if (paysEl) {
+    paysEl.innerHTML = s.topPays.length
+      ? s.topPays.map(p => p.nom + ' — <b>' + p.n + '</b>').join('<br>')
+      : '<span style="color:var(--lg)">Aucun partage enregistré pour le moment.</span>';
+  }
 }
 let _emailjsSdkPromise = null;
 function _chargerSdkEmailjs() {
