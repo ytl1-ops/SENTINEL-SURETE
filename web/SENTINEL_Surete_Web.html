@@ -2045,6 +2045,7 @@ button:not(:disabled){
               <div style="font-size:10px;color:var(--lg);margin-bottom:10px">Synthèse + flux + agenda + sources, en un seul document Word.</div>
               <div style="display:flex;gap:6px;flex-wrap:wrap">
                 <button class="btn-dl btn-dl-word" onclick="exportWord('rapport_complet')"><i class="ti ti-file-text"></i>Word</button>
+                <button class="btn-dl btn-dl-pdf" onclick="exportPDF('rapport_complet')"><i class="ti ti-file-type-pdf"></i>PDF</button>
                 <button class="btn-dl" style="background:#EFF6FF;color:var(--b);border-color:#BFDBFE" onclick="exportPPTX('rapport_complet')"><i class="ti ti-presentation"></i>PowerPoint</button>
               </div>
             </div>
@@ -2057,6 +2058,8 @@ button:not(:disabled){
               <div style="font-size:10px;color:var(--lg);margin-bottom:10px" id="dlFluxCount">Articles des dernières 12h.</div>
               <div style="display:flex;gap:6px;flex-wrap:wrap">
                 <button class="btn-dl btn-dl-word" onclick="exportWord('flux')"><i class="ti ti-file-text"></i>Word</button>
+                <button class="btn-dl btn-dl-pdf" onclick="exportPDF('flux')"><i class="ti ti-file-type-pdf"></i>PDF</button>
+                <button class="btn-dl" style="background:#EFF6FF;color:var(--b);border-color:#BFDBFE" onclick="exportPPTX('flux')"><i class="ti ti-presentation"></i>PowerPoint</button>
                 <button class="btn-dl btn-dl-excel" onclick="exportExcel('flux')"><i class="ti ti-table"></i>Excel</button>
                 <button class="btn-dl btn-dl-csv" onclick="exportCSV('flux')"><i class="ti ti-file-spreadsheet"></i>CSV</button>
               </div>
@@ -2096,7 +2099,12 @@ button:not(:disabled){
                 <span style="font-size:12px;font-weight:700;color:var(--t)">Matrice des sources</span>
               </div>
               <div style="font-size:10px;color:var(--lg);margin-bottom:10px">Liste des sources suivies et leur fiabilité.</div>
-              <button class="btn-dl btn-dl-excel" onclick="exportExcel('sources')"><i class="ti ti-table"></i>Excel</button>
+              <div style="display:flex;gap:6px;flex-wrap:wrap">
+                <button class="btn-dl btn-dl-word" onclick="exportWord('sources')"><i class="ti ti-file-text"></i>Word</button>
+                <button class="btn-dl btn-dl-pdf" onclick="exportPDF('sources')"><i class="ti ti-file-type-pdf"></i>PDF</button>
+                <button class="btn-dl" style="background:#EFF6FF;color:var(--b);border-color:#BFDBFE" onclick="exportPPTX('sources')"><i class="ti ti-presentation"></i>PowerPoint</button>
+                <button class="btn-dl btn-dl-excel" onclick="exportExcel('sources')"><i class="ti ti-table"></i>Excel</button>
+              </div>
             </div>
 
             <div class="acard" style="padding:14px">
@@ -3666,7 +3674,7 @@ const RAPPORT_LBL = {
     expatries:'Expatriés/étrangers', installations:'Installations',
     aucun_pays:'Aucun pays dans ce périmètre.', score:'score',
     niv:{rouge:'ROUGE',marron:'MARRON',orange:'ORANGE',jaune:'JAUNE',vert:'VERT'},
-    titres_rapport:{synthese:'Synthèse analytique', flux:'Flux opérationnel', agenda:'Agenda sûreté', alertes:'Alertes pays', rapport_complet:'Rapport complet'},
+    titres_rapport:{synthese:'Synthèse analytique', flux:'Flux opérationnel', agenda:'Agenda sûreté', alertes:'Alertes pays', rapport_complet:'Rapport complet', sources:'Matrice des sources'},
   },
   en: {
     alertes_titre:'COUNTRY ALERTS', pays_perimetre:n=>n+' countries in this scope.',
@@ -3674,7 +3682,7 @@ const RAPPORT_LBL = {
     expatries:'Expats/Foreign nationals', installations:'Facilities',
     aucun_pays:'No country in this scope.', score:'score',
     niv:{rouge:'RED',marron:'MAROON',orange:'ORANGE',jaune:'YELLOW',vert:'GREEN'},
-    titres_rapport:{synthese:'Analytical summary', flux:'Operational feed', agenda:'Security agenda', alertes:'Country alerts', rapport_complet:'Full report'},
+    titres_rapport:{synthese:'Analytical summary', flux:'Operational feed', agenda:'Security agenda', alertes:'Country alerts', rapport_complet:'Full report', sources:'Sources matrix'},
   },
 };
 function rl(cle) {
@@ -8359,38 +8367,41 @@ function checkAuth() {
 //  MODULE PARAMETRES — Droits de telechargement + Gestion utilisateurs
 // ════════════════════════════════════════════════════════════════════
 
-// Configuration des rapports disponibles au telechargement
+// Configuration des rapports disponibles au telechargement — noms et
+// descriptions alignes sur les titres reels des rapports (cf. titres_rapport)
+// et sur le contenu effectivement genere par exportFn, pour que ce panneau
+// de droits ne decrive jamais un document different de celui telecharge.
 const DL_REPORTS = [
-  { id:'rp_quotidien', name:'Rapport analytique quotidien',
-    desc:'Analyse securitaire operationnelle complete — 7 sections',
-    file:null, exportFn:"exportWord('rapport_complet')",
-    icon:'ti-shield-lock', bg:'#0A1A2D', color:'#9CA3AF',
+  { id:'rp_synthese_word', name:'Synthèse analytique (Word)',
+    desc:'Analyse thématique régionale (sections A-D + corrélations entre pays), générée depuis les flux RSS collectés.',
+    file:null, exportFn:"exportWord('synthese')",
+    icon:'ti-file-analytics', bg:'#0A1525', color:'#9CA3AF',
     roles:['admin','user','reader'] },
-  { id:'rp_humanitaire', name:'Bulletin humanitaire hebdomadaire',
-    desc:'Synthese analytique filtree sur les zones a risque (PDF)',
+  { id:'rp_synthese_pdf', name:'Synthèse analytique (PDF)',
+    desc:'Même contenu que la version Word — analyse thématique régionale, au format PDF paginé.',
     file:null, exportFn:"exportPDF('synthese')",
     icon:'ti-leaf', bg:'#0A1A10', color:'#4ade80',
     roles:['admin','user'] },
-  { id:'rp_menaces', name:'Bulletin menaces armees mensuel',
-    desc:'Synthese analytique securitaire (Word)',
-    file:null, exportFn:"exportWord('synthese')",
+  { id:'rp_flux', name:'Flux opérationnel (Word)',
+    desc:'Articles des dernières 12h, filtrés sur le périmètre sélectionné.',
+    file:null, exportFn:"exportWord('flux')",
     icon:'ti-shield', bg:'#1A0A0A', color:'#ff8080',
     roles:['admin'] },
-  { id:'rp_sectoriel', name:'Evaluation risques sectoriels',
-    desc:'Rapport complet (synthese + flux + agenda + sources)',
-    file:null, exportFn:"exportWord('rapport_complet')",
-    icon:'ti-chart-line', bg:'#1A1400', color:'#ffb84d',
-    roles:['admin'] },
-  { id:'rp_synthese', name:'Export synthese analytique',
-    desc:'Synthese generee depuis les flux RSS collectes (Word)',
-    file:null, exportFn:"exportWord('synthese')",
-    icon:'ti-file-analytics', bg:'#0A1525', color:'#9CA3AF',
-    roles:['admin','user'] },
-  { id:'rp_agenda', name:'Export agenda surete',
-    desc:'Evenements en cours et a venir — Format PDF',
+  { id:'rp_agenda', name:'Agenda sûreté (PDF)',
+    desc:'Événements en cours et à venir — recommandations associées.',
     file:null, exportFn:"exportPDF('agenda')",
     icon:'ti-calendar-event', bg:'#0A1A2D', color:'#a78bfa',
     roles:['admin','user'] },
+  { id:'rp_alertes', name:'Alertes pays (PDF)',
+    desc:'Fiches pays — niveau d\'alerte composite, mesures et actualité nationale/régionale.',
+    file:null, exportFn:"exportPDF('alertes')",
+    icon:'ti-shield-lock', bg:'#1A0A0A', color:'#ff8080',
+    roles:['admin'] },
+  { id:'rp_complet', name:'Rapport complet (Word)',
+    desc:'Synthèse + flux + agenda + matrice des sources, en un seul document.',
+    file:null, exportFn:"exportWord('rapport_complet')",
+    icon:'ti-chart-line', bg:'#1A1400', color:'#ffb84d',
+    roles:['admin'] },
 ];
 
 // Droits par fonctionnalite
@@ -10650,8 +10661,10 @@ async function exportPPTX(type) {
     const TITRES_PPTX = {
       rapport_complet: 'RAPPORT COMPLET',
       synthese: 'SYNTHÈSE ANALYTIQUE',
+      flux: 'FLUX OPÉRATIONNEL',
       agenda: 'AGENDA SÛRETÉ',
       alertes: 'ALERTES PAYS',
+      sources: 'MATRICE DES SOURCES',
     };
     const titrePPTX = TITRES_PPTX[type] || TITRES_PPTX.rapport_complet;
 
@@ -10779,6 +10792,10 @@ async function exportPPTX(type) {
     const incSocial = (type==='rapport_complet' || type==='synthese') && postsPPTX.length;
     const incAgenda = (type==='rapport_complet' || type==='agenda') && agenda.length;
     const incCorrel = (type==='rapport_complet' || type==='synthese') && signauxPPTX.length;
+    const evenementsFlux = arts.slice().sort((x,y)=>(y.pubDate||0)-(x.pubDate||0)).slice(0,60);
+    const incFlux   = type==='flux' && evenementsFlux.length;
+    const srcsPPTX  = getExportSources();
+    const incSources = (type==='rapport_complet' || type==='sources') && srcsPPTX.length;
 
     // Traduction vers la langue active avant construction des diapositives —
     // aucune actu dans une autre langue que FR (ou EN) ne doit apparaitre.
@@ -10786,6 +10803,7 @@ async function exportPPTX(type) {
       ...marquants.map(a=>a.title),
       ...postsPPTX.map(p=>p.resume),
       ...agenda.map(e=>e.title),
+      ...(incFlux ? evenementsFlux.map(a=>a.title) : []),
     ]);
 
     // ── Slide 2 — Sommaire ──────────────────────────────────────────────
@@ -10793,12 +10811,14 @@ async function exportPPTX(type) {
     s.addText('Sommaire', {x:0.6,y:0.5,w:8,h:0.7,fontSize:28,bold:true,color:INK,fontFace:'Source Serif 4'});
     s.addText(perimetre+' · '+periode.label, {x:0.6,y:1.15,w:8,h:0.35,fontSize:12,color:MUTED,fontFace:'IBM Plex Sans'});
     const sommaireItems = [];
-    if (incVue)    sommaireItems.push('Vue d\'ensemble');
-    if (incAlerte) sommaireItems.push('Niveau d\'alerte');
-    if (incMarq)   sommaireItems.push('Incidents marquants');
-    if (incSocial) sommaireItems.push('Réseaux sociaux — publications prioritaires');
-    if (incAgenda) sommaireItems.push('Agenda & échéances');
-    if (incCorrel) sommaireItems.push('Corrélations entre pays');
+    if (incVue)     sommaireItems.push('Vue d\'ensemble');
+    if (incAlerte)  sommaireItems.push('Niveau d\'alerte');
+    if (incMarq)    sommaireItems.push('Incidents marquants');
+    if (incFlux)    sommaireItems.push('Flux opérationnel');
+    if (incSocial)  sommaireItems.push('Réseaux sociaux — publications prioritaires');
+    if (incAgenda)  sommaireItems.push('Agenda & échéances');
+    if (incCorrel)  sommaireItems.push('Corrélations entre pays');
+    if (incSources) sommaireItems.push('Matrice des sources');
     sommaireItems.push('Méthodologie');
     sommaireItems.forEach((label,i)=>{
       const y = 1.9 + i*0.6;
@@ -10938,6 +10958,27 @@ async function exportPPTX(type) {
       });
     }
 
+    // ── Slides — Flux opérationnel (type 'flux' seul, liste chronologique
+    // paginée — ce type ne rentre pas dans les autres sections du rapport
+    // consolidé, qui se contente d'un résumé via "Incidents marquants") ──
+    if (incFlux) {
+      const chunkSizeF = 12;
+      for (let ci = 0; ci < evenementsFlux.length; ci += chunkSizeF) {
+        const chunk = evenementsFlux.slice(ci, ci+chunkSizeF);
+        s = newSlide('FFFFFF');
+        sectionHead(s, 'Flux opérationnel', ci===0 ? (evenementsFlux.length+' événements des dernières 12 heures — '+perimetre) : (perimetre+' (suite)'));
+        chunk.forEach((a,i)=>{
+          const y = 1.55 + i*0.46;
+          const pays = infoPays(a.cy);
+          const col = LVL_COL[a.level] || '9CA3AF';
+          circle(s, 0.6, y+0.09, 0.09, col);
+          const dateTxt = a.pubDate ? new Date(a.pubDate).toLocaleDateString('fr-FR')+' '+new Date(a.pubDate).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}) : '';
+          s.addText('['+dateTxt+']  '+(pays.flag||'')+' '+pays.name+'  ·  '+lvlFr(a.level).toUpperCase(), {x:0.85,y:y-0.06,w:11.7,h:0.22,fontSize:8.5,bold:true,color:MUTED,fontFace:'IBM Plex Mono'});
+          s.addText(L(a.title)||'', {x:0.85,y:y+0.13,w:11.7,h:0.3,fontSize:11,color:INK,fontFace:'IBM Plex Sans'});
+        });
+      }
+    }
+
     // ── Slide — Réseaux sociaux : publications prioritaires ─────────────
     if (incSocial) {
       s = newSlide('FFFFFF');
@@ -10987,6 +11028,33 @@ async function exportPPTX(type) {
         s.addText(paysNoms, {x:x+0.18,y:y+0.44,w:colW-0.36,h:0.42,fontSize:9,color:MUTED,fontFace:'IBM Plex Sans'});
         s.addText(sig.articles.slice(0,2).map(a=>L(a.title)).join(' · '), {x:x+0.18,y:y+0.9,w:colW-0.36,h:0.58,fontSize:9.5,color:'374151',fontFace:'IBM Plex Sans'});
       });
+    }
+
+    // ── Slides — Matrice des sources (type 'sources' ou 'rapport_complet') ──
+    // Plafonnée aux sources les plus fiables — une diapositive n'est pas le
+    // bon format pour des centaines de lignes, la liste exhaustive reste
+    // disponible via l'export Excel dédié.
+    if (incSources) {
+      const chunkSizeSr = 13, CAP_SOURCES_P = 60;
+      const srcsSortedFull = srcsPPTX.slice().sort((a,z)=>(z.score||0)-(a.score||0));
+      const srcsSorted = srcsSortedFull.slice(0, CAP_SOURCES_P);
+      for (let ci = 0; ci < srcsSorted.length; ci += chunkSizeSr) {
+        const chunk = srcsSorted.slice(ci, ci+chunkSizeSr);
+        s = newSlide('FFFFFF');
+        sectionHead(s, 'Matrice des sources', ci===0 ? (srcsSortedFull.length+' sources suivies — '+perimetre) : (perimetre+' (suite)'));
+        chunk.forEach((sr,i)=>{
+          const y = 1.55 + i*0.42;
+          const paysSr = infoPays(sr.cy) || {};
+          s.addText((sr.n||''), {x:0.6,y,w:6.2,h:0.34,fontSize:10.5,bold:true,color:INK,fontFace:'IBM Plex Sans'});
+          s.addText((paysSr.name||sr.cy||'')+' · '+(sr.sc||''), {x:6.9,y,w:3.3,h:0.34,fontSize:9.5,color:MUTED,fontFace:'IBM Plex Sans'});
+          s.addText((sr.score||0)+'%', {x:10.3,y,w:0.9,h:0.34,fontSize:9.5,bold:true,color:BLUE,fontFace:'IBM Plex Sans',align:'right'});
+          s.addText(sr.rss_method||'', {x:11.3,y,w:1.5,h:0.34,fontSize:8.5,color:MUTED,fontFace:'IBM Plex Sans',align:'right'});
+        });
+        if (ci+chunkSizeSr >= srcsSorted.length && srcsSortedFull.length > CAP_SOURCES_P) {
+          s.addText('Top '+CAP_SOURCES_P+' sources sur '+srcsSortedFull.length+' — liste complète disponible via l\'export Excel.',
+            {x:0.6,y:6.85,w:12.1,h:0.28,fontSize:8.5,italic:true,color:MUTED,fontFace:'IBM Plex Sans'});
+        }
+      }
     }
 
     // ── Slide finale — methodologie (fond sombre, sandwich) ────────────
@@ -11543,9 +11611,16 @@ async function exportPDF(type) {
       await preTraduireRapport(agenda.flatMap(e => [e.title, e.desc, e.reco]));
       b.bulletinHeader(titre, dateGenStr, creneauStr,
         (LANG==='en' ? agenda.length+' ongoing or upcoming events.' : agenda.length+' événement'+(agenda.length>1?'s':'')+' en cours ou à venir.'));
-      b.heading('AGENDA SÛRETÉ — ' + perimetre);
-      b.para(agenda.length+' événement'+(agenda.length>1?'s':'')+' en cours ou à venir.', {color:rgb(0.42,0.46,0.5)});
-      b.divider();
+      const nbUrgentA = agenda.filter(e=>e.status==='urgent').length;
+      const nbEnCoursA = agenda.filter(e=>e.status==='en-cours').length;
+      const nbPlanifieA = agenda.filter(e=>e.status==='planifie'||e.status==='surveillance').length;
+      b.statsGrid([
+        { value: agenda.length,  label: LANG==='en'?'Events':'Événements', color: rgb(0.051,0.106,0.161) },
+        { value: nbUrgentA,      label: LANG==='en'?'Urgent':'Urgent',     color: rgb(0.545,0.102,0.102) },
+        { value: nbEnCoursA,     label: LANG==='en'?'Ongoing':'En cours',  color: rgb(0.106,0.373,0.659) },
+        { value: nbPlanifieA,    label: LANG==='en'?'Planned':'Planifié',  color: rgb(0.059,0.310,0.165) },
+      ]);
+      b.bulletinSection((LANG==='en'?'Security Agenda — ':'Agenda Sûreté — ') + perimetre);
       const SL = {'en-cours':'EN COURS','urgent':'URGENT','planifie':'PLANIFIÉ','surveillance':'SURVEILLANCE'};
       agenda.forEach(e=>{
         b.sub((e.day||'')+' '+(e.month||'')+'  —  '+(SL[e.status]||e.status||'').toUpperCase(), rgb(0.114,0.373,0.659));
@@ -11597,8 +11672,16 @@ async function exportPDF(type) {
       await preTraduireRapport(textesATraduire);
 
       b.bulletinHeader(titre, dateGenStr, creneauStr, rl('pays_perimetre')(scores.length));
-      b.heading(rl('alertes_titre') + ' — ' + perimetre);
-      b.para(rl('pays_perimetre')(scores.length), {color:rgb(0.42,0.46,0.5)});
+      const nbRougeAl = scores.filter(s=>s.sc && s.sc.key==='rouge').length;
+      const nbMarronAl = scores.filter(s=>s.sc && (s.sc.key==='marron'||s.sc.key==='orange')).length;
+      const nbVertAl = scores.filter(s=>s.sc && (s.sc.key==='jaune'||s.sc.key==='vert')).length;
+      b.statsGrid([
+        { value: scores.length, label: LANG==='en'?'Countries':'Pays',         color: rgb(0.051,0.106,0.161) },
+        { value: nbRougeAl,     label: LANG==='en'?'Red':'Rouge',              color: rgb(0.545,0.102,0.102) },
+        { value: nbMarronAl,    label: LANG==='en'?'Brown / orange':'Marron / orange', color: rgb(0.486,0.204,0.055) },
+        { value: nbVertAl,      label: LANG==='en'?'Yellow / green':'Jaune / vert', color: rgb(0.059,0.310,0.165) },
+      ]);
+      b.bulletinSection(rl('alertes_titre') + ' — ' + perimetre);
       b.box(LANG==='en'?'READING GUIDE':'GUIDE DE LECTURE', [
         LANG==='en'
           ? 'Composite score = verified incidents + aggravating factors, out of 100. Levels: RED (critical), BROWN (severe), ORANGE (high), YELLOW (moderate), GREEN (stable).'
@@ -11634,6 +11717,134 @@ async function exportPDF(type) {
       });
       if (!scores.length) b.empty(rl('aucun_pays'));
       if (paysEnErreur) b.para(paysEnErreur+(LANG==='en'?' country/countries skipped due to incomplete data (see console).':' pays ignoré(s) suite à une donnée incomplète (voir console).'), {size:8, color:rgb(0.71,0.32,0.04)});
+    }
+
+    else if (type === 'rapport_complet') {
+      // Rapport consolidé — synthèse (A-D + corrélations) puis flux puis
+      // agenda, sur le même gabarit masthead/bandeau de stats/pastilles que
+      // les autres types, pour une lecture identique à un rapport unique.
+      const arts = getExportData();
+      const agendaC = (typeof getExportAgenda === 'function') ? getExportAgenda() : [];
+      await preTraduireRapport([
+        ...arts.flatMap(a => [a.title, a.analysis]),
+        ...agendaC.flatMap(e => [e.title, e.desc, e.reco]),
+      ]);
+      const nbSrcActifsC = new Set(arts.map(a=>a.primary)).size;
+      b.bulletinHeader(titre, dateGenStr, creneauStr,
+        (LANG==='en'
+          ? 'Consolidated report — analytical summary, operational feed and agenda, across '+nbSrcActifsC+' consolidated feeds.'
+          : 'Rapport consolidé — synthèse analytique, flux opérationnel et agenda, à partir de '+nbSrcActifsC+' flux consolidés.'));
+
+      const nbCritiquesC = arts.filter(a => a.level === 'crit').length;
+      const nbPaysCouvertsC = new Set(arts.filter(a => a.cy && a.cy !== 'INT').map(a => a.cy)).size;
+      b.statsGrid([
+        { value: arts.length,     label: LANG==='en'?'Articles':'Articles',   color: rgb(0.051,0.106,0.161) },
+        { value: nbCritiquesC,    label: LANG==='en'?'Critical':'Critiques',  color: rgb(0.545,0.102,0.102) },
+        { value: nbPaysCouvertsC, label: LANG==='en'?'Countries':'Pays',      color: rgb(0.106,0.373,0.659) },
+        { value: nbSrcActifsC,    label: LANG==='en'?'Sources':'Sources',     color: rgb(0.059,0.310,0.165) },
+      ]);
+
+      // I. Synthèse analytique — mêmes sections A-D + corrélations que le
+      // type 'synthese' seul.
+      const rangOrdreC = {crit:0, high:1, mod:2, ok:3};
+      const cmpC = (x,y) => { const r=(rangOrdreC[x.level]??3)-(rangOrdreC[y.level]??3); if (r!==0) return r; return (y.pubDate||0)-(x.pubDate||0); };
+      b.bulletinSection(LANG==='en'?'I. Analytical Summary — Regional Situation':'I. Synthèse Analytique — Situation Régionale');
+      const byCatC = {securite:[], humanitaire:[], politique:[], economique:[]};
+      arts.forEach(a => { if (byCatC[a.cat]) byCatC[a.cat].push(a); });
+      const catDefsC = [
+        {k:'securite',    lettre:'A', lb:LANG==='en'?'Security situation':'Situation sécuritaire',   col:'#8B1A1A'},
+        {k:'humanitaire', lettre:'B', lb:LANG==='en'?'Humanitarian axis':'Axe humanitaire',           col:'#7C4A00'},
+        {k:'politique',   lettre:'C', lb:LANG==='en'?'Political environment':'Environnement politique', col:'#1B5FA8'},
+        {k:'economique',  lettre:'D', lb:LANG==='en'?'Economic context':'Contexte économique',        col:'#0F4F2A'},
+      ];
+      let unItemAffichéC = false;
+      catDefsC.forEach(cd => {
+        const items = byCatC[cd.k].slice().sort(cmpC).slice(0,8);
+        if (!items.length) return;
+        unItemAffichéC = true;
+        b.catHeading(cd.lettre+'. '+cd.lb, cd.col);
+        items.forEach(a => {
+          const geoC = detectGeo(a.cy, a.title+' '+(a.analysis||''));
+          const villeTxtC = geoC.ville ? (geoC.ville+(geoC.estime?(LANG==='en'?' (estimated)':' (estimé)'):'')) : '';
+          const paysC = infoPays(a.cy);
+          b.articleItem({...a, title:L(a.title)}, paysC.name+(villeTxtC?' — '+villeTxtC:''));
+        });
+        b.y -= 6;
+      });
+      if (!unItemAffichéC) b.empty(LANG==='en'?'No article available for this scope over the period.':'Aucun article disponible pour ce périmètre sur la période.');
+
+      if (typeof _corrBuildSignaux === 'function') {
+        const signauxC = _corrBuildSignaux(arts);
+        if (signauxC.length) {
+          b.bulletinSection(LANG==='en'?'F. Cross-Country Correlations — Regional Signals':'F. Corrélations Entre Pays — Signaux Régionaux');
+          b.box('CONSTATATIONS', [signauxC.length+' thème'+(signauxC.length>1?'s':'')+' détecté'+(signauxC.length>1?'s':'')+' simultanément dans au moins 2 pays sur la période <12h — une dynamique régionale qu\'une lecture pays par pays ne révèle pas isolément.']);
+          b.correlationGrid(signauxC.slice(0,10));
+        }
+      }
+
+      // II. Flux opérationnel — événements des dernières 12h, ordre chronologique.
+      b.bulletinSection(LANG==='en'?'II. Operational Feed — Events of the Last 12 Hours':'II. Flux Opérationnel — Événements des Dernières 12 Heures');
+      const evtsC = arts.slice().sort((x,y)=>(y.pubDate||0)-(x.pubDate||0)).map(a => ({
+        dateStr: a.pubDate ? new Date(a.pubDate).toLocaleDateString('fr-FR')+' '+new Date(a.pubDate).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}) : (LANG==='en'?'Unknown':'Inconnu'),
+        pays: infoPays(a.cy), niveauTxt: lvlFr(a.level).toUpperCase(), titre: L(a.title)||'',
+      }));
+      if (evtsC.length) b.evenementsListe(evtsC);
+      else b.empty(LANG==='en'?'No article available for this scope over the period.':'Aucun article disponible pour ce périmètre sur la période.');
+
+      // III. Agenda sûreté — événements en cours ou à venir.
+      b.bulletinSection(LANG==='en'?'III. Security Agenda — Ongoing or Upcoming Events':'III. Agenda Sûreté — Événements en Cours ou à Venir');
+      const SLC = {'en-cours':'EN COURS','urgent':'URGENT','planifie':'PLANIFIÉ','surveillance':'SURVEILLANCE'};
+      agendaC.forEach(e=>{
+        b.sub((e.day||'')+' '+(e.month||'')+'  —  '+(SLC[e.status]||e.status||'').toUpperCase(), rgb(0.114,0.373,0.659));
+        b.para(L(e.title)||'', {bold:true, size:10.5});
+        if (e.desc) b.para(L(e.desc), {size:9});
+        if (e.reco) b.para('Recommandation : '+L(e.reco), {size:8.5, color:rgb(0.42,0.46,0.5)});
+        b.y -= 4;
+      });
+      if (!agendaC.length) b.empty(LANG==='en'?'No event for this scope.':'Aucun événement pour ce périmètre.');
+
+      // IV. Matrice des sources — mêmes lignes que le type 'sources' seul,
+      // plafonnée aux CAP_SOURCES sources les plus fiables (un document
+      // Word/PDF/PPTX n'est pas le bon format pour des centaines de lignes —
+      // la liste exhaustive reste disponible via l'export Excel dédié).
+      const CAP_SOURCES = 60;
+      b.bulletinSection(LANG==='en'?'IV. Sources Matrix':'IV. Matrice des Sources');
+      const srcsC = getExportSources().slice().sort((x,y)=>(y.score||0)-(x.score||0));
+      srcsC.slice(0, CAP_SOURCES).forEach(sr => {
+        const paysSC = infoPays(sr.cy) || {};
+        b.bullet((sr.n||'')+'  —  '+(paysSC.name||sr.cy||'')+' · '+(sr.sc||'')+' · '+(LANG==='en'?'Reliability ':'Fiabilité ')+(sr.score||0)+'% · '+(sr.rss_method||''));
+      });
+      if (!srcsC.length) b.empty(LANG==='en'?'No source for this scope.':'Aucune source pour ce périmètre.');
+      else if (srcsC.length > CAP_SOURCES) b.para((LANG==='en'
+        ? 'Top '+CAP_SOURCES+' sources by reliability shown out of '+srcsC.length+' — see the Excel export for the full list.'
+        : 'Les '+CAP_SOURCES+' sources les plus fiables sur '+srcsC.length+' — liste complète disponible via l\'export Excel.'), {size:8, color:rgb(0.42,0.46,0.5), italic:true});
+    }
+
+    else if (type === 'sources') {
+      const CAP_SOURCES = 60;
+      const srcs = getExportSources().slice().sort((x,y)=>(y.score||0)-(x.score||0));
+      const nbMediaS = srcs.filter(s => !(s.rss_method||'').match(/Twitter|Telegram|Facebook/)).length;
+      const nbSocialS = srcs.length - nbMediaS;
+      const avgFiabS = srcs.length ? Math.round(srcs.reduce((s2,x)=>s2+(x.score||0),0)/srcs.length) : 0;
+      b.bulletinHeader(titre, dateGenStr, creneauStr,
+        (LANG==='en'
+          ? srcs.length+' sources tracked for this scope, media and social networks combined.'
+          : srcs.length+' sources suivies pour ce périmètre, médias et réseaux sociaux confondus.'));
+      b.statsGrid([
+        { value: srcs.length,   label: LANG==='en'?'Sources':'Sources',            color: rgb(0.051,0.106,0.161) },
+        { value: nbMediaS,      label: LANG==='en'?'Media':'Médias',               color: rgb(0.106,0.373,0.659) },
+        { value: nbSocialS,     label: LANG==='en'?'Social networks':'Réseaux sociaux', color: rgb(0.059,0.310,0.165) },
+        { value: avgFiabS+'%',  label: LANG==='en'?'Avg. reliability':'Fiabilité moy.', color: rgb(0.545,0.102,0.102) },
+      ]);
+      b.bulletinSection(LANG==='en'?'Sources Matrix':'Matrice des Sources');
+      srcs.slice(0, CAP_SOURCES).forEach(sr => {
+        const paysS = infoPays(sr.cy) || {};
+        b.bullet((sr.n||'')+'  —  '+(paysS.name||sr.cy||'')+' · '+(sr.sc||'')+' · '+(LANG==='en'?'Reliability ':'Fiabilité ')+(sr.score||0)+'% · '+(sr.rss_method||''));
+      });
+      if (!srcs.length) b.empty(LANG==='en'?'No source for this scope.':'Aucune source pour ce périmètre.');
+      else if (srcs.length > CAP_SOURCES) b.para((LANG==='en'
+        ? 'Top '+CAP_SOURCES+' sources by reliability shown out of '+srcs.length+' — see the Excel export for the full list.'
+        : 'Les '+CAP_SOURCES+' sources les plus fiables sur '+srcs.length+' — liste complète disponible via l\'export Excel.'), {size:8, color:rgb(0.42,0.46,0.5), italic:true});
     }
 
     const bytes = await doc.save();
@@ -12186,8 +12397,16 @@ async function exportWord(type){
     if(type==='agenda'||type==='rapport_complet'){
       children.push(divider());
       children.push(topBar('III. AGENDA SÛRETÉ — Événements & échéances'));
+      const agendaW=getExportAgenda();
+      children.push(kpiTable([
+        {val:agendaW.length, label:'Événements', color:'0D1B2A'},
+        {val:agendaW.filter(e=>e.status==='urgent').length, label:'Urgent', color:'8B1A1A'},
+        {val:agendaW.filter(e=>e.status==='en-cours').length, label:'En cours', color:'1B5FA8'},
+        {val:agendaW.filter(e=>e.status==='planifie'||e.status==='surveillance').length, label:'Planifié', color:'0F4F2A'},
+      ]));
+      children.push(new Paragraph({spacing:{after:160}}));
       const SL={'en-cours':'EN COURS','urgent':'URGENT','planifie':'PLANIFIÉ','surveillance':'SURVEILLANCE'};
-      for(const e of getExportAgenda()){
+      for(const e of agendaW){
         children.push(new Paragraph({
           children:[
             new TextRun({text:e.day+' '+e.month+' — ',bold:true,size:22,color:'1B5FA8'}),
@@ -12203,11 +12422,43 @@ async function exportWord(type){
       }
     }
 
+    if(type==='sources'||type==='rapport_complet'){
+      const CAP_SOURCES_W = 60;
+      children.push(divider());
+      children.push(topBar(type==='rapport_complet' ? 'IV. MATRICE DES SOURCES' : 'MATRICE DES SOURCES'));
+      const srcsW = getExportSources().slice().sort((a,z)=>(z.score||0)-(a.score||0));
+      const nbMediaW = srcsW.filter(s=>!(s.rss_method||'').match(/Twitter|Telegram|Facebook/)).length;
+      const nbSocialW = srcsW.length - nbMediaW;
+      children.push(kpiTable([
+        {val:srcsW.length, label:'Sources', color:'0D1B2A'},
+        {val:nbMediaW,     label:'Médias', color:'1B5FA8'},
+        {val:nbSocialW,    label:'Réseaux sociaux', color:'0F4F2A'},
+        {val:(srcsW.length ? Math.round(srcsW.reduce((s2,x)=>s2+(x.score||0),0)/srcsW.length) : 0)+'%', label:'Fiabilité moy.', color:'8B1A1A'},
+      ]));
+      children.push(new Paragraph({spacing:{after:160}}));
+      // Plafonné aux sources les plus fiables — un document Word n'est pas
+      // le bon format pour des centaines de lignes, la liste exhaustive
+      // reste disponible via l'export Excel dédié.
+      srcsW.slice(0, CAP_SOURCES_W).forEach(sr=>{
+        const paysW=infoPays(sr.cy)||{};
+        children.push(para('▶ '+(sr.n||'')+'  —  '+(paysW.name||sr.cy||'')+' · '+(sr.sc||'')+' · Fiabilité '+(sr.score||0)+'% · '+(sr.rss_method||'')));
+      });
+      if(!srcsW.length) children.push(para('Aucune source pour ce périmètre.', {italic:true, color:'6B7280'}));
+      else if(srcsW.length > CAP_SOURCES_W) children.push(para('Les '+CAP_SOURCES_W+' sources les plus fiables sur '+srcsW.length+' — liste complète disponible via l\'export Excel.', {italic:true, color:'6B7280'}));
+    }
+
     if(type==='alertes'){
       children.push(divider());
       children.push(topBar('IV. ALERTES PAYS — Niveau composite & dossier régional', '8B1A1A'));
       const cysW = fRapportCy!=='all' ? [fRapportCy] : Object.keys(PAYS_INFO).filter(cy => !fRapportZone || fRapportZone==='all' || CY_TO_ZONE[cy]===fRapportZone);
       const scoresW = cysW.map(cy=>({cy, pays:PAYS_INFO[cy], sc:calcAlertScore(cy)})).sort((a,b2)=>b2.sc.total-a.sc.total);
+      children.push(kpiTable([
+        {val:scoresW.length, label:'Pays', color:'0D1B2A'},
+        {val:scoresW.filter(s=>s.sc && s.sc.key==='rouge').length, label:'Rouge', color:'8B1A1A'},
+        {val:scoresW.filter(s=>s.sc && (s.sc.key==='marron'||s.sc.key==='orange')).length, label:'Marron / orange', color:'7C4A00'},
+        {val:scoresW.filter(s=>s.sc && (s.sc.key==='jaune'||s.sc.key==='vert')).length, label:'Jaune / vert', color:'0F4F2A'},
+      ]));
+      children.push(new Paragraph({spacing:{after:160}}));
       children.push(para(rl('pays_perimetre')(scoresW.length), {color:'6B7280'}));
       children.push(calloutBox(LANG==='en'?'READING GUIDE':'GUIDE DE LECTURE',
         LANG==='en'
@@ -12295,7 +12546,7 @@ async function exportWord(type){
     }]});
 
     const blob=await Packer.toBlob(doc);
-    const tname={flux:'Flux',synthese:'Synthese',agenda:'Agenda',rapport_complet:'Rapport_Complet',alertes:'Alertes_Pays'}[type]||type;
+    const tname={flux:'Flux',synthese:'Synthese',agenda:'Agenda',rapport_complet:'Rapport_Complet',alertes:'Alertes_Pays',sources:'Matrice_Sources'}[type]||type;
     dlFile(blob,'SENTINEL_'+tname+suffixePerimetre()+'_'+new Date().toISOString().slice(0,10)+'.docx');
 
   }catch(e){
