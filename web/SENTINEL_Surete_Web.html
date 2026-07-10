@@ -2050,7 +2050,7 @@ button:not(:disabled){
                 <i class="ti ti-file-invoice" style="font-size:16px;color:var(--b)"></i>
                 <span style="font-size:12px;font-weight:700;color:var(--t)">Rapport complet</span>
               </div>
-              <div style="font-size:10px;color:var(--lg);margin-bottom:10px">Synthèse + flux + agenda + sources, en un seul document Word.</div>
+              <div style="font-size:10px;color:var(--lg);margin-bottom:10px">Synthèse + flux + agenda, en un seul document Word.</div>
               <div style="display:flex;gap:6px;flex-wrap:wrap">
                 <button class="btn-dl btn-dl-word" onclick="exportWord('rapport_complet')"><i class="ti ti-file-text"></i>Word</button>
                 <button class="btn-dl btn-dl-pdf" onclick="exportPDF('rapport_complet')"><i class="ti ti-file-type-pdf"></i>PDF</button>
@@ -3496,6 +3496,16 @@ function _trPlaceholderIndispo(srcLang) {
     ? '🌐 Translation unavailable (source: ' + _trNomLangue(srcLang) + ')'
     : '🌐 Traduction indisponible (source : ' + _trNomLangue(srcLang) + ')';
 }
+// _trTexteAffichable(texte) : filet de securite final avant affichage — decode
+// toute entite HTML residuelle (cf. _decodeEntitesHTML, deja applique a la
+// collecte mais insuffisant pour les sources doublement echappees ou les cas
+// non couverts) ET repli sur le texte source (decode) plutot que le message
+// "traduction indisponible" quand une tentative de traduction a echoue —
+// mieux vaut afficher l'actu, meme non traduite, qu'un message d'erreur
+// technique dans un rapport livre a un responsable surete.
+function _trTexteAffichable(texte) {
+  return (typeof _decodeEntitesHTML === 'function') ? _decodeEntitesHTML(texte) : texte;
+}
 // _trPlaceholderSurDemande(srcLang) : texte-relais affiche quand une actu
 // n'est pas dans la langue active mais qu'AUCUNE traduction automatique
 // n'est tentee — voir tr() ci-dessous. Remplace l'ancien comportement
@@ -3510,15 +3520,16 @@ function _trPlaceholderSurDemande(srcLang) {
 
 function tr(texte, elId, transform) {
   if (!texte) return texte;
-  const srcLang = detectLangue(texte);
-  if (srcLang === LANG) return texte; // deja dans la langue active : rien a faire
+  const texteAff = _trTexteAffichable(texte);
+  const srcLang = detectLangue(texteAff);
+  if (srcLang === LANG) return transform ? transform(texteAff) : texteAff; // deja dans la langue active : rien a faire
   const cacheKey = LANG + ':' + texte;
   if (TR_CACHE[cacheKey] !== undefined) {
     const cached = TR_CACHE[cacheKey];
-    // cached === texte : une tentative (bouton Traduire) a deja echoue et
-    // est retombee sur le texte source inchange — ne jamais l'afficher tel
-    // quel, quelle que soit la langue source.
-    const val = (cached === texte) ? _trPlaceholderIndispo(srcLang) : cached;
+    // cached === texte : une tentative (bouton Traduire) a deja echoue —
+    // on affiche l'actu (texte source, decode) plutot qu'un message
+    // d'erreur ; le bouton Traduire reste disponible pour reessayer.
+    const val = (cached === texte) ? texteAff : _trTexteAffichable(cached);
     return transform ? transform(val) : val;
   }
   // Plus de traduction automatique en tache de fond : aucun appel reseau ici.
@@ -3578,11 +3589,14 @@ async function retraduireActu(id) {
   const titreDejaCorrect = srcLangT === LANG;
   const descDejaCorrecte = srcLangD === LANG;
   if (!titreDejaCorrect) {
-    const valT = (outT === a.title) ? _trPlaceholderIndispo(srcLangT) : outT;
+    // Traduction echouee (outT === a.title) : afficher l'actu (texte source,
+    // decode) plutot qu'un message d'erreur — le bouton reste disponible
+    // pour reessayer (cf. plus bas).
+    const valT = (outT === a.title) ? _trTexteAffichable(a.title) : _trTexteAffichable(outT);
     titleEls.forEach(el => { el.textContent = valT; });
   }
   if (analyseATraduire && !descDejaCorrecte) {
-    const valD = (outD === analyseATraduire) ? _trPlaceholderIndispo(srcLangD) : outD;
+    const valD = (outD === analyseATraduire) ? _trTexteAffichable(analyseATraduire) : _trTexteAffichable(outD);
     descEls.forEach(el => {
       // Le panneau de detail (id detan-*) affiche un extrait tronque (usage
       // loyal) — reappliquer la meme troncature que showDet() lors du
@@ -3773,13 +3787,19 @@ async function preTraduireRapport(textes) {
 // celle active (FR ou EN), quelle que soit sa langue d'origine.
 function L(texte) {
   if (!texte) return texte;
-  const srcLang = detectLangue(texte);
-  if (srcLang === LANG) return texte;
+  const texteAff = _trTexteAffichable(texte);
+  const srcLang = detectLangue(texteAff);
+  if (srcLang === LANG) return texteAff;
   const cacheKey = LANG + ':' + texte;
   const cached = TR_CACHE[cacheKey];
-  if (cached === undefined) return _trPlaceholderEnCours(); // preTraduireRapport() pas encore passee sur ce texte
-  if (cached === texte) return _trPlaceholderIndispo(srcLang);
-  return cached;
+  // Un document exporte est un instantane statique (jamais mis a jour apres
+  // generation) : un texte-relais "traduction en cours"/"indisponible" y
+  // resterait fige pour toujours, illisible. On y prefere systematiquement
+  // l'actu elle-meme (texte source, decode) plutot qu'un message technique —
+  // repli valable que preTraduireRapport() n'ait pas encore traite ce texte
+  // OU que la traduction ait reellement echoue.
+  if (cached === undefined || cached === texte) return texteAff;
+  return _trTexteAffichable(cached);
 }
 
 // ── PAYS = CLÉ DE CORRÉLATION GLOBALE ──────────────────────────────────────
@@ -3856,6 +3876,23 @@ const PAYS_INFO = {
 function infoPays(cy) {
   if (cy === 'INT') return { flag:'🌐', name:'International', capital:'' };
   return PAYS_INFO[cy] || { flag:'🌍', name:cy };
+}
+
+// groupeArticlesParPays(arts) : classe des articles par pays — tout pays hors
+// des 54 couverts par PAYS_INFO (donc hors Afrique) est range sous
+// "International" plutot que sous un code pays brut non reconnu. Utilise par
+// les sections Flux des rapports Word/PDF/PPTX, triees par nombre d'articles
+// decroissant (pays les plus actifs en tete).
+function groupeArticlesParPays(arts) {
+  const groupes = {};
+  const ordre = [];
+  arts.forEach(a => {
+    const cy = (a.cy && typeof PAYS_INFO !== 'undefined' && PAYS_INFO[a.cy]) ? a.cy : 'INT';
+    if (!groupes[cy]) { groupes[cy] = []; ordre.push(cy); }
+    groupes[cy].push(a);
+  });
+  return ordre.map(cy => ({ cy, pays: infoPays(cy), items: groupes[cy] }))
+    .sort((x, y) => y.items.length - x.items.length);
 }
 
 // PAYS_LIMITROPHES : frontières terrestres par pays (adjacence géographique
@@ -6807,17 +6844,18 @@ function majFlashInfo(force) {
     const col = TT_NIV_COL[a.level] || '#4B5563';
     const lb = TT_NIV_LB[a.level] || 'INFO';
     const ttKey = 'tt-'+a.id;
-    const srcLang = detectLangue(a.title);
+    const titreAff = _trTexteAffichable(a.title);
+    const srcLang = detectLangue(titreAff);
     let shown;
     if (srcLang === LANG) {
-      shown = a.title;
+      shown = titreAff;
     } else {
       const cached = TR_CACHE[LANG+':'+a.title];
       // cached === a.title signifie qu'une tentative MANUELLE (bouton
-      // Traduire, ailleurs) a deja echoue — sinon, pas de tentative faite,
-      // simple invitation a consulter l'actu dans le Flux pour traduire.
+      // Traduire, ailleurs) a deja echoue — afficher l'actu (texte source,
+      // decode) plutot qu'un message d'erreur, meme logique que tr()/L().
       shown = (cached === undefined) ? _trPlaceholderSurDemande(srcLang)
-            : (cached === a.title) ? _trPlaceholderIndispo(srcLang) : cached;
+            : (cached === a.title) ? titreAff : _trTexteAffichable(cached);
     }
     const d = a.pubDate ? new Date(a.pubDate) : null;
     const dateTxt = d ? d.toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'}) : '—';
@@ -8553,7 +8591,7 @@ const DL_REPORTS = [
     icon:'ti-shield-lock', bg:'#1A0A0A', color:'#ff8080',
     roles:['admin'] },
   { id:'rp_complet', name:'Rapport complet (Word)',
-    desc:'Synthèse + flux + agenda + matrice des sources, en un seul document.',
+    desc:'Synthèse + flux + agenda, en un seul document.',
     file:null, exportFn:"exportWord('rapport_complet')",
     icon:'ti-chart-line', bg:'#1A1400', color:'#ffb84d',
     roles:['admin'] },
@@ -10976,7 +11014,7 @@ async function exportPPTX(type) {
     const evenementsFlux = arts.slice().sort((x,y)=>(y.pubDate||0)-(x.pubDate||0)).slice(0,60);
     const incFlux   = type==='flux' && evenementsFlux.length;
     const srcsPPTX  = getExportSources();
-    const incSources = (type==='rapport_complet' || type==='sources') && srcsPPTX.length;
+    const incSources = type==='sources' && srcsPPTX.length;
 
     // Traduction vers la langue active avant construction des diapositives —
     // aucune actu dans une autre langue que FR (ou EN) ne doit apparaitre.
@@ -11807,12 +11845,22 @@ async function exportPDF(type) {
           ? arts.length+' events collected over the last 12 hours, across '+nbSrcActifsF+' consolidated feeds.'
           : arts.length+' événements collectés sur les 12 dernières heures, à partir de '+nbSrcActifsF+' flux consolidés.'));
       b.bulletinSection(LANG==='en'?'Events of the Last 12 Hours':'Événements des Dernières 12 Heures');
-      const evts = arts.slice().sort((x,y)=>(y.pubDate||0)-(x.pubDate||0)).map(a => ({
-        dateStr: a.pubDate ? new Date(a.pubDate).toLocaleDateString('fr-FR')+' '+new Date(a.pubDate).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}) : (LANG==='en'?'Unknown':'Inconnu'),
-        pays: infoPays(a.cy), niveauTxt: lvlFr(a.level).toUpperCase(), titre: L(a.title)||'',
-      }));
-      if (evts.length) b.evenementsListe(evts);
-      else b.empty(LANG==='en'?'No article available for this scope over the period.':'Aucun article disponible pour ce périmètre sur la période.');
+      // Classées par pays (pays hors Afrique -> International), pastille de
+      // niveau + titre + date de publication par article — plus de simple
+      // liste chronologique brute.
+      const groupesFluxPDF = groupeArticlesParPays(arts);
+      if (groupesFluxPDF.length) {
+        groupesFluxPDF.forEach(g => {
+          b.sub(g.pays.flag+' '+L(g.pays.name), rgb(0.051,0.106,0.161));
+          g.items.slice().sort((x,y)=>(y.pubDate||0)-(x.pubDate||0)).forEach(a => {
+            const dateTxtPDF = a.pubDate ? new Date(a.pubDate).toLocaleDateString('fr-FR')+' '+new Date(a.pubDate).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}) : (a.time||'');
+            b.articleItem({...a, title:L(a.title)}, dateTxtPDF);
+          });
+          b.y -= 6;
+        });
+      } else {
+        b.empty(LANG==='en'?'No article available for this scope over the period.':'Aucun article disponible pour ce périmètre sur la période.');
+      }
     }
 
     else if (type === 'agenda') {
@@ -11960,6 +12008,11 @@ async function exportPDF(type) {
         { value: nbSrcActifsC,    label: LANG==='en'?'Sources':'Sources',     color: rgb(0.059,0.310,0.165) },
       ]);
 
+      // Dedup partagee entre les sections I et II : un article deja montre
+      // en I (Synthese A-D) ne doit pas reapparaitre en II (Flux) — voir
+      // _articleKey (url, ou pays|titre a defaut).
+      const usedKeysC = new Set();
+
       // I. Synthèse analytique — mêmes sections A-D + corrélations que le
       // type 'synthese' seul.
       const rangOrdreC = {crit:0, high:1, mod:2, ok:3};
@@ -11980,6 +12033,7 @@ async function exportPDF(type) {
         unItemAffichéC = true;
         b.catHeading(cd.lettre+'. '+cd.lb, cd.col);
         items.forEach(a => {
+          usedKeysC.add(_articleKey(a));
           const geoC = detectGeo(a.cy, a.title+' '+(a.analysis||''));
           const villeTxtC = geoC.ville ? (geoC.ville+(geoC.estime?(LANG==='en'?' (estimated)':' (estimé)'):'')) : '';
           const paysC = infoPays(a.cy);
@@ -11998,14 +12052,23 @@ async function exportPDF(type) {
         }
       }
 
-      // II. Flux opérationnel — événements des dernières 12h, ordre chronologique.
+      // II. Flux opérationnel — classé par pays (International pour les
+      // pays hors Afrique), sans répéter les articles déjà montrés en I.
       b.bulletinSection(LANG==='en'?'II. Operational Feed — Events of the Last 12 Hours':'II. Flux Opérationnel — Événements des Dernières 12 Heures');
-      const evtsC = arts.slice().sort((x,y)=>(y.pubDate||0)-(x.pubDate||0)).map(a => ({
-        dateStr: a.pubDate ? new Date(a.pubDate).toLocaleDateString('fr-FR')+' '+new Date(a.pubDate).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}) : (LANG==='en'?'Unknown':'Inconnu'),
-        pays: infoPays(a.cy), niveauTxt: lvlFr(a.level).toUpperCase(), titre: L(a.title)||'',
-      }));
-      if (evtsC.length) b.evenementsListe(evtsC);
-      else b.empty(LANG==='en'?'No article available for this scope over the period.':'Aucun article disponible pour ce périmètre sur la période.');
+      const artsFluxC = arts.filter(a => !usedKeysC.has(_articleKey(a)));
+      const groupesFluxC = groupeArticlesParPays(artsFluxC);
+      if (groupesFluxC.length) {
+        groupesFluxC.forEach(g => {
+          b.sub(g.pays.flag+' '+L(g.pays.name), rgb(0.051,0.106,0.161));
+          g.items.slice().sort((x,y)=>(y.pubDate||0)-(x.pubDate||0)).forEach(a => {
+            const dateTxtC = a.pubDate ? new Date(a.pubDate).toLocaleDateString('fr-FR')+' '+new Date(a.pubDate).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}) : (a.time||'');
+            b.articleItem({...a, title:L(a.title)}, dateTxtC);
+          });
+          b.y -= 6;
+        });
+      } else {
+        b.empty(LANG==='en'?'No article available for this scope over the period.':'Aucun article disponible pour ce périmètre sur la période.');
+      }
 
       // III. Agenda sûreté — événements en cours ou à venir.
       b.bulletinSection(LANG==='en'?'III. Security Agenda — Ongoing or Upcoming Events':'III. Agenda Sûreté — Événements en Cours ou à Venir');
@@ -12018,22 +12081,6 @@ async function exportPDF(type) {
         b.y -= 4;
       });
       if (!agendaC.length) b.empty(LANG==='en'?'No event for this scope.':'Aucun événement pour ce périmètre.');
-
-      // IV. Matrice des sources — mêmes lignes que le type 'sources' seul,
-      // plafonnée aux CAP_SOURCES sources les plus fiables (un document
-      // Word/PDF/PPTX n'est pas le bon format pour des centaines de lignes —
-      // la liste exhaustive reste disponible via l'export Excel dédié).
-      const CAP_SOURCES = 60;
-      b.bulletinSection(LANG==='en'?'IV. Sources Matrix':'IV. Matrice des Sources');
-      const srcsC = getExportSources().slice().sort((x,y)=>(y.score||0)-(x.score||0));
-      srcsC.slice(0, CAP_SOURCES).forEach(sr => {
-        const paysSC = infoPays(sr.cy) || {};
-        b.bullet((sr.n||'')+'  —  '+(paysSC.name||sr.cy||'')+' · '+(sr.sc||'')+' · '+(LANG==='en'?'Reliability ':'Fiabilité ')+(sr.score||0)+'% · '+(sr.rss_method||''));
-      });
-      if (!srcsC.length) b.empty(LANG==='en'?'No source for this scope.':'Aucune source pour ce périmètre.');
-      else if (srcsC.length > CAP_SOURCES) b.para((LANG==='en'
-        ? 'Top '+CAP_SOURCES+' sources by reliability shown out of '+srcsC.length+' — see the Excel export for the full list.'
-        : 'Les '+CAP_SOURCES+' sources les plus fiables sur '+srcsC.length+' — liste complète disponible via l\'export Excel.'), {size:8, color:rgb(0.42,0.46,0.5), italic:true});
     }
 
     else if (type === 'sources') {
@@ -12325,14 +12372,16 @@ async function exportWord(type){
     });
     const divider=()=>new Paragraph({border:{bottom:{style:BorderStyle.SINGLE,size:1,color:'D1D9E0'}},spacing:{after:120}});
 
-    // Bandeau de section principale (I./II./III.) — bloc coloré plein texte
-    // blanc, sur le modèle des bandeaux BUZZ/TENDANCE/RISQUE déjà en usage
-    // plus bas ; conserve le style Titre 1 pour rester repérable au Sommaire.
+    // Bandeau de section principale (I./II./III.) — texte bleu nuit gras sur
+    // fond blanc avec filet de soulignement, sur le modèle du gabarit de
+    // référence (exportPDF bulletinSection) : PAS de bloc coloré plein texte
+    // blanc (ancien style, abandonné). Conserve le style Titre 1 pour rester
+    // repérable au Sommaire.
     const topBar=(text,color)=>new Paragraph({
       text, heading:HeadingLevel.HEADING_1,
-      shading:{type:ShadingType.CLEAR,fill:color||'0D1B2A'},
       spacing:{before:200,after:160},
-      run:{color:'FFFFFF',bold:true,size:24,font:FONT_SANS},
+      border:{bottom:{style:BorderStyle.SINGLE,size:10,color:color||'0D1B2A'}},
+      run:{color:color||'0D1B2A',bold:true,size:24,font:FONT_SANS},
     });
 
     // Encadré de mise en avant (façon "CONSTATATIONS" GRSCI) — synthèse à
@@ -12526,6 +12575,11 @@ async function exportWord(type){
       children.push(new Paragraph({spacing:{after:80}}));
     }
 
+    // Dedup partagee entre les sections I (Synthese A-D) et II (Flux) d'un
+    // Rapport complet : un article deja montre en I ne doit pas reapparaitre
+    // en II — voir _articleKey (url, ou pays|titre a defaut).
+    const usedKeysWDoc = new Set();
+
     if(type==='synthese'||type==='rapport_complet'){
       children.push(divider());
       children.push(topBar('I. SYNTHÈSE ANALYTIQUE — Situation régionale'));
@@ -12545,6 +12599,7 @@ async function exportWord(type){
         if(!items.length)continue;
         children.push(heading(cd.lb,2,cd.col));
         for(const a of items){
+          usedKeysWDoc.add(_articleKey(a));
           const geoW=detectGeo(a.cy, a.title+' '+(a.analysis||''));
           const villeTxtW=geoW.ville?(' — '+geoW.ville+(geoW.estime?' (estimé)':'')):'';
           children.push(new Paragraph({
@@ -12646,30 +12701,31 @@ async function exportWord(type){
       children.push(topBar('II. FLUX OPÉRATIONNEL — Articles <12h'));
       children.push(para(arts.length+' articles collectés · Filtre anti-hallucination actif · Sources : '+SRCS.length+' flux RSS'));
 
-      // Tableau des articles critiques et élevés
-      const critHigh=arts.filter(a=>a.level==='crit'||a.level==='high').slice(0,20);
-      if(critHigh.length){
-        children.push(heading('Alertes prioritaires (CRITIQUE et ÉLEVÉ)',2,'8B1A1A'));
-        for(const a of critHigh){
-          const color=lvlColor[a.level]||'1B5FA8';
-          children.push(new Paragraph({
-            shading:{type:ShadingType.CLEAR,fill:a.level==='crit'?'FEF2F2':'FFFBEB'},
-            children:[
-              new TextRun({text:'▶ ['+lvlFr(a.level)+'] ',bold:true,size:20,color}),
-              new TextRun({text:L(a.title),bold:true,size:20,color:'0B1A27'}),
-            ],spacing:{before:80,after:40}
-          }));
-          children.push(para(L(a.analysis)||'',{color:'374151'}));
-          const survH=fmtSurvenance(a);
-          children.push(new Paragraph({
-            children:[new TextRun({text:'Survenance : '+survH.texte+(survH.inconnue?' — à vérifier':(survH.ancien?' — plus de 12h':'')),size:17,bold:survH.ancien,color:survH.inconnue?'B45309':(survH.ancien?'DC2626':'9CA3AF')})],
-            spacing:{after:40}
-          }));
-          children.push(new Paragraph({
-            children:[new TextRun({text:'📍 '+a.cy+' · '+catFr(a.cat)+' · '+a.time,size:18,italic:true,color:'9CA3AF'})],
-            spacing:{after:80}
-          }));
-        }
+      // Classé par pays (International pour les pays hors Afrique), sans
+      // répéter les articles déjà montrés en section I (Rapport complet) —
+      // pastille de niveau + titre en gras, puis date de publication.
+      const artsFluxW = arts.filter(a => !usedKeysWDoc.has(_articleKey(a)));
+      const groupesFluxW = groupeArticlesParPays(artsFluxW);
+      if (groupesFluxW.length) {
+        groupesFluxW.forEach(g => {
+          children.push(heading((g.pays.flag||'')+' '+g.pays.name, 2, '1B5FA8'));
+          g.items.slice().sort((a,z)=>(z.pubDate||0)-(a.pubDate||0)).forEach(a => {
+            const color=lvlColor[a.level]||'1B5FA8';
+            const dateTxtW = a.pubDate ? new Date(a.pubDate).toLocaleDateString('fr-FR')+' '+new Date(a.pubDate).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}) : (a.time||'');
+            children.push(new Paragraph({
+              children:[
+                new TextRun({text:'['+lvlFr(a.level)+'] ',bold:true,size:20,color,font:FONT_MONO}),
+                new TextRun({text:L(a.title),bold:true,size:20,color:'0B1A27',font:FONT_SANS}),
+              ],spacing:{before:80,after:20}
+            }));
+            children.push(new Paragraph({
+              children:[new TextRun({text:dateTxtW,size:17,italic:true,color:'9CA3AF',font:FONT_MONO})],
+              spacing:{after:80}
+            }));
+          });
+        });
+      } else {
+        children.push(para('Aucun article disponible pour ce périmètre sur la période.', {italic:true, color:'6B7280'}));
       }
     }
 
@@ -12694,10 +12750,10 @@ async function exportWord(type){
       }
     }
 
-    if(type==='sources'||type==='rapport_complet'){
+    if(type==='sources'){
       const CAP_SOURCES_W = 60;
       children.push(divider());
-      children.push(topBar(type==='rapport_complet' ? 'IV. MATRICE DES SOURCES' : 'MATRICE DES SOURCES'));
+      children.push(topBar('MATRICE DES SOURCES'));
       const srcsW = getExportSources().slice().sort((a,z)=>(z.score||0)-(a.score||0));
       // Plafonné aux sources les plus fiables — un document Word n'est pas
       // le bon format pour des centaines de lignes, la liste exhaustive
