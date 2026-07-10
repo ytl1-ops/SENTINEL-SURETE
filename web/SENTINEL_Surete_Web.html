@@ -461,16 +461,19 @@ input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px soli
 .tr-btn i{font-size:10px}
 .tr-btn.tr-btn-busy i{animation:spin 1s linear infinite}
 .tr-btn.tr-btn-busy{opacity:.6;cursor:wait}
-.wa-btn{display:inline-flex;align-items:center;gap:3px;padding:2px 7px;
-  border:1px solid #B7E4C7;border-radius:10px;background:#F0FDF4;color:#0F4F2A;
+.share-trigger{display:inline-flex;align-items:center;gap:3px;padding:2px 7px;
+  border:1px solid var(--bd);border-radius:10px;background:var(--sf);color:var(--gr);
   font-size:9px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0;}
-.wa-btn:hover{background:#0F4F2A;color:#fff;border-color:#0F4F2A}
-.wa-btn i{font-size:10px}
-.mail-btn{display:inline-flex;align-items:center;gap:3px;padding:2px 7px;
-  border:1px solid var(--bb);border-radius:10px;background:var(--bl);color:var(--b);
-  font-size:9px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0;}
-.mail-btn:hover{background:var(--b);color:#fff;border-color:var(--b)}
-.mail-btn i{font-size:10px}
+.share-trigger:hover,.share-trigger.on{background:var(--n);color:#fff;border-color:var(--n)}
+.share-trigger i{font-size:10px}
+.share-menu{position:fixed;z-index:3000;min-width:170px;background:var(--w);
+  border:1px solid var(--bd);border-radius:8px;box-shadow:0 8px 24px rgba(13,27,42,.18);
+  padding:5px;font-size:12px;}
+.share-mi{display:flex;align-items:center;gap:8px;padding:7px 9px;border-radius:5px;
+  cursor:pointer;color:var(--t);font-weight:600;white-space:nowrap;}
+.share-mi:hover{background:var(--sf)}
+.share-mi i{font-size:14px;width:16px;text-align:center;flex-shrink:0}
+.share-mi.copied{color:#0F4F2A}
 /* Statuts META (estime / a verifier / deduit) : couleur neutre slate,
    volontairement HORS de la palette d'alerte (rouge/orange/jaune) pour ne
    jamais laisser croire qu'une incertitude de date est un niveau de gravite. */
@@ -6672,6 +6675,131 @@ function envoyerActuEmail(id) {
   window.location.href = 'mailto:?subject=' + encodeURIComponent(sujet) + '&body=' + encodeURIComponent(corps);
 }
 
+// copierActuTexte(id) : copie le message pre-redige (meme contenu que
+// WhatsApp/Email) dans le presse-papiers — le filet de partage le plus
+// universel : ne depend d'aucune application installee, se colle ensuite
+// n'importe ou (Signal, Teams, SMS, Slack...).
+async function copierActuTexte(id) {
+  const a = (typeof ALL !== 'undefined' ? ALL : []).find(x => x.id === id);
+  if (!a) return;
+  const texte = whatsappMessageActu(a);
+  try {
+    await navigator.clipboard.writeText(texte);
+  } catch (e) {
+    // Repli si l'API Clipboard est indisponible/refusee (contexte non
+    // securise, permission bloquee...) : champ temporaire + execCommand,
+    // methode historique mais toujours largement supportee.
+    try {
+      const ta = document.createElement('textarea');
+      ta.value = texte; ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+    } catch (e2) {
+      alert(LANG === 'en' ? 'Copy failed — please copy manually.' : 'Échec de la copie — copiez manuellement.');
+      return;
+    }
+  }
+  _toastRapide(LANG === 'en' ? 'Copied to clipboard' : 'Copié dans le presse-papiers', 'ti-check');
+}
+
+// _toastRapide(texte, icone) : notification ephemere generique (copie
+// reussie, action confirmee...), reutilise le conteneur de toasts deja en
+// place pour les notifications de nouvelles actus.
+function _toastRapide(texte, icone) {
+  const container = document.getElementById('toastContainer');
+  if (!container) return;
+  const el = document.createElement('div');
+  el.style.cssText = 'pointer-events:none;background:#0F4F2A;color:#fff;border-radius:8px;'+
+    'box-shadow:0 8px 24px rgba(0,0,0,.18);padding:9px 14px;font-size:11px;font-weight:700;'+
+    'display:flex;align-items:center;gap:7px;transform:translateX(360px);opacity:0;'+
+    'transition:transform .3s ease,opacity .3s ease;';
+  el.innerHTML = '<i class="ti ' + (icone || 'ti-check') + '"></i>' + texte;
+  container.appendChild(el);
+  requestAnimationFrame(() => { el.style.transform = 'translateX(0)'; el.style.opacity = '1'; });
+  setTimeout(() => {
+    el.style.transform = 'translateX(360px)'; el.style.opacity = '0';
+    setTimeout(() => el.remove(), 350);
+  }, 1600);
+}
+
+// partagerActuNatif(id) : partage natif du systeme (Web Share API) quand
+// disponible — ouvre le selecteur natif du telephone/PC (Signal, Teams,
+// Messages, AirDrop, Mail, WhatsApp, tout ce qui est installe), sans coder
+// chaque destination une par une. Repli automatique sur le presse-papiers
+// (copierActuTexte) si l'API n'est pas supportee par le navigateur.
+async function partagerActuNatif(id) {
+  const a = (typeof ALL !== 'undefined' ? ALL : []).find(x => x.id === id);
+  if (!a) return;
+  if (navigator.share) {
+    try {
+      await navigator.share({ title: 'SENTINEL SÛRETÉ', text: whatsappMessageActu(a) });
+      return;
+    } catch (e) {
+      if (e && e.name === 'AbortError') return; // annule par l'utilisateur : rien de plus a faire
+    }
+  }
+  copierActuTexte(id);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  MENU DE PARTAGE — un seul bouton "Partager" par actu (WhatsApp, Email,
+//  Copier le texte, Partage natif du systeme regroupes dans un menu
+//  deroulant) plutot qu'un bouton distinct par mode — plus compact sur les
+//  cartes du Flux/Synthese. Un seul menu existe dans le DOM a la fois
+//  (repositionne dynamiquement pres du bouton clique), ferme au clic
+//  exterieur, a l'echap, ou apres selection d'une option.
+// ═══════════════════════════════════════════════════════════════════════════
+function toggleShareMenu(ev, id) {
+  ev.stopPropagation();
+  const menuExistant = document.getElementById('shareMenuGlobal');
+  const dejaOuvertPourCetId = menuExistant && menuExistant.dataset.actid === id;
+  closeShareMenu();
+  if (dejaOuvertPourCetId) return; // reclic sur le meme bouton -> fermer seulement
+
+  const btn = ev.currentTarget;
+  const menu = document.createElement('div');
+  menu.id = 'shareMenuGlobal';
+  menu.className = 'share-menu';
+  menu.dataset.actid = id;
+  menu.innerHTML =
+    '<div class="share-mi" onclick="envoyerActuWhatsapp(\''+id+'\');closeShareMenu()"><i class="ti ti-brand-whatsapp" style="color:#0F4F2A"></i>WhatsApp</div>'+
+    '<div class="share-mi" onclick="envoyerActuEmail(\''+id+'\');closeShareMenu()"><i class="ti ti-mail" style="color:var(--b)"></i>Email</div>'+
+    '<div class="share-mi" onclick="copierActuTexte(\''+id+'\');closeShareMenu()"><i class="ti ti-copy" style="color:var(--gr)"></i>'+(LANG==='en'?'Copy text':'Copier le texte')+'</div>'+
+    '<div class="share-mi" onclick="partagerActuNatif(\''+id+'\');closeShareMenu()"><i class="ti ti-share-2" style="color:var(--gr)"></i>'+(LANG==='en'?'Other apps…':'Autres applications…')+'</div>';
+  document.body.appendChild(menu);
+
+  // Positionnement sous le bouton (position:fixed -> coordonnees viewport,
+  // pas besoin d'ajouter le scroll), ajuste pour ne jamais deborder de l'ecran.
+  const rect = btn.getBoundingClientRect();
+  const mw = 200, mh = menu.offsetHeight || 180;
+  let left = Math.min(rect.left, window.innerWidth - mw - 8);
+  let top = rect.bottom + 4;
+  if (top + mh > window.innerHeight) top = rect.top - mh - 4;
+  menu.style.left = Math.max(8, left) + 'px';
+  menu.style.top = Math.max(8, top) + 'px';
+
+  btn.classList.add('on');
+  setTimeout(() => {
+    document.addEventListener('click', _closeShareMenuOnOutsideClick);
+    document.addEventListener('keydown', _closeShareMenuOnEscape);
+  }, 0);
+}
+function _closeShareMenuOnOutsideClick(e) {
+  const menu = document.getElementById('shareMenuGlobal');
+  if (menu && !menu.contains(e.target)) closeShareMenu();
+}
+function _closeShareMenuOnEscape(e) {
+  if (e.key === 'Escape') closeShareMenu();
+}
+function closeShareMenu() {
+  const menu = document.getElementById('shareMenuGlobal');
+  if (menu) menu.remove();
+  document.querySelectorAll('.share-trigger.on').forEach(b => b.classList.remove('on'));
+  document.removeEventListener('click', _closeShareMenuOnOutsideClick);
+  document.removeEventListener('keydown', _closeShareMenuOnEscape);
+}
+
 // ═══════════════════════════════════════════════════════════════════════════
 //  AGENT DE VERIFICATION DES LIENS SOURCE — le lien direct capture a la
 //  collecte (a.url) peut se reveler mort au moment ou l'utilisateur clique
@@ -7164,8 +7292,7 @@ function renderFeed() {
         '</div>'+
         // ── Groupe de confiance unifie : sources + confiance composite + score + corroboration + pub-time ──
         '<div class="aftr conf-group">'+chips+
-          '<button class="wa-btn" onclick="event.stopPropagation();envoyerActuWhatsapp(\''+a.id+'\')" title="'+(LANG==='en'?'Send on WhatsApp':'Envoyer sur WhatsApp')+'"><i class="ti ti-brand-whatsapp"></i>WhatsApp</button>'+
-          '<button class="mail-btn" onclick="event.stopPropagation();envoyerActuEmail(\''+a.id+'\')" title="'+(LANG==='en'?'Share by email':'Partager par email')+'"><i class="ti ti-mail"></i>Email</button>'+
+          '<button class="share-trigger" onclick="toggleShareMenu(event,\''+a.id+'\')" title="'+(LANG==='en'?'Share':'Partager')+'"><i class="ti ti-share-2"></i>'+(LANG==='en'?'Share':'Partager')+'</button>'+
           (typeof confBadge==='function' ? confBadge(a) : '')+
           '<span class="rtg '+rc(a.score)+'">'+a.score+'%</span>'+
           (a.verified?'<span class="vtg"><i class="ti ti-shield-check"></i>'+(a.crosses?.length||1)+' src</span>':
@@ -7359,8 +7486,7 @@ function showDet(id) {
       a.recos.map(r=>'<div class="rli">'+r+'</div>').join('')+'</div>':'')+
     '<div class="dact">'+
       '<a href="'+safeUrl(articleLienDirect(a), a.title)+'" target="_blank" class="dbt p"><i class="ti ti-external-link"></i>'+(lienDirectDispo ? 'Lire l\'article complet' : 'Rechercher sur '+ps.n)+'</a>'+
-      '<button class="dbt" onclick="envoyerActuWhatsapp(\''+a.id+'\')" style="background:#F0FDF4;color:#0F4F2A;border-color:#B7E4C7"><i class="ti ti-brand-whatsapp"></i>WhatsApp</button>'+
-      '<button class="dbt" onclick="envoyerActuEmail(\''+a.id+'\')" style="background:var(--bl);color:var(--b);border-color:var(--bb)"><i class="ti ti-mail"></i>Email</button>'+
+      '<button class="dbt" onclick="toggleShareMenu(event,\''+a.id+'\')"><i class="ti ti-share-2"></i>'+(LANG==='en'?'Share':'Partager')+'</button>'+
       '<div class="dbt" style="margin-left:auto" onclick="document.getElementById(\'detPanel\').className=\'det\'"><i class="ti ti-x"></i>Fermer</div>'+
     '</div>';
   panel.scrollIntoView({behavior:'smooth',block:'nearest'});
@@ -7855,8 +7981,7 @@ function updSynthese() {
         '<div class="sy-bd" id="sybd-'+a.id+'">'+tr(a.analysis,'sybd-'+a.id, t=>t.slice(0,280)+(t.length>280?'...':'')).slice(0,280)+(a.analysis.length>280?'...':'')+'</div>'+
         '<div class="sy-sr"><a href="'+safeUrl(articleLienDirect(a), ps.n+' actualite')+'" target="_blank" class="ssrc">'+
           '<span class="dot" style="background:'+ps.col+'"></span>'+ps.n+'<i class="ti ti-external-link"></i></a>'+
-          '<button class="wa-btn" onclick="envoyerActuWhatsapp(\''+a.id+'\')" title="'+(LANG==='en'?'Send on WhatsApp':'Envoyer sur WhatsApp')+'"><i class="ti ti-brand-whatsapp"></i>WhatsApp</button>'+
-          '<button class="mail-btn" onclick="envoyerActuEmail(\''+a.id+'\')" title="'+(LANG==='en'?'Share by email':'Partager par email')+'"><i class="ti ti-mail"></i>Email</button>'+
+          '<button class="share-trigger" onclick="toggleShareMenu(event,\''+a.id+'\')" title="'+(LANG==='en'?'Share':'Partager')+'"><i class="ti ti-share-2"></i>'+(LANG==='en'?'Share':'Partager')+'</button>'+
           '<span class="ss-sc '+sc+'">'+a.score+'%</span></div>'+
       '</div>';
     });
