@@ -6150,38 +6150,46 @@ async function agentVerifierLien(url) {
   return valide;
 }
 
-// agentValiderLiensArticles(articles) : passe en arriere-plan sur les liens
-// directs pas encore verifies (plafonnee pour ne pas resaturer les proxys
-// CORS deja fortement sollicites par la collecte RSS elle-meme). Redessine
-// le Flux/la Synthese une fois la passe terminee si des corrections ont ete
-// appliquees, sans attendre la prochaine collecte.
+// agentValiderLiensArticles(articles) : passe en arriere-plan sur TOUS les
+// liens directs pas encore verifies, sans plafond — chaque actu du Flux (les
+// 54 pays) finit verifiee, par petits lots paralleles pour ne pas resaturer
+// les proxys CORS deja sollicites par la collecte RSS elle-meme. Redessine
+// le Flux/la Synthese au fil de l'eau (tous les 10 lots) et a la fin de la
+// passe si des corrections ont ete appliquees, sans attendre la prochaine
+// collecte.
 let _agentLiensEnCours = false;
 async function agentValiderLiensArticles(articles) {
   if (_agentLiensEnCours) return;
   _agentLiensEnCours = true;
   try {
-    const MAX_A_VERIFIER = 30;
     const aVerifier = (articles || []).filter(a => {
       if (a._lienMort !== undefined || !a.url || a.url === '#') return false;
       const s = gs(a.primary);
       return a.url !== s.url;
-    }).slice(0, MAX_A_VERIFIER);
+    });
     if (!aVerifier.length) return;
     let corrections = 0;
+    let corrigeDepuisDernierRendu = 0;
     const LOT = 5; // petits lots paralleles : rapide sans saturer les proxys partages
+    const rafraichir = () => {
+      if (typeof dbPut === 'function') dbPut(ALL);
+      if (typeof renderFeed === 'function') renderFeed();
+      if (typeof updSynthese === 'function') updSynthese();
+      corrigeDepuisDernierRendu = 0;
+    };
     for (let i = 0; i < aVerifier.length; i += LOT) {
       const lot = aVerifier.slice(i, i + LOT);
       await Promise.all(lot.map(async a => {
         const ok = await agentVerifierLien(a.url);
         a._lienMort = !ok;
-        if (!ok) corrections++;
+        if (!ok) { corrections++; corrigeDepuisDernierRendu++; }
       }));
+      // Rendu intermediaire tous les 10 lots (~50 liens) : les corrections
+      // apparaissent au fil de l'eau sur les gros volumes, sans attendre la
+      // toute fin d'une passe qui peut couvrir plusieurs centaines d'actus.
+      if (corrigeDepuisDernierRendu > 0 && (i / LOT) % 10 === 9) rafraichir();
     }
-    if (corrections > 0) {
-      if (typeof dbPut === 'function') dbPut(ALL);
-      if (typeof renderFeed === 'function') renderFeed();
-      if (typeof updSynthese === 'function') updSynthese();
-    }
+    if (corrections > 0 && corrigeDepuisDernierRendu > 0) rafraichir();
   } finally {
     _agentLiensEnCours = false;
   }
