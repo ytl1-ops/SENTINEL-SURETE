@@ -4198,6 +4198,35 @@ const PAYS_HORS_AFRIQUE = [
   'madrid','rome','lisbonne','bruxelles','amsterdam','moscou','pékin','pekin','tokyo',
   'séoul','seoul','new delhi','téhéran','teheran','bagdad','beyrouth','jérusalem',
   'jerusalem','ankara','istanbul','riyad','doha','dubaï','genève','geneve','vienne',
+  // — Equivalents anglais (sources anglophones africaines : Ghana, Nigeria,
+  // Kenya, Ouganda, Tanzanie, Zambie, Sierra Leone, Liberia...) —
+  'england','english','germany','german','britain','british','united kingdom',
+  'spain','spanish','portugal','portuguese','italy','italian','belgium','belgian',
+  'netherlands','dutch','switzerland','swiss','austria','austrian','ireland','irish',
+  'scotland','scottish','wales','welsh','sweden','swedish','norway','norwegian',
+  'denmark','danish','finland','finnish','iceland','icelandic','poland','polish',
+  'czech republic','czechia','slovakia','slovak','hungary','hungarian','romania',
+  'romanian','bulgaria','bulgarian','greece','greek','croatia','croatian','serbia',
+  'serbian','slovenia','slovenian','bosnia','albania','albanian','ukraine','ukrainian',
+  'russia','russian','belarus','belarusian','european union',
+  'united states','america','american','canada','canadian','mexico','mexican',
+  'brazil','brazilian','argentina','argentinian','argentine','chile','chilean',
+  'colombia','colombian','peru','peruvian','venezuela','venezuelan','uruguay',
+  'uruguayan','paraguay','bolivia','bolivian','ecuador','ecuadorian','cuba','cuban',
+  'haiti','haitian','jamaica','jamaican','panama','panamanian','costa rica',
+  'guatemala','honduras','nicaragua','dominican republic',
+  'china','chinese','japan','japanese','south korea','korean','north korea',
+  'india','indian','pakistan','pakistani','bangladesh','bangladeshi','sri lanka',
+  'nepal','bhutan','afghanistan','afghan','iran','iranian','iraq','iraqi','syria',
+  'syrian','lebanon','lebanese','israel','israeli','palestine','palestinian',
+  'saudi arabia','saudi','yemen','yemeni','oman','qatar','qatari',
+  'kuwait','kuwaiti','bahrain','bahraini','united arab emirates','turkey','turkish',
+  'thailand','thai','vietnam','vietnamese','cambodia','cambodian','laos','myanmar',
+  'malaysia','malaysian','singapore','singaporean','indonesia','indonesian',
+  'philippines','filipino','mongolia','kazakhstan','uzbekistan','turkmenistan',
+  'kyrgyzstan','tajikistan','azerbaijan','armenia','armenian',
+  'australia','australian','new zealand',
+  'white house','beijing','moscow','tehran','baghdad','jerusalem','geneva','vienna',
 ];
 
 // SPORT_INTERNATIONAL_KW : vocabulaire sportif hors perimetre national. Un
@@ -4213,6 +4242,11 @@ const SPORT_INTERNATIONAL_KW = [
   'real madrid','fc barcelone','manchester united','manchester city','psg',
   'paris saint-germain','ronaldo','lionel messi','mbappé','mbappe','rudi garcia',
   'chelsea','arsenal','liverpool','bayern munich','juventus','ac milan','tottenham',
+  // — Equivalents anglais (sources anglophones : JoyOnline, GhanaWeb, allAfrica,
+  // Daily Nation, The Standard, New Vision...) —
+  'world cup','champions league','national coach','head coach','national team',
+  'goalkeeper','striker','midfielder','defender','football club',
+  'transfer window','olympic games','formula one',
 ];
 
 const HORS_PERIMETRE_KW = [...PAYS_HORS_AFRIQUE, ...SPORT_INTERNATIONAL_KW];
@@ -4261,16 +4295,26 @@ const SPORT_CONTENU_KW = [
   'west ham','newcastle','aston villa','galatasaray','fenerbahce','sporting lisbonne',
   'benfica','fc porto','as monaco','olympique lyonnais','olympique de marseille',
   'losc lille','stade rennais',
+  // — Equivalents anglais —
+  'transfer fee','signed for','signs for','on loan at','loaned to','joins the club',
+  'red card','yellow card','offside','penalty kick','penalty shootout','extra time',
+  'friendly match','national squad','africa cup of nations','afcon','world cup qualifiers',
+  'the black stars','the super eagles','the indomitable lions','the elephants',
+  'the eagles','the stallions','the leopards','the atlas lions','the bafana bafana',
+  'the harambee stars','footballer','professional player','coach (football)',
+  'club jersey','english club','spanish club',
 ];
 
 // TRANSFERT_MONTANT_RE : montant type "30M€"/"15 millions d'euros" — quasi
 // systematique dans un titre de transfert de joueur, quel que soit le club.
 // Ne suffit pas seul (un accord economique legitime peut aussi citer un
 // montant en euros) : combine ci-dessous avec un verbe de transfert de joueur.
-const TRANSFERT_MONTANT_RE = /\d+([.,]\d+)?\s*(m€|m\$|millions?\s+d.?euros?|millions?\s+de\s+dollars)/i;
+const TRANSFERT_MONTANT_RE = /\d+([.,]\d+)?\s*(m€|m\$|millions?\s+d.?euros?|millions?\s+de\s+dollars|million\s+euros?|million\s+pounds?|million\s+dollars?|£\d|\$\d)/i;
 const TRANSFERT_VERBE_KW = [
   'rejoint','s\'engage avec','s\'engage pour','signe avec','signe un contrat',
   'prete par','prete a','quitte le club','transfere a','transfere vers','file a',
+  'joins','signs for','signs with','signs a contract','loaned from','loaned to',
+  'leaves the club','transferred to',
 ];
 
 // estContenuSportif(t) : vrai si le texte relève clairement du sport/football
@@ -4304,6 +4348,11 @@ const CULTURE_DIVERTISSEMENT_KW = [
   'oscars du cinema','grammy awards','ballon d\'or','prix nobel','prix goncourt',
   'grand prix litteraire','festival international du film','recompense artistique',
   'trophee des arts','exposition d\'art','vernissage','sortie d\'album',
+  // — Equivalents anglais —
+  'box office','premiere (film)','film festival','music festival','singer',
+  'music album','music video','fashion show','celebrity','showbiz','private life of',
+  'engagement of','wedding of','tv series','tv show','reality show','academy awards',
+  'nobel prize','art exhibition','album release',
 ];
 
 // estContenuCulturel(t) : vrai si le texte relève clairement de la culture,
