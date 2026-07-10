@@ -3527,51 +3527,107 @@ async function retraduireActu(id) {
   }
 }
 
-// trFetch(texte, srcLang, tgtLang) : traduction via MyMemory (API publique,
-// sans clé, CORS ouvert). Cache par paire de langue (TR_CACHE[tgtLang+':'+texte])
-// pour ne jamais confondre une traduction fr→en et en→fr du même texte source.
-// Repli silencieux sur le texte original en cas d'échec (source non fiable,
-// hors ligne, quota API...).
+// ═══════════════════════════════════════════════════════════════════════════
+//  AGENT DE TRADUCTION — un seul moteur (MyMemory) tombait parfois en panne
+//  (quota journalier epuise, service indisponible), et l'utilisateur voyait
+//  alors le message d'echec "Traduction indisponible" au lieu du contenu.
+//  Meme principe que le pool de miroirs RSSHub deja utilise pour la collecte
+//  des flux (proxyFetch) : on chaine plusieurs moteurs de traduction publics
+//  gratuits (sans cle) et on ne bascule sur le suivant QUE si le precedent a
+//  reellement echoue (timeout, reseau, quota, reponse invalide). Le message
+//  d'erreur ne s'affiche desormais que si TOUS les moteurs de l'agent ont
+//  echoue en meme temps — un cas beaucoup plus rare qu'avant.
+// ═══════════════════════════════════════════════════════════════════════════
+
 // _trReponseInvalide(d, out) : MyMemory renvoie parfois un HTTP 200 "reussi"
 // dont le contenu n'est pas une traduction mais un message de service (quota
 // journalier epuise, langue invalide...), ex. "MYMEMORY WARNING: YOU USED ALL
 // AVAILABLE FREE TRANSLATIONS FOR TODAY...". Sans detection, ce texte etait
 // mis en cache et affiche tel quel comme si c'etait le contenu traduit d'un
-// article. On le traite comme un echec de traduction (repli sur le texte
-// source, donc sur le placeholder "traduction indisponible" cote appelant).
+// article. On le traite comme un echec de ce moteur (l'agent bascule alors
+// sur le moteur suivant au lieu d'abandonner).
 function _trReponseInvalide(d, out) {
   if (d && d.responseStatus !== undefined && Number(d.responseStatus) !== 200) return true;
-  if (typeof out !== 'string') return true;
+  if (typeof out !== 'string' || !out.trim()) return true;
   return /MYMEMORY WARNING|USAGE ?LIMITS|INVALID (SOURCE|TARGET) LANGUAGE|SELECT TWO DISTINCT LANGUAGES/i.test(out);
 }
+
+// Moteur 1/3 — MyMemory (quota le plus genereux avec &de=email, essaye en
+// premier).
+async function _trViaMyMemory(texte, srcLang, tgtLang) {
+  // &de=email : identifie l'appelant aupres de MyMemory. Sans email, le
+  // quota gratuit est limite a 5000 mots/jour PAR IP (partage entre tous
+  // les visiteurs de l'appli derriere la meme IP/proxy). Avec un email
+  // enregistre, MyMemory porte ce quota a 50000 mots/jour (gratuit, sans
+  // cle API).
+  const r = await fetch('https://api.mymemory.translated.net/get?q=' + encodeURIComponent(texte) + '&langpair=' + srcLang + '|' + tgtLang + '&de=yorot225@gmail.com', { signal: AbortSignal.timeout(6000) });
+  const d = await r.json();
+  const out = (d && d.responseData && d.responseData.translatedText) ? d.responseData.translatedText : null;
+  if (_trReponseInvalide(d, out)) throw new Error('mymemory: quota depasse ou reponse invalide');
+  return out;
+}
+
+// Moteur 2/3 — Lingva (frontal public pour Google Translate, sans cle).
+// Plusieurs miroirs testes l'un apres l'autre : les instances publiques
+// tombent regulierement, un seul miroir fixe reviendrait au meme probleme
+// qu'un moteur unique.
+const LINGVA_MIRRORS = [
+  'https://lingva.ml',
+  'https://translate.plausibility.cloud',
+  'https://lingva.garudalinux.org',
+];
+async function _trViaLingva(texte, srcLang, tgtLang) {
+  for (const mirror of LINGVA_MIRRORS) {
+    try {
+      const url = mirror + '/api/v1/' + srcLang + '/' + tgtLang + '/' + encodeURIComponent(texte);
+      const r = await fetch(url, { signal: AbortSignal.timeout(6000) });
+      const d = await r.json();
+      if (d && typeof d.translation === 'string' && d.translation.trim()) return d.translation;
+    } catch (e) { /* miroir suivant */ }
+  }
+  throw new Error('lingva: tous les miroirs ont echoue');
+}
+
+// Moteur 3/3 — endpoint public de Google Translate (sans cle, utilise par de
+// nombreux outils open-source). Dernier recours de l'agent.
+async function _trViaGoogle(texte, srcLang, tgtLang) {
+  const url = 'https://translate.googleapis.com/translate_a/single?client=gtx&sl=' + srcLang + '&tl=' + tgtLang + '&dt=t&q=' + encodeURIComponent(texte);
+  const r = await fetch(url, { signal: AbortSignal.timeout(6000) });
+  const d = await r.json();
+  const out = (Array.isArray(d) && Array.isArray(d[0])) ? d[0].map(seg => seg[0]).join('') : null;
+  if (!out || !out.trim()) throw new Error('google: reponse vide');
+  return out;
+}
+
+const TR_AGENT_PROVIDERS = [_trViaMyMemory, _trViaLingva, _trViaGoogle];
+
+// trFetch(texte, srcLang, tgtLang) : point d'entree de l'agent de traduction.
+// Cache par paire de langue (TR_CACHE[tgtLang+':'+texte]) pour ne jamais
+// confondre une traduction fr→en et en→fr du même texte source. Repli
+// silencieux sur le texte original UNIQUEMENT si les 3 moteurs ont echoue
+// (source non fiable, entierement hors ligne...).
 async function trFetch(texte, srcLang, tgtLang, force) {
   if (!texte) return texte;
   srcLang = srcLang || detectLangue(texte);
   tgtLang = tgtLang || LANG;
   const cacheKey = tgtLang + ':' + texte;
   // force=true (bouton "traduire maintenant") : ignore un echec deja en cache
-  // (ex. quota MyMemory epuise au moment du premier essai) pour retenter tout
-  // de suite, sans attendre un rechargement complet de la page.
+  // (ex. tous les moteurs indisponibles au moment du premier essai) pour
+  // retenter tout de suite, sans attendre un rechargement complet de la page.
   if (TR_CACHE[cacheKey] !== undefined && !(force && TR_CACHE[cacheKey] === texte && srcLang !== tgtLang)) return TR_CACHE[cacheKey];
   if (srcLang === tgtLang) { TR_CACHE[cacheKey] = texte; return texte; }
-  try {
-    // &de=email : identifie l'appelant aupres de MyMemory. Sans email, le
-    // quota gratuit est limite a 5000 mots/jour PAR IP (partage entre tous
-    // les visiteurs de l'appli derriere la meme IP/proxy) — beaucoup trop
-    // bas pour un flux multilingue actif, d'ou les blocages "MYMEMORY
-    // WARNING" observes. Avec un email enregistre, MyMemory porte ce quota
-    // a 50000 mots/jour (gratuit, sans cle API), ce qui reduit fortement
-    // la frequence des echecs de traduction.
-    const r = await fetch('https://api.mymemory.translated.net/get?q=' + encodeURIComponent(texte) + '&langpair=' + srcLang + '|' + tgtLang + '&de=yorot225@gmail.com');
-    const d = await r.json();
-    let out = (d && d.responseData && d.responseData.translatedText) ? d.responseData.translatedText : texte;
-    if (_trReponseInvalide(d, out)) out = texte;
-    TR_CACHE[cacheKey] = out;
-    return out;
-  } catch (e) {
-    TR_CACHE[cacheKey] = texte;
-    return texte;
+  for (const moteur of TR_AGENT_PROVIDERS) {
+    try {
+      const out = await moteur(texte, srcLang, tgtLang);
+      if (typeof out === 'string' && out.trim()) {
+        TR_CACHE[cacheKey] = out;
+        return out;
+      }
+    } catch (e) { /* moteur suivant de l'agent */ }
   }
+  // Les 3 moteurs de l'agent ont echoue (ex. entierement hors ligne).
+  TR_CACHE[cacheKey] = texte;
+  return texte;
 }
 
 // ── TRADUCTION DES RAPPORTS (PDF/Word/PPTX/Excel) — suit le bouton FR/EN ──
