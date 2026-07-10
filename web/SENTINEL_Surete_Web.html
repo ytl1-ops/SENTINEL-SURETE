@@ -3446,16 +3446,24 @@ function detectLangue(texte) {
     if (EN_STOPWORDS.has(m)) en++;
     if (PT_STOPWORDS.has(m)) pt++;
   });
-  if (en > fr && en > pt) return 'en';
-  if (pt > fr && pt > en) return 'pt';
-  // Aucun mot-outil FR/EN/PT reconnu sur un texte assez long pour en
-  // contenir normalement (langue locale non couverte par les listes
-  // ci-dessus — chichewa, swahili, haoussa, wolof, yoruba, amharique...) :
-  // NE PAS presumer francais par defaut, sinon ce texte est considere
-  // "deja dans la langue active" et s'affiche tel quel, illisible, sans
-  // placeholder ni bouton Traduire (cf. tr()/retraduireActu ci-dessous).
-  if (fr === 0 && en === 0 && pt === 0 && mots.length >= 4) return 'other';
-  return 'fr'; // par defaut (majorite des sources historiques) si ambigu ou texte trop court
+  // Seuil de confiance proportionnel a la longueur du texte, PAS un simple
+  // "au moins un mot reconnu" : sur un texte de plusieurs dizaines de mots
+  // dans une langue locale non couverte (chichewa, swahili, haoussa,
+  // wolof...), une ou deux collisions fortuites avec un mot-outil FR/EN/PT
+  // (ex. "la", "wa", "ya"...) sont quasi inevitables sans que le texte soit
+  // le moins du monde dans cette langue — un vrai texte FR/EN/PT en
+  // contient une proportion bien plus elevee (mots-outils tres frequents).
+  const seuil = mots.length >= 4 ? Math.max(2, Math.ceil(mots.length * 0.12)) : 1;
+  if (en >= seuil && en > fr && en > pt) return 'en';
+  if (pt >= seuil && pt > fr && pt > en) return 'pt';
+  if (fr >= seuil) return 'fr';
+  // Aucune langue couverte n'atteint le seuil de confiance sur un texte
+  // assez long pour que ce ne soit pas une simple ambiguite : NE PAS
+  // presumer francais par defaut, sinon ce texte est considere "deja dans
+  // la langue active" et s'affiche tel quel, illisible, sans placeholder ni
+  // bouton Traduire (cf. tr()/retraduireActu ci-dessous).
+  if (mots.length >= 4) return 'other';
+  return 'fr'; // texte trop court pour etre fiable : repli sur le francais
 }
 
 // tr(texte, elId) : renvoie le texte tel quel si sa langue detectee correspond
@@ -3512,6 +3520,17 @@ function tr(texte, elId, transform) {
   return transform ? transform(placeholder) : placeholder; // jamais de texte source affiche, meme brievement
 }
 
+// _trTexteTraduisible(texte, max) : plafonne un texte avant envoi aux
+// moteurs de traduction (appels GET, texte transmis dans l'URL). Coupe au
+// dernier espace avant la limite pour ne pas tronquer un mot en plein
+// milieu (evite d'envoyer un mot coupe qui degraderait la traduction).
+function _trTexteTraduisible(texte, max) {
+  if (!texte || texte.length <= max) return texte;
+  const coupe = texte.slice(0, max);
+  const dernierEspace = coupe.lastIndexOf(' ');
+  return (dernierEspace > max * 0.6 ? coupe.slice(0, dernierEspace) : coupe) + '…';
+}
+
 // retraduireActu(id) : declenchee par le bouton "Traduire" — pose sur chaque
 // actu du Flux ET sur le panneau de detail d'une actu (deux emplacements,
 // memes elements sous-jacents, cf. showDet) — visible sur toutes, pas
@@ -3530,10 +3549,19 @@ async function retraduireActu(id) {
   const titleEls = [document.getElementById('trt-' + id), document.getElementById('dettt-' + id)].filter(Boolean);
   const descEls  = [document.getElementById('tra-' + id), document.getElementById('detan-' + id)].filter(Boolean);
   const srcLangT = detectLangue(a.title);
-  const srcLangD = detectLangue(a.analysis || '');
+  // Les moteurs de l'agent sont appeles en GET, texte dans l'URL — une
+  // analyse RSS brute non tronquee (parfois plusieurs centaines de
+  // caracteres) peut, une fois encodee (accents/caracteres non-ASCII
+  // multiplies par 6-9 en %XX), depasser la longueur d'URL acceptee par un
+  // moteur/miroir et faire echouer silencieusement SA traduction — alors
+  // que le titre, toujours court, passe sans probleme. On ne traduit donc
+  // que ce qui est reellement affiche (meme plafond que l'extrait "usage
+  // loyal" du panneau de detail), plus rapide et bien plus fiable.
+  const analyseATraduire = a.analysis ? _trTexteTraduisible(a.analysis, EXTRAIT_MAX_CARACTERES + 40) : '';
+  const srcLangD = detectLangue(analyseATraduire || '');
   const [outT, outD] = await Promise.all([
     trFetch(a.title, srcLangT, LANG, true),
-    a.analysis ? trFetch(a.analysis, srcLangD, LANG, true) : Promise.resolve(''),
+    analyseATraduire ? trFetch(analyseATraduire, srcLangD, LANG, true) : Promise.resolve(''),
   ]);
   // outT === a.title est ambigu (deja dans la langue active OU echec de
   // traduction) : on ne remplace le texte affiche par le placeholder
@@ -3545,8 +3573,8 @@ async function retraduireActu(id) {
     const valT = (outT === a.title) ? _trPlaceholderIndispo(srcLangT) : outT;
     titleEls.forEach(el => { el.textContent = valT; });
   }
-  if (a.analysis && !descDejaCorrecte) {
-    const valD = (outD === a.analysis) ? _trPlaceholderIndispo(srcLangD) : outD;
+  if (analyseATraduire && !descDejaCorrecte) {
+    const valD = (outD === analyseATraduire) ? _trPlaceholderIndispo(srcLangD) : outD;
     descEls.forEach(el => {
       // Le panneau de detail (id detan-*) affiche un extrait tronque (usage
       // loyal) — reappliquer la meme troncature que showDet() lors du
@@ -3599,7 +3627,7 @@ async function _trViaMyMemory(texte, srcLang, tgtLang) {
   // enregistre, MyMemory porte ce quota a 50000 mots/jour (gratuit, sans
   // cle API).
   const srcMM = (srcLang === 'other') ? 'autodetect' : srcLang;
-  const r = await fetch('https://api.mymemory.translated.net/get?q=' + encodeURIComponent(texte) + '&langpair=' + srcMM + '|' + tgtLang + '&de=yorot225@gmail.com', { signal: AbortSignal.timeout(6000) });
+  const r = await fetch('https://api.mymemory.translated.net/get?q=' + encodeURIComponent(texte) + '&langpair=' + srcMM + '|' + tgtLang + '&de=yorot225@gmail.com', { signal: AbortSignal.timeout(9000) });
   const d = await r.json();
   const out = (d && d.responseData && d.responseData.translatedText) ? d.responseData.translatedText : null;
   if (_trReponseInvalide(d, out)) throw new Error('mymemory: quota depasse ou reponse invalide');
@@ -3620,7 +3648,7 @@ async function _trViaLingva(texte, srcLang, tgtLang) {
   for (const mirror of LINGVA_MIRRORS) {
     try {
       const url = mirror + '/api/v1/' + srcLV + '/' + tgtLang + '/' + encodeURIComponent(texte);
-      const r = await fetch(url, { signal: AbortSignal.timeout(6000) });
+      const r = await fetch(url, { signal: AbortSignal.timeout(9000) });
       const d = await r.json();
       if (d && typeof d.translation === 'string' && d.translation.trim()) return d.translation;
     } catch (e) { /* miroir suivant */ }
@@ -3633,7 +3661,7 @@ async function _trViaLingva(texte, srcLang, tgtLang) {
 async function _trViaGoogle(texte, srcLang, tgtLang) {
   const srcGT = (srcLang === 'other') ? 'auto' : srcLang;
   const url = 'https://translate.googleapis.com/translate_a/single?client=gtx&sl=' + srcGT + '&tl=' + tgtLang + '&dt=t&q=' + encodeURIComponent(texte);
-  const r = await fetch(url, { signal: AbortSignal.timeout(6000) });
+  const r = await fetch(url, { signal: AbortSignal.timeout(9000) });
   const d = await r.json();
   const out = (Array.isArray(d) && Array.isArray(d[0])) ? d[0].map(seg => seg[0]).join('') : null;
   if (!out || !out.trim()) throw new Error('google: reponse vide');
