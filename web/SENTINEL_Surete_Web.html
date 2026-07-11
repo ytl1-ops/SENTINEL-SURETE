@@ -7006,6 +7006,34 @@ function _telechargerImage(blob, nomFichier) {
   a.href = url; a.download = nomFichier; a.click();
   setTimeout(() => URL.revokeObjectURL(url), 1500);
 }
+// _partagerImageAvecRepli(blob, nomFichier, texteAlt) : tente de transmettre
+// l'image DIRECTEMENT via le partage natif du systeme (navigator.share avec
+// fichiers) — c'est le seul moyen, sur mobile, que l'image arrive reellement
+// en piece jointe dans WhatsApp/Telegram/Mail, plutot que le repli
+// telechargement+jonction-manuelle : celui-ci ouvre wa.me/t.me/mailto: avec
+// le texte SEUL (ces schemas d'URL ne transportent jamais de binaire), et si
+// l'utilisateur oublie l'etape manuelle de jonction — ce qui arrive tres
+// souvent en pratique — l'image n'est jamais envoyee du tout : elle "ne
+// s'affiche pas" chez le destinataire pour la bonne raison qu'elle n'a
+// jamais quitte l'appareil de l'expediteur.
+// Retourne true si l'image a ete transmise directement (rien de plus a
+// faire), false si le repli telechargement a ete utilise (jonction manuelle
+// toujours necessaire, cf. appelants).
+async function _partagerImageAvecRepli(blob, nomFichier, texteAlt) {
+  if (navigator.share && navigator.canShare) {
+    try {
+      const file = new File([blob], nomFichier, { type: 'image/png' });
+      if (navigator.canShare({ files: [file] })) {
+        await navigator.share({ title: nomMarqueActuelle(), text: texteAlt, files: [file] });
+        return true;
+      }
+    } catch (e) {
+      if (e && e.name === 'AbortError') return true; // annule par l'utilisateur : ne pas re-proposer le telechargement en plus
+    }
+  }
+  _telechargerImage(blob, nomFichier);
+  return false;
+}
 
 // _toastRapide(texte, icone) : notification ephemere generique (copie
 // reussie, action confirmee...), reutilise le conteneur de toasts deja en
@@ -7030,8 +7058,10 @@ function _toastRapide(texte, icone) {
 // envoyerActuWhatsapp(id, format) : ouvre un onglet wa.me pre-rempli par
 // contact designe (tous, pas de selection au clic — ce sont des contacts
 // deja choisis a l'avance dans Parametres pour recevoir ces alertes). En
-// format 'image', l'image dimensionnee WhatsApp (carre) est telechargee —
-// wa.me ne peut pas transporter de piece jointe, voir note ci-dessus.
+// format 'image', l'image dimensionnee WhatsApp (carre) est transmise
+// directement via le partage natif du systeme quand il est disponible
+// (voir _partagerImageAvecRepli) — wa.me ne peut pas transporter de piece
+// jointe lui-meme ; repli telechargement + jonction manuelle sinon.
 async function envoyerActuWhatsapp(id, format) {
   format = format || 'texte_lien';
   const a = (typeof ALL !== 'undefined' ? ALL : []).find(x => x.id === id);
@@ -7046,7 +7076,8 @@ async function envoyerActuWhatsapp(id, format) {
   }
   if (format === 'image') {
     const blob = await genererImageActuBlob(a, 'whatsapp');
-    _telechargerImage(blob, 'sentinel_' + a.id + '_whatsapp.png');
+    const transmiseDirect = await _partagerImageAvecRepli(blob, 'sentinel_' + a.id + '_whatsapp.png', a.title);
+    if (transmiseDirect) { enregistrerPartage(a, 'whatsapp', format); return; } // image deja envoyee via le partage natif — pas besoin de wa.me en plus
     _toastRapide(LANG === 'en' ? 'Image downloaded — attach it in WhatsApp before sending.' : 'Image téléchargée — joignez-la dans WhatsApp avant d\'envoyer.', 'ti-photo');
   }
   const msg = encodeURIComponent(construireContenuPartage(a, format));
@@ -7061,8 +7092,9 @@ async function envoyerActuWhatsapp(id, format) {
 // envoyerActuTelegram(id, format) : partage via le lien officiel Telegram
 // (t.me/share/url) — meme principe que wa.me pour WhatsApp : gratuit, sans
 // bot ni API, Telegram propose lui-meme la liste des discussions/canaux ou
-// coller le message. En format 'image', memes contraintes que WhatsApp/Email
-// (telechargement + jonction manuelle).
+// coller le message. En format 'image', meme mecanisme que WhatsApp/Email :
+// partage natif en priorite (voir _partagerImageAvecRepli), repli
+// telechargement + jonction manuelle sinon.
 async function envoyerActuTelegram(id, format) {
   format = format || 'texte_lien';
   const a = (typeof ALL !== 'undefined' ? ALL : []).find(x => x.id === id);
@@ -7070,7 +7102,8 @@ async function envoyerActuTelegram(id, format) {
   if (_verifierLimitePartage('telegram')) return;
   if (format === 'image') {
     const blob = await genererImageActuBlob(a, 'telegram');
-    _telechargerImage(blob, 'sentinel_' + a.id + '_telegram.png');
+    const transmiseDirect = await _partagerImageAvecRepli(blob, 'sentinel_' + a.id + '_telegram.png', a.title);
+    if (transmiseDirect) { enregistrerPartage(a, 'telegram', format); return; } // image deja envoyee via le partage natif — pas besoin de t.me en plus
     _toastRapide(LANG === 'en' ? 'Image downloaded — attach it in Telegram before sending.' : 'Image téléchargée — joignez-la dans Telegram avant d\'envoyer.', 'ti-photo');
   }
   let url;
@@ -7090,8 +7123,9 @@ async function envoyerActuTelegram(id, format) {
 // de l'utilisateur (pas de carnet de contacts dedie ici, a la difference de
 // WhatsApp : le partage par email vise n'importe quel destinataire au coup
 // par coup). En format 'image', l'image dimensionnee email (bandeau 1200x630)
-// est telechargee pour jonction manuelle — mailto: ne transporte pas de
-// piece jointe.
+// est transmise directement via le partage natif quand il est disponible
+// (voir _partagerImageAvecRepli) — mailto: ne transporte pas de piece
+// jointe lui-meme ; repli telechargement + jonction manuelle sinon.
 async function envoyerActuEmail(id, format) {
   format = format || 'texte_lien';
   const a = (typeof ALL !== 'undefined' ? ALL : []).find(x => x.id === id);
@@ -7102,7 +7136,8 @@ async function envoyerActuEmail(id, format) {
   const sujet = nomMarqueActuelle() + ' — ' + niveauLbl + ' — ' + cc.name;
   if (format === 'image') {
     const blob = await genererImageActuBlob(a, 'mail');
-    _telechargerImage(blob, 'sentinel_' + a.id + '_email.png');
+    const transmiseDirect = await _partagerImageAvecRepli(blob, 'sentinel_' + a.id + '_email.png', sujet);
+    if (transmiseDirect) { enregistrerPartage(a, 'email', format); return; } // image deja envoyee via le partage natif (l'appli Mail choisie par l'utilisateur, sujet a completer manuellement) — pas besoin de mailto: en plus
     _toastRapide(LANG === 'en' ? 'Image downloaded — attach it to your email.' : 'Image téléchargée — joignez-la à votre email.', 'ti-photo');
   }
   const corps = construireContenuPartage(a, format);
