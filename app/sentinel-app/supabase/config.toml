@@ -1,0 +1,14 @@
+# Configuration Supabase CLI pour SENTINEL
+# Voir https://supabase.com/docs/guides/local-development/cli/config
+
+project_id = "sentinel-surete"
+
+[auth]
+enabled = true
+site_url = "sentinel://"
+additional_redirect_urls = ["sentinel://"]
+
+[auth.email]
+enable_signup = true
+double_confirm_changes = false
+enable_confirmations = false

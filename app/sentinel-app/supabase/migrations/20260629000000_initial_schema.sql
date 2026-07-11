@@ -1,6 +1,9 @@
 -- ============================================================
 -- SENTINEL — Schéma Supabase complet
--- À exécuter dans l'éditeur SQL de votre projet Supabase
+--
+-- Appliquer via la CLI Supabase : `npx supabase link` puis
+-- `npx supabase db push` depuis app/sentinel-app/, ou copier-coller
+-- ce fichier dans l'éditeur SQL du projet Supabase.
 -- ============================================================
 
 -- Extension UUID

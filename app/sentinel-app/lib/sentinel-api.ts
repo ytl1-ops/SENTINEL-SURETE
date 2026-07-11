@@ -1,8 +1,9 @@
-// Connexion au moteur SENTINEL Python hébergé sur votre VPS
-// Remplacez SENTINEL_API_URL par l'URL de votre serveur
+// Connexion au moteur SENTINEL hébergé séparément (voir README pour le déployer)
+// Tant que EXPO_PUBLIC_SENTINEL_API_URL n'est pas défini, tous les écrans
+// retombent sur leurs données de démo (voir les blocs catch des écrans).
 
-const SENTINEL_API_URL = 'https://votre-serveur.com/api';
-const SENTINEL_API_KEY = 'VOTRE_CLE_API_INTERNE';
+const SENTINEL_API_URL = process.env.EXPO_PUBLIC_SENTINEL_API_URL;
+const SENTINEL_API_KEY = process.env.EXPO_PUBLIC_SENTINEL_API_KEY;
 
 export type Article = {
   id: string;
@@ -59,6 +60,7 @@ export type Stats = {
 };
 
 async function fetchAPI<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+  if (!SENTINEL_API_URL) throw new Error('Moteur SENTINEL non configuré (EXPO_PUBLIC_SENTINEL_API_URL manquant).');
   const res = await fetch(`${SENTINEL_API_URL}${endpoint}`, {
     ...options,
     headers: {

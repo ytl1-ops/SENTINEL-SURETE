@@ -25,7 +25,10 @@ sentinel-app/
 │   └── sentinel-api.ts          # Connexion moteur Python SENTINEL
 ├── hooks/useAuth.ts             # Hook auth + droits d'accès
 ├── constants/theme.ts           # Couleurs + plans + constantes
-└── supabase/schema.sql          # Schéma base de données complet
+├── .env.example                 # Variables d'environnement à copier en .env
+└── supabase/
+    ├── config.toml               # Config CLI Supabase
+    └── migrations/                # Schéma base de données (versionné)
 ```
 
 ---
@@ -33,9 +36,16 @@ sentinel-app/
 ## Installation
 
 ```bash
+cp .env.example .env   # puis renseignez les valeurs (voir Configuration ci-dessous)
 npm install
 npx expo start
 ```
+
+L'app lit sa configuration depuis les variables d'environnement `EXPO_PUBLIC_*`
+(chargées automatiquement par Expo depuis `.env`, jamais commité). Sans
+`EXPO_PUBLIC_SUPABASE_URL`/`EXPO_PUBLIC_SUPABASE_ANON_KEY`, l'app refuse de
+démarrer avec une erreur explicite ; sans `EXPO_PUBLIC_SENTINEL_API_URL`,
+chaque écran retombe silencieusement sur des données de démo.
 
 ---
 
@@ -44,23 +54,26 @@ npx expo start
 ### 1. Supabase
 
 1. Créez un projet sur https://supabase.com
-2. Exécutez `supabase/schema.sql` dans l'éditeur SQL
+2. Appliquez le schéma :
+   - via la CLI : `npx supabase link --project-ref VOTRE_PROJET` puis
+     `npx supabase db push` (depuis `app/sentinel-app/`) ;
+   - ou copiez-collez `supabase/migrations/20260629000000_initial_schema.sql`
+     dans l'éditeur SQL du projet.
 3. Activez l'authentification email dans Auth > Providers
-4. Copiez l'URL et la clé anon dans `lib/supabase.ts` :
+4. Renseignez `EXPO_PUBLIC_SUPABASE_URL` et `EXPO_PUBLIC_SUPABASE_ANON_KEY`
+   dans `.env` (Paramètres du projet > API)
 
-```typescript
-const SUPABASE_URL = 'https://VOTRE_PROJET.supabase.co';
-const SUPABASE_ANON_KEY = 'VOTRE_ANON_KEY';
+### 2. Moteur SENTINEL (backend d'agrégation)
+
+Ce moteur (flux RSS, scoring de fiabilité, alertes, carte, archives) n'est
+pas encore hébergé : la logique d'agrégation existe aujourd'hui uniquement
+côté client dans `web/SENTINEL_Surete_Web.html`. Pour l'app mobile, il faut
+l'exposer comme une API REST hébergée séparément (VPS + Flask/FastAPI/Node),
+puis renseigner dans `.env` :
+
 ```
-
-### 2. Moteur SENTINEL (backend Python)
-
-Hébergez le moteur SENTINEL Python sur un VPS (DigitalOcean, Hetzner, etc.)
-Exposez une API REST Flask/FastAPI et renseignez l'URL dans `lib/sentinel-api.ts` :
-
-```typescript
-const SENTINEL_API_URL = 'https://votre-serveur.com/api';
-const SENTINEL_API_KEY = 'VOTRE_CLE_API_INTERNE';
+EXPO_PUBLIC_SENTINEL_API_URL=https://votre-serveur.com/api
+EXPO_PUBLIC_SENTINEL_API_KEY=votre_cle_interne
 ```
 
 Endpoints requis :

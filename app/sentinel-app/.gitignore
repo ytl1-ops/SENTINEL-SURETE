@@ -1,0 +1,17 @@
+node_modules/
+.expo/
+dist/
+web-build/
+*.log
+
+# Secrets — jamais commités, voir .env.example
+.env
+.env.local
+.env.*.local
+
+# Supabase CLI (état local, pas la config versionnée)
+supabase/.branches
+supabase/.temp
+
+# macOS
+.DS_Store
