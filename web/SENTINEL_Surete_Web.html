@@ -7590,9 +7590,13 @@ function processToastQueue() {
   renderToast(a);
 }
 
-function renderToast(a) {
+async function renderToast(a) {
   const container = document.getElementById('toastContainer');
   if (!container) { toastShowing = false; processToastQueue(); return; }
+
+  // Traduction ACTIVE avant affichage — meme regle que le popup et le
+  // ruban : jamais de placeholder "traduction disponible sur demande" ici.
+  await preTraduireRapport([a.title]);
 
   const m = levelMeta(a.level);
   const cc = CYS.find(x=>x.code===a.cy) || {flag:'🌍', name:a.cy};
@@ -7613,7 +7617,7 @@ function renderToast(a) {
       '<span style="font-size:10px;color:var(--lg);font-weight:600;">'+cc.flag+' '+cc.name+'</span>'+
       '<span style="margin-left:auto;font-size:13px;color:var(--lg);cursor:pointer;" onclick="event.stopPropagation();dismissToastManual(\''+id+'\')">✕</span>'+
     '</div>'+
-    '<div style="font-size:12px;font-weight:700;color:var(--t);line-height:1.35;margin-bottom:3px;" id="'+id+'-tt">'+tr(a.title,id+'-tt')+'</div>'+
+    '<div style="font-size:12px;font-weight:700;color:var(--t);line-height:1.35;margin-bottom:3px;" id="'+id+'-tt">'+L(a.title)+'</div>'+
     '<div style="font-size:9px;color:var(--lg);display:flex;align-items:center;gap:4px;">'+
       '<i class="ti ti-clock" style="font-size:10px"></i> Vient d etre publie · '+(fmtAge(a.pubDate)||'a l instant')+
     '</div>';
@@ -7661,7 +7665,7 @@ const TT_NIV_LB  = {crit:'CRITIQUE',high:'ÉLEVÉ',mod:'MODÉRÉ',ok:'STABLE'};
 const FLASH_INFO_INTERVAL = 3*60*60*1000; // 3 heures
 let FLASH_INFO_LAST_GEN = 0;
 
-function majFlashInfo(force) {
+async function majFlashInfo(force) {
   const piste = document.getElementById('flashInfoList');
   if (!piste) return;
 
@@ -7694,11 +7698,14 @@ function majFlashInfo(force) {
 
   const cc = cy => (CYS.find(x => x.code === cy) || {flag:'🌐', name:'International'});
 
-  // shown : jamais le texte source si sa langue detectee differe de LANG.
-  // Plus de traduction automatique ici non plus (voir tr()) : le clic sur
-  // l'item mene au Flux, ou le bouton Traduire de la carte complete permet
-  // de demander la traduction — pas de nouvel appel reseau depuis le ruban
-  // lui-meme. Logique reprise en ligne (plutot que d'appeler tr()) car un
+  // Traduction ACTIVE de tous les titres AVANT construction du ruban — plus
+  // de placeholder "traduction disponible sur demande" ici : une actu
+  // n'apparait dans le ruban en mouvement qu'une fois deja dans la langue
+  // active (ou apres echec reel des 3 moteurs, seul cas ou le texte source
+  // sert de repli, cf. L()).
+  await preTraduireRapport(items.map(a => a.title));
+
+  // Logique reprise en ligne (plutot que d'appeler L() directement) car un
   // titre apparait ici en DEUX exemplaires dupliques (boucle de defilement),
   // identifies par data-tt et non par un id DOM unique.
   const unItem = a => {
@@ -7706,19 +7713,7 @@ function majFlashInfo(force) {
     const col = TT_NIV_COL[a.level] || '#4B5563';
     const lb = TT_NIV_LB[a.level] || 'INFO';
     const ttKey = 'tt-'+a.id;
-    const titreAff = _trTexteAffichable(a.title);
-    const srcLang = detectLangue(titreAff);
-    let shown;
-    if (srcLang === LANG) {
-      shown = titreAff;
-    } else {
-      const cached = TR_CACHE[LANG+':'+a.title];
-      // cached === a.title signifie qu'une tentative MANUELLE (bouton
-      // Traduire, ailleurs) a deja echoue — afficher l'actu (texte source,
-      // decode) plutot qu'un message d'erreur, meme logique que tr()/L().
-      shown = (cached === undefined) ? _trPlaceholderSurDemande(srcLang)
-            : (cached === a.title) ? titreAff : _trTexteAffichable(cached);
-    }
+    const shown = L(a.title);
     const d = a.pubDate ? new Date(a.pubDate) : null;
     const dateTxt = d ? d.toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'}) : '—';
     const heureTxt = d ? d.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}) : '—';
@@ -7980,8 +7975,12 @@ function renderFeed() {
   });
 }
 
-function showDet(id) {
+async function showDet(id) {
   const a=ALL.find(x=>x.id===id); if(!a) return;
+  // Traduction ACTIVE du titre et de l'analyse AVANT construction du panneau
+  // — jamais de placeholder "traduction disponible sur demande" dans le
+  // popup, l'actu doit deja etre dans la langue active a l'ouverture.
+  await preTraduireRapport([a.title, a.analysis]);
   const ps=gs(a.primary);
   const pl=a.flagged?lp('u'):lp(a.level);
   const bc=lbg(a.level);
@@ -8014,7 +8013,7 @@ function showDet(id) {
   })() : '';
   const detTraduireDispo = detectLangue(a.title)!==LANG || detectLangue(a.analysis||'')!==LANG;
   panel.innerHTML=
-    '<div class="dh"><div class="dt" id="dettt-'+a.id+'">'+tr(a.title,'dettt-'+a.id)+'</div>'+
+    '<div class="dh"><div class="dt" id="dettt-'+a.id+'">'+L(a.title)+'</div>'+
     (detTraduireDispo ? '<button class="tr-btn" id="dettrbtn-'+a.id+'" style="flex-shrink:0;margin-right:6px" onclick="event.stopPropagation();retraduireActu(\''+a.id+'\')" title="'+(LANG==='en'?'Translate now':'Traduire maintenant')+'"><i class="ti ti-language"></i>'+(LANG==='en'?'Translate':'Traduire')+'</button>' : '')+
     '<div class="dc" onclick="document.getElementById(\'detPanel\').className=\'det\'"><i class="ti ti-x"></i></div></div>'+
     confHtml+
@@ -8031,7 +8030,7 @@ function showDet(id) {
         ? 'Le lien ci-dessus mene directement a la depeche source.'
         : 'Aucun lien direct vers cette depeche precise n\'a ete trouve a la collecte : le lien mene vers la page de recherche ou de categorie du site source.')+
     '</div>'+
-    '<div class="dan" id="detan-'+a.id+'">'+extraitLoyal(tr(a.analysis,'detan-'+a.id, t=>extraitLoyal(t,EXTRAIT_MAX_CARACTERES)), EXTRAIT_MAX_CARACTERES)+'</div>'+
+    '<div class="dan" id="detan-'+a.id+'">'+extraitLoyal(L(a.analysis), EXTRAIT_MAX_CARACTERES)+'</div>'+
     '<div style="font-size:8px;color:var(--lg);padding:6px 0 0;font-style:italic;border-top:.5px solid var(--bd);margin-top:8px;">Extrait à fin de veille (usage loyal). Contenu et droits appartenant à la source citée. Consulter l\'article complet sur le site d\'origine.</div>'+
     (a.recos?.length?'<div class="drec"><div class="drec-hd"><i class="ti ti-chevron-right"></i>Actions recommandees</div>'+
       a.recos.map(r=>'<div class="rli">'+r+'</div>').join('')+'</div>':'')+
