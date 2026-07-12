@@ -212,11 +212,11 @@ input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px soli
    la sidebar par 2 menus deroulants, sur une seule ligne fine, pour degager
    de l'espace vertical et faciliter la prise en main de l'app (moins de
    defilement, filtres toujours accessibles quelle que soit la vue). */
-.compact-filters{display:flex;align-items:center;gap:14px;padding:6px 14px;
+.compact-filters{display:flex;align-items:center;gap:14px;padding:3px 14px;
   background:var(--w);border-bottom:1px solid var(--bd);flex-wrap:wrap;flex-shrink:0}
 .cf-item{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--t2)}
 .cf-item i{font-size:13px;color:var(--lg);flex-shrink:0}
-.cf-item select{border:1px solid var(--bd);border-radius:5px;padding:4px 8px;
+.cf-item select{border:1px solid var(--bd);border-radius:5px;padding:2px 8px;
   font-size:11px;font-weight:600;color:var(--t);background:var(--w);
   max-width:170px;cursor:pointer}
 .cf-item select:focus{outline:2px solid var(--b);outline-offset:-1px}
@@ -339,7 +339,7 @@ input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px soli
 .main{flex:1;min-width:0;min-height:0;display:flex;flex-direction:column;overflow:hidden}
 
 /* TOOLBAR */
-.tlbr{background:var(--w);border-bottom:1px solid var(--bd);padding:8px 12px;
+.tlbr{background:var(--w);border-bottom:1px solid var(--bd);padding:4px 12px;
   display:flex;align-items:center;gap:6px;flex-wrap:wrap;flex-shrink:0}
 .carte-couche-btn{padding:6px 11px;background:transparent;border:none;border-radius:6px;
   color:rgba(255,255,255,.55);font-size:10px;font-weight:700;cursor:pointer;
@@ -357,13 +357,13 @@ input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px soli
 .carte-pulse-ring{animation:carteRingPulse 2s ease-in-out infinite}
 @keyframes carteRingPulse{0%,100%{opacity:.85}50%{opacity:.35}}
 .srch{display:flex;align-items:center;gap:5px;background:var(--sf);
-  border:1px solid var(--bd);border-radius:6px;padding:5px 9px;
+  border:1px solid var(--bd);border-radius:6px;padding:3px 9px;
   flex:1;max-width:240px}
 .srch i{font-size:13px;color:var(--lg)}
 .srch input{border:none;background:transparent;font-size:12px;
   color:var(--t);outline:none;flex:1}
 .chips{display:flex;gap:4px;flex-wrap:wrap}
-.chip{padding:4px 9px;border-radius:4px;border:1px solid var(--bd);
+.chip{padding:3px 9px;border-radius:4px;border:1px solid var(--bd);
   background:var(--w);font-size:10px;font-weight:700;color:var(--gr);
   cursor:pointer;letter-spacing:.04em;text-transform:uppercase;
   display:flex;align-items:center;gap:3px;transition:all .1s;white-space:nowrap}
@@ -373,7 +373,7 @@ input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px soli
 .chip.rc{border-color:var(--rb);color:var(--r)}
 .chip.rc.on{background:var(--rl)}
 .geo-w{position:relative}
-.geo-btn{display:flex;align-items:center;gap:4px;padding:5px 10px;
+.geo-btn{display:flex;align-items:center;gap:4px;padding:3px 10px;
   border:1px solid var(--bd);border-radius:5px;background:var(--w);
   font-size:10px;font-weight:700;color:var(--gr);cursor:pointer;
   letter-spacing:.04em;text-transform:uppercase;white-space:nowrap}
@@ -391,14 +391,14 @@ input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px soli
 .gi:hover{background:var(--bl);color:var(--b)}
 .gi.on{background:var(--bl);color:var(--b);font-weight:600}
 .gi .gf{font-size:14px}
-.ssel{padding:5px 8px;border:1px solid var(--bd);border-radius:5px;
+.ssel{padding:3px 8px;border:1px solid var(--bd);border-radius:5px;
   font-size:10px;font-weight:700;color:var(--t);background:var(--w);
   letter-spacing:.04em;text-transform:uppercase}
 
 /* STATS */
 .sstrip{display:grid;grid-template-columns:repeat(6,1fr);
   background:var(--w);border-bottom:1px solid var(--bd);flex-shrink:0}
-.ss{padding:7px 6px;border-right:1px solid var(--bd);text-align:center}
+.ss{padding:4px 6px;border-right:1px solid var(--bd);text-align:center}
 .ss:last-child{border-right:none}
 .sn{font-size:15px;font-weight:700;color:var(--t)}
 .sl{font-size:9px;color:var(--lg);margin-top:1px;text-transform:uppercase;
@@ -1084,12 +1084,12 @@ html.force-mobile .ops-label{display:none}
 
 /* ── BARRE TÉLÉCHARGEMENT ENTERPRISE ─────────────────────────────── */
 .dl-toolbar{background:#fff;border-bottom:1px solid var(--bd);
-  padding:7px 12px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;flex-shrink:0}
+  padding:4px 12px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;flex-shrink:0}
 .dl-toolbar-label{font-size:9px;font-weight:700;color:var(--lg);
   text-transform:uppercase;letter-spacing:.07em;margin-right:4px;
   white-space:nowrap;display:flex;align-items:center;gap:4px}
 .dl-toolbar-label i{font-size:11px}
-.btn-dl{display:inline-flex;align-items:center;gap:4px;padding:5px 11px;
+.btn-dl{display:inline-flex;align-items:center;gap:4px;padding:3px 11px;
   border-radius:5px;font-size:10px;font-weight:700;cursor:pointer;
   letter-spacing:.04em;text-transform:uppercase;border:1px solid transparent;
   transition:all .12s;white-space:nowrap}
@@ -2032,7 +2032,7 @@ body.sentinel-protected img{ -webkit-user-drag:none; user-drag:none; pointer-eve
           <option value="level">Priorite</option>
           <option value="score">Fiabilite</option>
         </select>
-        <button onclick="renderFeed()" title="Rafraichir l'affichage du Flux depuis les donnees deja collectees" style="padding:5px 12px;background:rgba(2,132,199,.12);border:1px solid rgba(2,132,199,.4);border-radius:5px;color:var(--b);font-size:11px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:5px;">
+        <button onclick="renderFeed()" title="Rafraichir l'affichage du Flux depuis les donnees deja collectees" style="padding:3px 12px;background:rgba(2,132,199,.12);border:1px solid rgba(2,132,199,.4);border-radius:5px;color:var(--b);font-size:11px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:5px;">
           <i class="ti ti-refresh"></i> Actualiser
         </button>
       </div>
@@ -2047,10 +2047,14 @@ body.sentinel-protected img{ -webkit-user-drag:none; user-drag:none; pointer-eve
         <div class="dl-sep"></div>
         <span style="font-size:9px;color:var(--lg)" id="dlFluxCount">19 articles (&lt;12h)</span>
       </div>
-      <div class="sstrip-hd" onclick="document.getElementById('fluxSstrip').classList.toggle('collapsed');this.classList.toggle('open')" style="display:flex;align-items:center;gap:5px;padding:5px 14px;font-size:9px;font-weight:700;color:var(--lg);text-transform:uppercase;letter-spacing:.05em;cursor:pointer;user-select:none;border-bottom:1px solid var(--bd);">
+      <div class="sstrip-hd open" onclick="document.getElementById('fluxSstrip').classList.toggle('collapsed');this.classList.toggle('open')" style="display:flex;align-items:center;gap:5px;padding:3px 14px;font-size:9px;font-weight:700;color:var(--lg);text-transform:uppercase;letter-spacing:.05em;cursor:pointer;user-select:none;border-bottom:1px solid var(--bd);">
         <i class="ti ti-chevron-down" style="font-size:11px;transition:transform .15s;"></i>Statistiques
       </div>
-      <div class="sstrip" id="fluxSstrip">
+      <!-- Repliee par defaut (etait ouverte) : les chiffres/statistiques sont
+           secondaires face a la lecture des actu elles-memes -- laisser plus
+           d'espace vertical au Flux des l'arrivee, l'utilisateur peut
+           toujours deplier ce bandeau d'un clic. -->
+      <div class="sstrip collapsed" id="fluxSstrip">
         <div class="ss"><div class="sn" id="stTot">0</div><div class="sl">-12h</div></div>
         <div class="ss"><div class="sn" style="color:var(--r)" id="stCrit">0</div><div class="sl">Critiques</div></div>
         <div class="ss"><div class="sn" style="color:#7C4A00" id="stHigh">0</div><div class="sl">Eleves</div></div>
