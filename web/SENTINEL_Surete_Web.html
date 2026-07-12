@@ -6812,6 +6812,9 @@ async function doCollect() {
   if (typeof planifierAnalyseIA === 'function') planifierAnalyseIA(ALL);
   // Mise a jour du ruban Flash Info — throttlee en interne a 3h (voir majFlashInfo)
   if (typeof majFlashInfo === 'function') majFlashInfo();
+  // Notification navigateur pour les nouvelles alertes critiques (marche
+  // meme onglet en arriere-plan, voir notifierAlertesCritiquesWeb)
+  if (typeof notifierAlertesCritiquesWeb === 'function') notifierAlertesCritiquesWeb();
   // Agent de verification des liens source (arriere-plan, non bloquant) :
   // corrige silencieusement les liens deja casses avant que l'utilisateur
   // ne clique dessus. Delai de 2s pour laisser le reseau de la collecte
@@ -9727,6 +9730,63 @@ async function runDiagnostic() {
   body.appendChild(verdict);
 }
 
+// ── NOTIFICATIONS NAVIGATEUR (Web Notifications API) ──────────────────────
+// demanderPermissionNotifWeb() + notifierAlertesCritiquesWeb() : reproduit
+// cote web ce qui existe deja cote mobile (notifications locales groupees,
+// voir lib/notifications.ts de l'app). Fonctionnent tant que l'onglet
+// SENTINEL reste OUVERT dans le navigateur, meme si l'utilisateur consulte
+// une AUTRE page/onglet au moment ou l'alerte survient (demande explicite) —
+// le popup systeme s'affiche independamment de l'onglet actif. LIMITE
+// ASSUMEE (identique au mobile) : ne fonctionne pas navigateur totalement
+// ferme ni onglet ferme — de vraies notifications push necessiteraient un
+// Service Worker + un serveur push, absents ici (meme constat que pour le
+// backend du moteur, voir echanges precedents).
+const WEB_NOTIF_SEEN_KEY = 'sentinel_web_notif_seen_ids';
+const WEB_NOTIF_MAX_TRACKED = 200;
+
+function getWebNotifSeenIds() {
+  return new Set(_ls(() => JSON.parse(localStorage.getItem(WEB_NOTIF_SEEN_KEY) || '[]'), []));
+}
+function markWebNotifSeen(ids) {
+  const seen = getWebNotifSeenIds();
+  ids.forEach(id => seen.add(id));
+  const trimmed = Array.from(seen).slice(-WEB_NOTIF_MAX_TRACKED);
+  _ls(() => localStorage.setItem(WEB_NOTIF_SEEN_KEY, JSON.stringify(trimmed)));
+}
+
+async function demanderPermissionNotifWeb() {
+  if (!('Notification' in window)) return false; // API absente (certains navigateurs mobiles, ex. Safari iOS < 16.4 hors PWA installee)
+  if (Notification.permission === 'granted') return true;
+  if (Notification.permission === 'denied') return false;
+  try { return (await Notification.requestPermission()) === 'granted'; }
+  catch (_) { return false; }
+}
+
+// notifierAlertesCritiquesWeb() : a appeler apres chaque cycle de collecte
+// (voir doCollect). Regroupe plusieurs nouvelles alertes simultanees en une
+// seule notification resume, comme cote mobile.
+function notifierAlertesCritiquesWeb() {
+  if (!('Notification' in window) || Notification.permission !== 'granted') return;
+  const seen = getWebNotifSeenIds();
+  const critiques = (ALL || []).filter(a => a.level === 'crit' && estRecentReel(a) && !seen.has(a.id));
+  if (!critiques.length) return;
+
+  try {
+    if (critiques.length === 1) {
+      const a = critiques[0];
+      new Notification('🔴 Alerte critique SENTINEL', { body: a.title, tag: 'sentinel-' + a.id });
+    } else {
+      const apercu = critiques.slice(0, 2).map(a => a.title).join(' · ');
+      const reste = critiques.length - 2;
+      new Notification(`🔴 ${critiques.length} nouvelles alertes critiques SENTINEL`, {
+        body: reste > 0 ? `${apercu} et ${reste} autre${reste > 1 ? 's' : ''}` : apercu,
+        tag: 'sentinel-groupe-' + Date.now(),
+      });
+    }
+  } catch (_) { /* API indisponible dans ce contexte (ex. iframe) — silencieux */ }
+  markWebNotifSeen(critiques.map(a => a.id));
+}
+
 // activerProtectionsSecurite() : freins cote client contre la copie/capture
 // occasionnelle et deterrent de plagiat par tracabilite (filigrane nominatif).
 // LIMITE HONNETE : rien de ce qui suit n'empeche une capture d'ecran reelle
@@ -9766,6 +9826,7 @@ function activerProtectionsSecurite(user) {
 // etc.) soient initialisées avant le premier rendu — sinon erreur de zone morte temporelle.
 async function init() {
   if (typeof _MEM_SESSION !== 'undefined' && _MEM_SESSION) activerProtectionsSecurite(_MEM_SESSION);
+  demanderPermissionNotifWeb();
   // Regle : si l'utilisateur a ferme la banniere de diagnostic recemment
   // (moins de 30 min), ne pas la reafficher — evite l'effet pop-up repetitif.
   try {
