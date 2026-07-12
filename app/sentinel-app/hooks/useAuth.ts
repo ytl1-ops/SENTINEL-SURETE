@@ -1,5 +1,6 @@
 import { useState, useEffect, createContext, useContext } from 'react';
 import { supabase, Profile, Subscription, getCurrentSubscription, getProfile, ADMIN_EMAIL } from '../lib/supabase';
+import { wasLoggedInToday, markLoggedInToday, clearLoginDate } from '../lib/dailySession';
 import type { Session } from '@supabase/supabase-js';
 
 type AuthContextType = {
@@ -33,14 +34,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (session && !(await wasLoggedInToday())) {
+        // Session restaurée automatiquement (token persistant) mais datant
+        // d'un jour calendaire antérieur : on la considère expirée et on
+        // force l'écran de connexion, plutôt que de rentrer directement.
+        await supabase.auth.signOut();
+        setSession(null);
+        setIsLoading(false);
+        return;
+      }
       setSession(session);
       if (session) loadUserData(session.user.id);
       else setIsLoading(false);
     });
 
     const { data: { subscription: authListener } } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
+      async (event, session) => {
+        if (event === 'SIGNED_IN') await markLoggedInToday();
         setSession(session);
         if (session) await loadUserData(session.user.id);
         else { setProfile(null); setSubscription(null); setIsLoading(false); }
@@ -77,6 +88,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   async function handleSignOut() {
     await supabase.auth.signOut();
+    await clearLoginDate();
     setSession(null); setProfile(null); setSubscription(null);
   }
 

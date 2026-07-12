@@ -9943,6 +9943,12 @@ function compteGratuitExpire(user) {
 function restoreSession() {
   const saved = _ls(()=>JSON.parse(localStorage.getItem(STORE_KEY)||'null'), null);
   if (!saved || !saved.email) return null;
+  // Reconnexion quotidienne obligatoire (demande explicite) : une session
+  // sauvegardee un jour calendaire different d'aujourd'hui est consideree
+  // expiree, meme si elle est valide par ailleurs — force une nouvelle saisie
+  // du code d'acces a la premiere ouverture de chaque jour, sur cet appareil.
+  const memeJour = saved.loginAt && new Date(saved.loginAt).toDateString() === new Date().toDateString();
+  if (!memeJour) { clearSession(); return null; }
   const user = getUsers().find(u=>u.email===saved.email);
   if (!user || user.status!=='active' || compteGratuitExpire(user)) { clearSession(); return null; }
   _MEM_SESSION = {email:user.email, name:user.name, role:user.role, loginAt:saved.loginAt};
