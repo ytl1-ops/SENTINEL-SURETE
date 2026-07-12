@@ -10113,6 +10113,35 @@ async function init() {
         }
       }, 5 * 60 * 1000);
     }
+
+    // ── Réouverture de l'application : recalcul immédiat, EN PLUS du planning fixe ──
+    // Le setInterval ci-dessus tourne selon un planning fixe (15 min, visible
+    // ou non) mais ne redémarre pas de lui-même si l'utilisateur quitte puis
+    // revient sur l'onglet/l'appli avant l'échéance : il fallait alors
+    // attendre le prochain tic programmé, même en rouvrant l'appli. Ici,
+    // chaque fois que l'appli redevient visible au premier plan (retour
+    // d'arrière-plan, changement d'onglet, réouverture PWA/mobile), on
+    // relance une collecte immédiate — le planning fixe des 15 minutes
+    // continue de tourner en parallèle, inchangé.
+    if (!window._sentinelReopenHook) {
+      window._sentinelReopenHook = true;
+      const relancerSiReouverture = () => {
+        if (document.hidden) return;
+        if (typeof doCollect !== 'function' || busy) return;
+        if (localStorage.getItem('sentinel_pref_autorefresh') === '0') return;
+        if (typeof _MEM_SESSION !== 'undefined' && !_MEM_SESSION) return; // pas connecté
+        // Garde-fou anti-rafale : visibilitychange/focus peuvent se
+        // déclencher plusieurs fois de suite (ex. plusieurs onglets) —
+        // au plus une collecte forcée par minute à la réouverture.
+        const lastTs = parseInt(localStorage.getItem('sentinel_lastCollectTs') || '0');
+        if ((Date.now() - lastTs) < 60 * 1000) return;
+        localStorage.setItem('sentinel_lastCollectTs', Date.now().toString());
+        doCollect().catch(() => {});
+      };
+      document.addEventListener('visibilitychange', relancerSiReouverture);
+      window.addEventListener('focus', relancerSiReouverture);
+      window.addEventListener('pageshow', (e) => { if (e.persisted) relancerSiReouverture(); });
+    }
   },150);
 }
 
