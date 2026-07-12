@@ -1611,13 +1611,11 @@ body.sentinel-protected img{ -webkit-user-drag:none; user-drag:none; pointer-eve
   <div class="ops-label br" data-i18n="auth_ops_surete">Sûreté opérationnelle</div>
 </div>
   <div class="auth-box">
-    <!-- Selecteur de langue duplique ICI (en plus de celui du bandeau, cf.
-         #langSwitch) : celui du bandeau est visuellement bloque par cet
-         overlay lui-meme (probleme de contexte d'empilement CSS non
-         resolu proprement malgre z-index) — celui-ci, place a l'interieur
-         du DOM de l'overlay, est garanti cliquable avant toute connexion.
-         Les deux restent synchronises : setLang() met a jour tous les
-         elements .lang-btn de la page, peu importe leur emplacement. -->
+    <!-- Selecteur de langue : uniquement ici, sur l'ecran de connexion
+         (demande explicite). Le choix est sauvegarde (sentinel_lang) et
+         charge au demarrage suivant (voir LANG + checkAuth -> setLang) —
+         pas de bascule pendant l'utilisation de l'app, pour eviter de
+         re-rendre plusieurs modules a chaque clic une fois connecte. -->
     <div class="lang-switch" style="position:absolute;top:12px;right:12px;z-index:5">
       <button class="lang-btn on" data-lang="fr" onclick="setLang('fr')">FR</button>
       <button class="lang-btn" data-lang="en" onclick="setLang('en')">EN</button>
@@ -1833,10 +1831,6 @@ body.sentinel-protected img{ -webkit-user-drag:none; user-drag:none; pointer-eve
       <span class="ltxt" id="liveTxt" data-i18n="live_pret">Collecte...</span>
     </div>
     <div id="globalCyBadge" onclick="clearGlobalCountryFilter()" title="Filtre pays actif sur toute la plateforme — cliquer pour reinitialiser" style="display:none;align-items:center;gap:5px;padding:5px 10px;background:rgba(27,95,168,.25);border:1px solid rgba(27,95,168,.5);border-radius:6px;color:#fff;font-size:11px;font-weight:700;cursor:pointer;"></div>
-    <div class="lang-switch" id="langSwitch" title="Langue de l&#39;interface et des données / Interface and data language">
-      <button class="lang-btn on" data-lang="fr" onclick="setLang(&#39;fr&#39;)">FR</button>
-      <button class="lang-btn" data-lang="en" onclick="setLang(&#39;en&#39;)">EN</button>
-    </div>
     <div class="disp-switch" id="dispSwitch" title="Forcer l&#39;affichage Web ou Mobile, quel que soit l&#39;écran utilisé">
       <button class="disp-btn" data-disp="web" onclick="setDisplayMode(&#39;web&#39;)" title="Affichage Web (bureau)"><i class="ti ti-device-desktop"></i><span>WEB</span></button>
       <button class="disp-btn" data-disp="mobile" onclick="setDisplayMode(&#39;mobile&#39;)" title="Affichage Mobile"><i class="ti ti-device-mobile"></i><span>MOBILE</span></button>
@@ -3749,7 +3743,13 @@ let ALL       = [];
 // TR_CACHE/trFetch(), definis plus loin une fois les fonctions de rendu
 // disponibles. Declares ici en tete de script car reference des le debut du
 // fichier (NIV, lvlFr, catFr).
-let LANG = 'fr';
+// Langue choisie une seule fois, a l'ecran de connexion (voir demande
+// explicite) : chargee ici depuis le dernier choix sauvegarde, appliquee au
+// DOM au demarrage par checkAuth() -> setLang(LANG). Pas de bascule pendant
+// l'utilisation de l'app (le selecteur FR/EN n'existe plus que sur l'ecran
+// de connexion), pour eviter de re-rendre inutilement plusieurs modules a
+// chaque clic une fois l'app chargee.
+let LANG = (() => { try { return localStorage.getItem('sentinel_lang') || 'fr'; } catch (_) { return 'fr'; } })();
 const TR_CACHE = {};
 
 // I18N : libellés d'interface statiques (menus, états vides, catégories de mesures).
@@ -10405,6 +10405,11 @@ function openAdmin() {
 function closeAdmin() { document.getElementById('adminPanel').classList.add('hidden'); }
 
 function checkAuth() {
+  // Applique au DOM la langue chargee au demarrage (voir LANG plus haut) —
+  // necessaire meme si LANG!=='fr' par defaut, car le HTML statique est
+  // ecrit en francais : sans cet appel, LANG suivrait le bon choix en
+  // interne mais l'ecran de connexion resterait affiche en francais.
+  setLang(LANG);
   initUsers();
   // Instantane public (compteur + bulletin) : lu independamment de l'etat de
   // connexion, voir sauvegarderInstantanePublic/renderAuthStats.
