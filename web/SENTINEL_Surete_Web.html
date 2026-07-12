@@ -3866,6 +3866,26 @@ const I18N = {
 };
 function t(cle) { return (I18N[LANG] && I18N[LANG][cle]) || I18N.fr[cle] || cle; }
 
+// ═══ SUIVI TRADUCTION FR/EN (mis a jour a chaque etape, pas de % automatise
+// fiable possible sans outillage d'extraction i18n — voir echange avec
+// l'utilisateur) ═══
+//   [x] Ecran de connexion / inscription (auth-box) — labels, placeholders,
+//       messages d'erreur, encart essai 72h, confirmations
+//   [x] Titres des notifications navigateur (alertes critiques/elevees)
+//   [x] Bandeau de navigation principal (deja fait avant cette session)
+//   [ ] Tableau de bord (cartes KPI, "Carte regionale des risques",
+//       regroupements par zone/region)
+//   [ ] Flux (Feed) — cartes d'articles, filtres, etats vides
+//   [ ] Recherche
+//   [ ] Synthese
+//   [ ] Agenda
+//   [ ] Rapports
+//   [ ] Alertes
+//   [ ] Parametres / panneau admin
+// Pour reprendre : chercher les chaines francaises en dur dans le rendu du
+// module cible, les faire passer par t('cle') + entrees I18N.fr/I18N.en
+// correspondantes (voir le bloc auth_* ci-dessus comme modele).
+
 // setLang(lang) : bascule la langue d'interface FR/EN. Referencee par les
 // boutons FR/EN du bandeau superieur mais jamais definie auparavant (bouton
 // mort). Le francais reste la langue par defaut (LANG='fr') ; ce bouton ne
