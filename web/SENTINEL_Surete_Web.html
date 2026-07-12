@@ -10197,8 +10197,8 @@ const PENDING_KEY = 'sentinel_pending_v1';
 // projet > API sur supabase.com/dashboard) : tant qu'elles restent vides,
 // aucun appel réseau n'est fait et le panneau retombe sur l'affichage local
 // (comme avant).
-const SENTINEL_SUPABASE_URL      = '';
-const SENTINEL_SUPABASE_ANON_KEY = '';
+const SENTINEL_SUPABASE_URL      = 'https://zpdwqmliogxbuwirziny.supabase.co';
+const SENTINEL_SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpwZHdxbWxpb2d4YnV3aXJ6aW55Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM4NzUyOTYsImV4cCI6MjA5OTQ1MTI5Nn0.fQsTrrV5CIB77l0hxTHHN7oVICVzZdhwa9-d0WsCYI0';
 let _sentinelSupabaseClient = null;
 function getSentinelSupabase() {
   if (!SENTINEL_SUPABASE_URL || !SENTINEL_SUPABASE_ANON_KEY) return null;
