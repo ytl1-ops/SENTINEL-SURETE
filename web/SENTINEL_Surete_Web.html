@@ -1686,6 +1686,13 @@ body.sentinel-protected img{ -webkit-user-drag:none; user-drag:none; pointer-eve
         <label data-i18n="login_code_label">Code d'acces</label>
         <input type="text" id="loginPass" placeholder="Votre code d&#39;acces (ex: SJPNI2T)" data-i18n-ph="ph_login_code" autocomplete="off" style="letter-spacing:.1em;font-weight:700;text-transform:uppercase" oninput="this.value=this.value.toUpperCase()" onkeydown="if(event.key===&#39;Enter&#39;)doLogin()">
       </div>
+      <div class="auth-field">
+        <label data-i18n="login_zone_prio_label">Zone prioritaire (optionnel)</label>
+        <select id="loginZonePrioritaire"></select>
+        <div style="font-size:9px;color:rgba(255,255,255,.4);margin-top:3px;line-height:1.4" data-i18n="login_zone_prio_help">
+          La collecte démarre par les pays de cette zone (ex. Golfe de Guinée) et les couvre plus en profondeur, pour renseigner en priorité tous leurs modules (Alertes, Tableau de bord, Agenda...).
+        </div>
+      </div>
       <button class="auth-btn" onclick="doLogin()" id="loginBtn">
         <i class="ti ti-login"></i> <span data-i18n="login_btn">Se connecter</span>
       </button>
@@ -3852,6 +3859,8 @@ const I18N = {
     login_email_label:'Adresse e-mail', login_code_label:"Code d'accès", login_btn:'Se connecter',
     login_first_time:'Première connexion ?', login_request_access:'Demander un accès', login_reset:'Réinitialiser',
     ph_login_code:"Votre code d'accès (ex: SJPNI2T)",
+    login_zone_prio_label:'Zone prioritaire (optionnel)',
+    login_zone_prio_help:'La collecte démarre par les pays de cette zone (ex. Golfe de Guinée) et les couvre plus en profondeur, pour renseigner en priorité tous leurs modules (Alertes, Tableau de bord, Agenda...).',
     register_title:"Demande d'accès", register_sub:'Accès immédiat, aucune validation requise.',
     register_trial_pre:'Essai gratuit valable', register_trial_hours:'72 heures',
     register_trial_post:"à compter de l'activation. Passé ce délai, vous pourrez redemander un nouveau code gratuit avec la même adresse, ou passer à un plan payant.",
@@ -3906,6 +3915,8 @@ const I18N = {
     login_email_label:'Email address', login_code_label:'Access code', login_btn:'Log in',
     login_first_time:'First time here?', login_request_access:'Request access', login_reset:'Reset',
     ph_login_code:'Your access code (e.g. SJPNI2T)',
+    login_zone_prio_label:'Priority zone (optional)',
+    login_zone_prio_help:'Collection starts with the countries in this zone (e.g. Gulf of Guinea) and covers them more thoroughly, to populate all their modules first (Alerts, Dashboard, Agenda...).',
     register_title:'Access request', register_sub:'Immediate access, no approval required.',
     register_trial_pre:'Free trial valid for', register_trial_hours:'72 hours',
     register_trial_post:'from activation. After that, you can request a new free code with the same address, or switch to a paid plan.',
@@ -6763,7 +6774,17 @@ async function doCollect() {
     return (t||'').toLowerCase().replace(/[^a-z0-9àâéèêëîïôùûüç]/g,' ').replace(/\s+/g,' ').trim().slice(0,80);
   }
   const existTitleSet = new Set(ALL.map(a => normaliseTitle(a.title)));
-  const srcsToCollect = SRCS.filter(s => !srcIsSkippable(s));
+  // Zone prioritaire (choisie a l'ecran de connexion, voir
+  // zonePrioritaireActuelle) : ses sources ne sont jamais ecartees par
+  // srcIsSkippable (on retente meme une source recemment en echec, pour
+  // maximiser sa couverture) ET passent en tete de la file de collecte —
+  // tous les modules de cette zone (Alertes, Tableau de bord, Agenda...)
+  // se retrouvent ainsi renseignes en premier et plus completement.
+  const _zonePrio = (typeof zonePrioritaireActuelle === 'function') ? zonePrioritaireActuelle() : '';
+  const _estSrcZonePrio = s => _zonePrio && typeof CY_TO_ZONE !== 'undefined' && CY_TO_ZONE[s.cy] === _zonePrio;
+  const srcsToCollect = SRCS
+    .filter(s => _estSrcZonePrio(s) || !srcIsSkippable(s))
+    .sort((a, b) => (_estSrcZonePrio(b) ? 1 : 0) - (_estSrcZonePrio(a) ? 1 : 0));
   const skippedCount  = SRCS.length - srcsToCollect.length;
   const total = srcsToCollect.length;
   let lastLegRender = 0; // renderSrcLeg coûteux : limiter sa fréquence
@@ -10388,6 +10409,34 @@ function getSession()  { return _MEM_SESSION || {email:ADMIN_EMAIL, name:'Admini
 function saveSession(s){ _MEM_SESSION=s; _ls(()=>localStorage.setItem(STORE_KEY,JSON.stringify(s))); }
 function clearSession(){ _MEM_SESSION=null; _ls(()=>localStorage.removeItem(STORE_KEY)); }
 
+// ── Zone prioritaire (choisie a l'ecran de connexion) ─────────────────────
+// Objectif : la collecte (doCollect) traite en premier — et sans jamais
+// sauter une source recemment en echec — les pays de la zone choisie
+// (ZONES_GEO/CY_TO_ZONE, ex. Golfe de Guinee = CI/GH/TG/BJ/NG), pour que
+// tous les modules de cette zone (Alertes, Tableau de bord, Agenda...)
+// disposent d'une couverture plus complete et plus rapide que le reste.
+// Persistee sur le compte (suit l'utilisateur) ET par defaut sur
+// l'appareil (pre-remplit le select au prochain login, meme avant saisie
+// de l'email).
+const ZONE_PRIO_DEFAUT_KEY = 'sentinel_zone_prioritaire_defaut';
+function remplirSelectZonePrioritaireLogin() {
+  const sel = document.getElementById('loginZonePrioritaire');
+  if (!sel || typeof ZONES_GEO === 'undefined') return;
+  const defaut = _ls(() => localStorage.getItem(ZONE_PRIO_DEFAUT_KEY), '') || '';
+  const aucune = (typeof LANG !== 'undefined' && LANG === 'en') ? 'None (standard coverage)' : 'Aucune (répartition standard)';
+  const opts = Object.keys(ZONES_GEO).map(zc => '<option value="'+zc+'">'+ZONES_GEO[zc].nom+'</option>');
+  sel.innerHTML = '<option value="">'+aucune+'</option>' + opts.join('');
+  sel.value = defaut;
+}
+// zonePrioritaireActuelle() : zone active pour la SESSION EN COURS (utilisateur
+// deja connecte) — priorite au choix enregistre sur le compte, repli sur le
+// dernier choix fait sur cet appareil.
+function zonePrioritaireActuelle() {
+  const session = (typeof getSession === 'function') ? getSession() : {};
+  const u = (typeof getUsers === 'function' ? getUsers() : []).find(x => x.email === session.email);
+  return (u && u.zonePrioritaire) || _ls(() => localStorage.getItem(ZONE_PRIO_DEFAUT_KEY), '') || '';
+}
+
 // compteGratuitExpire(user) : le plan gratuit n'est valide que 72h a
 // compter de sa creation (createdAt) — passe ce delai, le compte ne peut
 // plus se connecter tant qu'il n'est pas passe a un plan payant. L'admin
@@ -10487,7 +10536,16 @@ function doLogin() {
     errEl.classList.add('show');return;}
   if(pass!==user.code){
     errEl.textContent=t('err_wrong_code');errEl.classList.add('show');return;}
-  user.lastLogin=new Date().toISOString(); saveUsers(users);
+  user.lastLogin=new Date().toISOString();
+  // Zone prioritaire choisie a l'ecran de connexion (voir doCollect) — suit le
+  // compte, et memorisee aussi comme defaut de l'appareil pour pre-remplir le
+  // select au prochain login.
+  const zoneSel = document.getElementById('loginZonePrioritaire');
+  if (zoneSel) {
+    user.zonePrioritaire = zoneSel.value || '';
+    _ls(() => localStorage.setItem(ZONE_PRIO_DEFAUT_KEY, user.zonePrioritaire));
+  }
+  saveUsers(users);
   saveSession({email:user.email,name:user.name,role:user.role,loginAt:new Date().toISOString()});
   if (typeof logConnexionSupabase === 'function') logConnexionSupabase(user);
   document.getElementById('authOverlay').classList.add('hidden');
@@ -10535,7 +10593,7 @@ function toggleUserMenu(e){if(e)e.stopPropagation();document.getElementById('use
 document.addEventListener('click',()=>{const m=document.getElementById('userMenu');if(m)m.classList.remove('open');});
 
 function showRegisterForm(){document.getElementById('loginForm').style.display='none';document.getElementById('registerForm').style.display='block';}
-function showLoginForm(){document.getElementById('loginForm').style.display='block';document.getElementById('registerForm').style.display='none';}
+function showLoginForm(){document.getElementById('loginForm').style.display='block';document.getElementById('registerForm').style.display='none';if(typeof remplirSelectZonePrioritaireLogin==='function')remplirSelectZonePrioritaireLogin();}
 
 // doRegister() : essai gratuit en libre-service, active immediatement, sans
 // validation manuelle de l'administrateur. Reste borne : role 'user' fixe
