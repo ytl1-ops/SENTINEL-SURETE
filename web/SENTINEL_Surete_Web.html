@@ -11982,11 +11982,21 @@ function getLiveAlertEvents(cy) {
   const MAX_AGE = 12*60*60*1000;
   const now = Date.now();
 
-  // Filtre strict : articles sourcés, horodatés, provenant d'une source fiable
+  // Filtre strict : articles sourcés, horodatés, provenant d'une source fiable.
+  // NB : on ne rejette plus ici sur !estimeEvenementAncien(a) (date de
+  // SURVENANCE extraite du texte). Ce critere convient au Flux ("cette actu
+  // decrit-elle un fait qui vient de se produire ?") mais est trop strict
+  // pour les Alertes : un bulletin humanitaire ("Mise a jour sur la situation
+  // au Soudan, mai-juin 2026") PUBLIE aujourd'hui reflete l'etat ACTUEL du
+  // pays meme s'il resume une periode passee — il etait auparavant exclu a
+  // tort, laissant "Alertes" figee sur d'anciens incidents verifies alors
+  // que des sources fiables publiaient bel et bien du contenu recent. La
+  // fraicheur de PUBLICATION (a.pubDate < 12h, deja verifiee ci-dessus) plus
+  // la fiabilite de la source (score>=70) et la corroboration (niveau
+  // critique) restent les garde-fous.
   const candidats = ALL.filter(a =>
     a.cy === cy &&
     a.pubDate && (now - a.pubDate) < MAX_AGE &&
-    !estimeEvenementAncien(a) &&      // pas un evenement survenu il y a plus de 12h
     a.primary &&                      // source identifiée
     (a.score || 0) >= 70 &&           // source de fiabilité suffisante
     NIV_PAR_LEVEL[a.level]            // niveau de risque reconnu
