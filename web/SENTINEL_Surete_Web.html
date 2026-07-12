@@ -13221,10 +13221,10 @@ async function ouvrirVuePays(cy) {
           <button onclick="document.getElementById('vuePaysOverlay').remove();goToAlerteIncident('${cy}')" style="flex:1;min-width:160px;padding:9px;background:var(--b);border:none;border-radius:6px;color:#fff;font-size:11px;font-weight:700;cursor:pointer;">
             <i class="ti ti-shield-exclamation"></i> Detail complet Alertes
           </button>
-          <button onclick="document.getElementById('vuePaysOverlay').remove();switchView('analyse',document.querySelector('.ntab[onclick*=analyse]'));setSyntheseCy('${cy}')" style="flex:1;min-width:160px;padding:9px;background:var(--sf);border:1px solid var(--bd);border-radius:6px;color:var(--t);font-size:11px;font-weight:700;cursor:pointer;">
+          <button onclick="document.getElementById('vuePaysOverlay').remove();setSyntheseCy('${cy}');switchView('analyse',document.querySelector('.ntab[data-view=analyse]'))" style="flex:1;min-width:160px;padding:9px;background:var(--sf);border:1px solid var(--bd);border-radius:6px;color:var(--t);font-size:11px;font-weight:700;cursor:pointer;">
             <i class="ti ti-chart-dots"></i> Synthese analytique
           </button>
-          <button onclick="document.getElementById('vuePaysOverlay').remove();switchView('rapports',document.querySelector('.ntab[onclick*=rapports]'));setRapportCy('${cy}')" style="flex:1;min-width:160px;padding:9px;background:var(--sf);border:1px solid var(--bd);border-radius:6px;color:var(--t);font-size:11px;font-weight:700;cursor:pointer;">
+          <button onclick="document.getElementById('vuePaysOverlay').remove();setRapportCy('${cy}');switchView('rapports',document.querySelector('.ntab[data-view=rapports]'))" style="flex:1;min-width:160px;padding:9px;background:var(--sf);border:1px solid var(--bd);border-radius:6px;color:var(--t);font-size:11px;font-weight:700;cursor:pointer;">
             <i class="ti ti-download"></i> Generer un rapport
           </button>
           <button class="share-trigger" onclick="toggleShareMenuAlerte(event,'${cy}')" style="flex:1;min-width:160px;padding:9px;justify-content:center;">
