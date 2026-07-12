@@ -11,7 +11,7 @@ Stack : React Native + Expo · Supabase · Firebase · CinetPay/Wave
 sentinel-app/
 ├── app/
 │   ├── _layout.tsx              # Racine navigation
-│   ├── (auth)/login.tsx         # Connexion / Inscription + essai 24h
+│   ├── (auth)/login.tsx         # Connexion / Inscription + essai 72h
 │   ├── (app)/
 │   │   ├── _layout.tsx          # Navigation par onglets
 │   │   ├── feed.tsx             # Flux temps réel + filtres + alertes
@@ -104,7 +104,7 @@ Intégrez CinetPay pour les paiements FCFA :
 
 | Formule      | Durée    | Prix FCFA | Prix EUR | Fonctionnalités |
 |-------------|----------|-----------|----------|-----------------|
-| Essai       | 24h      | 0         | 0        | 50 articles, lecture seule |
+| Essai       | 72h      | 0         | 0        | 50 articles, lecture seule |
 | Starter     | 7 jours  | 2 500     | 4€       | Flux + alertes + carte |
 | Mensuel     | 30 jours | 7 500     | 12€      | Tout + rapports 2 ans archives |
 | Trimestriel | 90 jours | 18 000    | 27€      | Tout + 5 ans archives (-20%) |

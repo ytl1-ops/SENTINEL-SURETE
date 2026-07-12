@@ -1537,6 +1537,33 @@ button:not(:disabled){
   transition:opacity .15s, background .15s !important;
 }
 
+/* ── Durcissement anti-copie / anti-impression ───────────────────────────
+   Deterrents cote client uniquement : ne bloque ni les captures d'ecran
+   OS/materielles ni un utilisateur determine (voir securite.md pour le
+   detail des limites reelles). Les champs de saisie restent selectionnables
+   pour ne pas casser la copie d'un email/code par l'utilisateur lui-meme. */
+body.sentinel-protected :not(input):not(textarea){
+  -webkit-user-select:none; -moz-user-select:none; user-select:none;
+}
+body.sentinel-protected input, body.sentinel-protected textarea{
+  -webkit-user-select:text; -moz-user-select:text; user-select:text;
+}
+body.sentinel-protected img{ -webkit-user-drag:none; user-drag:none; pointer-events:auto; }
+
+#sentinelWatermark{
+  position:fixed; inset:0; z-index:9999; pointer-events:none;
+  display:flex; flex-wrap:wrap; align-content:flex-start; gap:90px 70px;
+  padding:20px; overflow:hidden; font-size:10px; font-weight:400;
+  color:rgba(0,0,0,.035); transform:rotate(-22deg) scale(1.4); transform-origin:center;
+}
+@media print{
+  body.sentinel-protected > *{ display:none !important; }
+  body.sentinel-protected::before{
+    content:"Impression desactivee — document reserve a l'usage de l'utilisateur autorise. Contactez l'administrateur pour un export officiel (voir Rapports).";
+    display:block !important; padding:40px; font-size:14px;
+  }
+}
+
 </style>
 
   <!-- docx.js pour export Word -->
@@ -9692,10 +9719,45 @@ async function runDiagnostic() {
   body.appendChild(verdict);
 }
 
+// activerProtectionsSecurite() : freins cote client contre la copie/capture
+// occasionnelle et deterrent de plagiat par tracabilite (filigrane nominatif).
+// LIMITE HONNETE : rien de ce qui suit n'empeche une capture d'ecran reelle
+// (OS, materiel, appareil photo externe) ni un utilisateur determine (les
+// raccourcis et le clic droit restent contournables). L'objectif est de
+// relever le niveau de friction pour un usage occasionnel et de rendre toute
+// fuite tracable jusqu'au compte qui l'a produite — pas d'empecher une
+// capture techniquement possible depuis n'importe quelle page web.
+function activerProtectionsSecurite(user) {
+  if (document.body.dataset.protected) return; // deja actif pour cette session
+  document.body.dataset.protected = '1';
+  document.body.classList.add('sentinel-protected');
+
+  document.addEventListener('contextmenu', e => e.preventDefault());
+
+  document.addEventListener('keydown', e => {
+    const k = e.key;
+    const combo = (e.ctrlKey || e.metaKey);
+    if (k === 'F12'
+      || (combo && e.shiftKey && ['I','J','C','i','j','c'].includes(k))
+      || (combo && ['u','U','s','S','p','P'].includes(k))) {
+      e.preventDefault();
+    }
+  });
+
+  // Filigrane nominatif : discret, non bloquant, mais rend toute copie
+  // d'ecran identifiable (compte + horodatage) en cas de fuite/plagiat.
+  const wm = document.createElement('div');
+  wm.id = 'sentinelWatermark';
+  const label = (user && (user.email || user.name) || 'SESSION') + ' · ' + new Date().toLocaleString('fr-FR');
+  wm.innerHTML = Array.from({length: 24}).map(() => '<span>'+label+'</span>').join('');
+  document.body.appendChild(wm);
+}
+
 // NB : l'appel init() a été déplacé en toute fin de script (voir bas de fichier)
 // afin que toutes les constantes déclarées plus loin (ALERTE_EVENTS, FACTEURS_SPECIAUX,
 // etc.) soient initialisées avant le premier rendu — sinon erreur de zone morte temporelle.
 async function init() {
+  if (typeof _MEM_SESSION !== 'undefined' && _MEM_SESSION) activerProtectionsSecurite(_MEM_SESSION);
   // Regle : si l'utilisateur a ferme la banniere de diagnostic recemment
   // (moins de 30 min), ne pas la reafficher — evite l'effet pop-up repetitif.
   try {
@@ -9852,11 +9914,11 @@ function getSession()  { return _MEM_SESSION || {email:ADMIN_EMAIL, name:'Admini
 function saveSession(s){ _MEM_SESSION=s; _ls(()=>localStorage.setItem(STORE_KEY,JSON.stringify(s))); }
 function clearSession(){ _MEM_SESSION=null; _ls(()=>localStorage.removeItem(STORE_KEY)); }
 
-// compteGratuitExpire(user) : le plan gratuit n'est valide que 24h a
+// compteGratuitExpire(user) : le plan gratuit n'est valide que 72h a
 // compter de sa creation (createdAt) — passe ce delai, le compte ne peut
 // plus se connecter tant qu'il n'est pas passe a un plan payant. L'admin
 // racine et tout compte deja sur un plan payant ne sont jamais concernes.
-const COMPTE_GRATUIT_VALIDITE_MS = 24 * 60 * 60 * 1000;
+const COMPTE_GRATUIT_VALIDITE_MS = 72 * 60 * 60 * 1000;
 function compteGratuitExpire(user) {
   if (!user || user.email === ADMIN_EMAIL) return false;
   if ((user.plan || 'gratuit') !== 'gratuit') return false;
@@ -9941,7 +10003,7 @@ function doLogin() {
 
   if(user.status!=='active'){errEl.textContent='Acces suspendu. Contactez : '+ADMIN_EMAIL;errEl.classList.add('show');return;}
   if(compteGratuitExpire(user)){
-    errEl.textContent='Compte gratuit expire (validite 24h). Passez a un plan payant pour continuer — contactez '+ADMIN_EMAIL+'.';
+    errEl.textContent='Compte gratuit expire (validite 72h). Passez a un plan payant pour continuer — contactez '+ADMIN_EMAIL+'.';
     errEl.classList.add('show');return;}
   if(pass!==user.code){
     errEl.textContent='Code d\'acces incorrect.';errEl.classList.add('show');return;}
@@ -9955,7 +10017,7 @@ function doLogin() {
   // l'utilisateur authentifie — verrou partage avec checkAuth() pour ne
   // jamais initialiser deux fois (session restauree + connexion manuelle).
   if (!window._appInitialized) { window._appInitialized = true; init(); }
-  // Rappel discret de la validite du plan gratuit (24h a compter de la creation
+  // Rappel discret de la validite du plan gratuit (72h a compter de la creation
   // du compte) — n'affecte jamais les plans payants ni l'administrateur.
   if (user.email !== ADMIN_EMAIL && (user.plan || 'gratuit') === 'gratuit' && user.createdAt && typeof _toastRapide === 'function') {
     const resteMs = COMPTE_GRATUIT_VALIDITE_MS - (Date.now() - new Date(user.createdAt).getTime());
@@ -9994,6 +10056,14 @@ document.addEventListener('click',()=>{const m=document.getElementById('userMenu
 function showRegisterForm(){document.getElementById('loginForm').style.display='none';document.getElementById('registerForm').style.display='block';}
 function showLoginForm(){document.getElementById('loginForm').style.display='block';document.getElementById('registerForm').style.display='none';}
 
+// doRegister() : essai gratuit en libre-service, active immediatement, sans
+// validation manuelle de l'administrateur. Reste borne : role 'user' fixe
+// (jamais admin), 72h de validite (COMPTE_GRATUIT_VALIDITE_MS,
+// compteGratuitExpire), code d'acces reellement aleatoire (genAccessCode,
+// jamais recalculable depuis l'email) envoye automatiquement par email si
+// EmailJS est configure (envoyerCodeActivation), sinon affiche a l'ecran en
+// repli. Le compte reste visible dans le tableau Utilisateurs de l'admin
+// pour audit, meme si aucune action de sa part n'est requise pour l'activer.
 function doRegister() {
   const name =document.getElementById('regName').value.trim();
   const email=document.getElementById('regEmail').value.trim().toLowerCase();
@@ -10002,18 +10072,31 @@ function doRegister() {
   errEl.classList.remove('show');
   if(!name||!email||!org){errEl.textContent='Veuillez remplir tous les champs.';errEl.classList.add('show');return;}
   if(!/^[^@]+@[^@]+\.[^@]+$/.test(email)){errEl.textContent='Adresse e-mail invalide.';errEl.classList.add('show');return;}
-  if(getPending().find(p=>p.email===email)||getUsers().find(u=>u.email===email)){
-    errEl.textContent='Cette adresse est deja enregistree ou en attente.';errEl.classList.add('show');return;}
-  const pending=getPending();
-  pending.push({name,email,org,requestedAt:new Date().toISOString()});
-  savePending(pending);
+  if(getUsers().find(u=>u.email===email)){
+    errEl.textContent='Cette adresse est deja enregistree.';errEl.classList.add('show');return;}
+
+  const code=genAccessCode();
+  const user={email,name,role:'user',status:'active',plan:'gratuit',organisation:org,
+    createdAt:new Date().toISOString(),lastLogin:null,code};
+  const users=getUsers(); users.push(user); saveUsers(users);
+
   document.getElementById('registerForm').innerHTML=
     '<div style="text-align:center;padding:20px 0">'+
-    '<i class="ti ti-circle-check" style="font-size:48px;color:#4ade80;display:block;margin-bottom:14px"></i>'+
-    '<div style="font-size:14px;font-weight:700;color:#fff;margin-bottom:8px">Demande envoyee</div>'+
-    '<div style="font-size:12px;color:rgba(255,255,255,.5);line-height:1.6">'+
-    'Votre demande a ete transmise.<br>Vous recevrez votre code d\'acces a :<br><b style="color:#9CA3AF">'+email+'</b></div>'+
-    '<div style="margin-top:16px"><span style="color:#9CA3AF;cursor:pointer" onclick="showLoginForm()">Retour a la connexion</span></div></div>';
+    '<i class="ti ti-loader-2" style="font-size:32px;color:#9CA3AF;display:block;margin-bottom:14px"></i>'+
+    '<div style="font-size:13px;color:rgba(255,255,255,.6)">Activation de votre essai gratuit…</div></div>';
+
+  envoyerCodeActivation(user).then(res => {
+    const detail = res.ok
+      ? 'Votre code d\'acces a ete envoye a :<br><b style="color:#9CA3AF">'+email+'</b>'
+      : 'Envoi automatique indisponible — notez votre code d\'acces :<br>'
+        +'<b style="color:#fff;font-family:monospace;font-size:15px;letter-spacing:.08em">'+code+'</b>';
+    document.getElementById('registerForm').innerHTML=
+      '<div style="text-align:center;padding:20px 0">'+
+      '<i class="ti ti-circle-check" style="font-size:48px;color:#4ade80;display:block;margin-bottom:14px"></i>'+
+      '<div style="font-size:14px;font-weight:700;color:#fff;margin-bottom:8px">Essai gratuit active (72h)</div>'+
+      '<div style="font-size:12px;color:rgba(255,255,255,.5);line-height:1.6">'+detail+'</div>'+
+      '<div style="margin-top:16px"><span style="color:#9CA3AF;cursor:pointer" onclick="showLoginForm()">Aller a la connexion</span></div></div>';
+  });
 }
 
 function addUser() {
@@ -10532,7 +10615,7 @@ const PRICING_KEY = 'sentinel_pricing_v1';
 // affichees changent.
 const PRICING_DEFAUT = [
   {key:'gratuit',   nom:'Découverte',              prix:0,     periode:'/mois', featured:false,
-    feats:['Compte gratuit valable 24h','Flux 12h, 1 pays suivi','5 partages par mode (WhatsApp/Telegram/Email/Copier)','Publicités affichées']},
+    feats:['Compte gratuit valable 72h','Flux 12h, 1 pays suivi','5 partages par mode (WhatsApp/Telegram/Email/Copier)','Publicités affichées']},
   {key:'standard',  nom:'Particulier',              prix:9000,  periode:'/mois', featured:false,
     feats:['54 pays, tous modules','Sans publicité','Partages illimités (tous modes)','Exports Excel/CSV','1 compte utilisateur']},
   {key:'pro',       nom:'Professionnel Sûreté',     prix:39000, periode:'/mois', featured:true,

@@ -35,7 +35,7 @@ export const Radius = {
 };
 
 export const PLANS_CONFIG = [
-  { slug: 'trial',       name: 'Essai gratuit', duration: '24 heures', price: 'Gratuit',    badge: '50 articles', color: Colors.success },
+  { slug: 'trial',       name: 'Essai gratuit', duration: '72 heures', price: 'Gratuit',    badge: '50 articles', color: Colors.success },
   { slug: 'starter',     name: 'Starter',       duration: '7 jours',   price: '2 500 FCFA', badge: null,          color: Colors.primary },
   { slug: 'monthly',     name: 'Mensuel',        duration: '30 jours',  price: '7 500 FCFA', badge: '⭐ Populaire', color: Colors.primary },
   { slug: 'quarterly',   name: 'Trimestriel',    duration: '90 jours',  price: '18 000 FCFA',badge: '-20%',        color: Colors.primary },

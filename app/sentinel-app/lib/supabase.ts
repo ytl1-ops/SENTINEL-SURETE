@@ -151,7 +151,7 @@ export async function startTrial(userId: string): Promise<void> {
   if (!plan) throw new Error('Plan essai introuvable');
 
   const expiresAt = new Date();
-  expiresAt.setHours(expiresAt.getHours() + 24);
+  expiresAt.setHours(expiresAt.getHours() + plan.duration_days * 24);
 
   const { error } = await supabase.from('subscriptions').insert({
     user_id: userId,
