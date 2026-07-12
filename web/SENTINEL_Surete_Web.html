@@ -1653,7 +1653,15 @@ body.sentinel-protected img{ -webkit-user-drag:none; user-drag:none; pointer-eve
     </div>
     <div id="registerForm" style="display:none">
       <div class="auth-title">Demande d'acces</div>
-      <div class="auth-sub">Votre demande sera transmise a l'administrateur (yo•••••@gmail.com) pour validation.</div>
+      <div class="auth-sub">Acces immediat, aucune validation requise.</div>
+      <div style="display:flex;gap:8px;align-items:flex-start;background:rgba(255,184,77,.1);border:1px solid rgba(255,184,77,.25);border-radius:8px;padding:10px 12px;margin-bottom:14px">
+        <i class="ti ti-clock" style="font-size:14px;color:#ffb84d;flex-shrink:0;margin-top:1px"></i>
+        <div style="font-size:11px;color:rgba(255,255,255,.65);line-height:1.5">
+          Essai gratuit valable <b style="color:#ffb84d">72 heures</b> a compter de l'activation.
+          Passe ce delai, vous pourrez redemander un nouveau code gratuit avec la meme adresse,
+          ou passer a un plan payant.
+        </div>
+      </div>
       <div class="auth-field">
         <label>Nom complet</label>
         <input type="text" id="regName" placeholder="Prenom Nom">
@@ -10003,7 +10011,7 @@ function doLogin() {
 
   if(user.status!=='active'){errEl.textContent='Acces suspendu. Contactez : '+ADMIN_EMAIL;errEl.classList.add('show');return;}
   if(compteGratuitExpire(user)){
-    errEl.textContent='Compte gratuit expire (validite 72h). Passez a un plan payant pour continuer — contactez '+ADMIN_EMAIL+'.';
+    errEl.textContent='Compte gratuit expire (validite 72h). Demandez un nouveau code gratuit ci-dessous, ou passez a un plan payant — contactez '+ADMIN_EMAIL+'.';
     errEl.classList.add('show');return;}
   if(pass!==user.code){
     errEl.textContent='Code d\'acces incorrect.';errEl.classList.add('show');return;}
@@ -10072,13 +10080,29 @@ function doRegister() {
   errEl.classList.remove('show');
   if(!name||!email||!org){errEl.textContent='Veuillez remplir tous les champs.';errEl.classList.add('show');return;}
   if(!/^[^@]+@[^@]+\.[^@]+$/.test(email)){errEl.textContent='Adresse e-mail invalide.';errEl.classList.add('show');return;}
-  if(getUsers().find(u=>u.email===email)){
+
+  const users=getUsers();
+  const existing=users.find(u=>u.email===email);
+  // Une adresse deja enregistree ne peut redemander un nouveau code gratuit
+  // qu'une fois son essai precedent expire (compteGratuitExpire) — un compte
+  // encore actif, suspendu avant expiration, ou passe sur un plan payant/admin
+  // reste bloque ici.
+  if(existing && !compteGratuitExpire(existing)){
     errEl.textContent='Cette adresse est deja enregistree.';errEl.classList.add('show');return;}
 
   const code=genAccessCode();
-  const user={email,name,role:'user',status:'active',plan:'gratuit',organisation:org,
-    createdAt:new Date().toISOString(),lastLogin:null,code};
-  const users=getUsers(); users.push(user); saveUsers(users);
+  let user;
+  if(existing){
+    existing.name=name; existing.organisation=org; existing.role='user';
+    existing.status='active'; existing.plan='gratuit';
+    existing.createdAt=new Date().toISOString(); existing.code=code;
+    user=existing;
+  } else {
+    user={email,name,role:'user',status:'active',plan:'gratuit',organisation:org,
+      createdAt:new Date().toISOString(),lastLogin:null,code};
+    users.push(user);
+  }
+  saveUsers(users);
 
   document.getElementById('registerForm').innerHTML=
     '<div style="text-align:center;padding:20px 0">'+
