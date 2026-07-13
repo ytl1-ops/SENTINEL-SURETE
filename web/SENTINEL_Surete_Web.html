@@ -10309,6 +10309,16 @@ function tick(){
   document.getElementById('tbTime').textContent=n.toLocaleDateString('fr-FR')+' · '+n.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
   ALL.forEach(a=>{a.time=fmtAge(a.pubDate||0);});
   if (typeof verifierRappelsWhatsappProgrammes === 'function') { try { verifierRappelsWhatsappProgrammes(); } catch(_) {} }
+  // Rafraichissement "temps reel" (au sens : sans avoir a quitter/revenir
+  // sur l'onglet Parametres) du statut de connexion des clients/utilisateurs
+  // — la fraicheur relative ("il y a X min") et une connexion faite entre
+  // temps depuis un AUTRE appareil doivent apparaitre sans action manuelle.
+  const vParams = document.getElementById('v-params');
+  if (vParams && vParams.classList.contains('on') && document.getElementById('pmAdminOnly') &&
+      getComputedStyle(document.getElementById('pmAdminOnly')).display !== 'none') {
+    if (typeof pmRenderUsers === 'function') pmRenderUsers();
+    if (typeof renderClientele === 'function') renderClientele();
+  }
 }
 setInterval(tick,60000);
 // Auto-collect désactivé — collecte manuelle uniquement
@@ -10861,25 +10871,60 @@ async function logConnexionSupabase(user) {
   const client = getSentinelSupabase();
   if (!client || !user) return;
   try {
-    await client.from('connexions_log').insert({
+    const { error } = await client.from('connexions_log').insert({
       email: user.email, name: user.name, role: user.role, platform: 'web',
     });
-  } catch (_) {}
+    // Erreur reelle (ex. table non creee, RLS mal configuree) : journalisee
+    // en console pour rester diagnosticable, sans jamais bloquer la connexion.
+    if (error) console.warn('SENTINEL — logConnexionSupabase a echoue :', error.message || error);
+  } catch (e) { console.warn('SENTINEL — logConnexionSupabase a echoue :', e && e.message ? e.message : e); }
 }
 // Lit les connexions recentes (tous appareils/utilisateurs) pour le panneau
-// Administration. Retourne [] si Supabase n'est pas configure — l'appelant
-// retombe alors sur les donnees locales (lastLogin/trafic), inchangees.
+// Administration. Retourne null si Supabase n'est pas configure/joignable
+// (l'appelant retombe alors sur les donnees locales lastLogin, inchangees) —
+// distinct de [] (configure et joignable, mais aucune ligne). Erreur reelle
+// journalisee en console pour rester diagnosticable (ex. table absente,
+// politique RLS bloquant la lecture) plutot que d'echouer silencieusement.
 async function fetchConnexionsRecentes(limit) {
   const client = getSentinelSupabase();
-  if (!client) return null; // null = non configure (distinct de [] = configure mais vide)
+  if (!client) return null; // non configure (SDK non charge ou cles vides)
   try {
     const { data, error } = await client.from('connexions_log')
       .select('email,name,role,platform,created_at')
       .order('created_at', { ascending: false })
       .limit(limit || 100);
-    if (error) return null;
+    if (error) { console.warn('SENTINEL — fetchConnexionsRecentes a echoue :', error.message || error); return null; }
     return data || [];
-  } catch (_) { return null; }
+  } catch (e) { console.warn('SENTINEL — fetchConnexionsRecentes a echoue :', e && e.message ? e.message : e); return null; }
+}
+// dernieresConnexionsParEmail() : point d'entree UNIQUE et PARTAGE pour la
+// fraicheur de connexion par compte — utilise a la fois par "Gestion
+// clientele" (statut En ligne / vu le...) et "Gestion des utilisateurs"
+// (colonne Derniere connexion), pour que les DEUX tableaux affichent
+// TOUJOURS la meme information (au lieu de deriver : l'un lisait Supabase,
+// l'autre restait fige sur le lastLogin local de CET appareil, qui ne peut
+// jamais refleter la connexion d'un client depuis SON PROPRE appareil).
+async function dernieresConnexionsParEmail() {
+  const map = {};
+  let source = 'local';
+  if (typeof fetchConnexionsRecentes === 'function') {
+    const rows = await fetchConnexionsRecentes(300);
+    if (rows) {
+      source = 'supabase';
+      rows.forEach(r => {
+        const ts = new Date(r.created_at).getTime();
+        if (!map[r.email] || ts > map[r.email]) map[r.email] = ts;
+      });
+    }
+  }
+  // Repli local : pour tout compte absent du journal Supabase (non configure,
+  // ou pas encore synchronise), on garde au moins le lastLogin connu sur CET
+  // appareil plutot que d'afficher "Jamais connecte" a tort pour un compte
+  // qui s'est bien connecte ICI MEME.
+  getUsers().forEach(u => {
+    if (map[u.email] === undefined && u.lastLogin) map[u.email] = new Date(u.lastLogin).getTime();
+  });
+  return { map, source };
 }
 
 // ── Google AdSense (bandeau publicitaire, version gratuite) ───────────────
@@ -11515,13 +11560,20 @@ function toggleFTRole(featId, role, checked) {
 }
 
 // ── TABLEAU UTILISATEURS (module params) ─────────────────────────────
-function pmRenderUsers() {
+// pmRenderUsers() : desormais asynchrone — utilise la MEME source partagee
+// que "Gestion clientele" (dernieresConnexionsParEmail, Supabase multi-
+// appareils si configure) pour la colonne "Derniere connexion", au lieu du
+// seul lastLogin local a cet appareil (qui ne peut jamais refleter la
+// connexion d'un client depuis SON PROPRE appareil — cause du signalement
+// "KOUAKOU HERMAN est en ligne mais ca affiche Jamais connecte").
+async function pmRenderUsers() {
   const users = getUsers();
   const rL = {admin:['br-admin','Admin'],user:['br-user','Utilisateur'],reader:['br-reader','Lecteur']};
   document.getElementById('pmUserCount').textContent = users.length + ' utilisateur(s) enregistre(s)';
+  const { map: dernierParEmail, source } = await dernieresConnexionsParEmail();
   document.getElementById('pmUsersBody').innerHTML = users.map(u => {
     const [rc, rl] = rL[u.role] || ['br-reader','Lecteur'];
-    const ll = u.lastLogin ? new Date(u.lastLogin).toLocaleDateString('fr-FR') : 'Jamais';
+    const dernierTs = dernierParEmail[u.email] || null;
     const isA = u.email === ADMIN_EMAIL;
     return '<tr>' +
       '<td>' + (isA ? _maskEmail(u.email) : u.email) + '</td>' +
@@ -11531,7 +11583,7 @@ function pmRenderUsers() {
         (u.status==='active'?'Actif':'Suspendu') + '</span></td>' +
       '<td><span style="font-family:monospace;font-size:12px;font-weight:700;color:var(--b)">' + u.code + '</span>' +
         '<button class="copy-btn" style="margin-left:6px;padding:3px 8px" onclick="copyText(\'' + u.code + '\')" title="Copier le code"><i class="ti ti-copy"></i></button></td>' +
-      '<td style="color:rgba(0,0,0,.4)">' + ll + '</td>' +
+      '<td>' + _clienteleStatutHTML(dernierTs, source) + '</td>' +
       '<td style="display:flex;gap:5px;flex-wrap:wrap;align-items:center">' +
         (isA ? '<span style="font-size:10px;color:var(--lg)">Compte principal</span>' :
           '<button class="btn-action ' + (u.status==='active'?'btn-rev':'btn-rest') + '" onclick="pmToggleStatus(\'' + u.email + '\')">' + (u.status==='active'?'Suspendre':'Reactiver') + '</button>' +
@@ -11555,7 +11607,7 @@ function pmAddUser() {
   document.getElementById('pmNewEmail').value = '';
   document.getElementById('pmNewName').value  = '';
   pmMsg('<b>Acces accorde.</b> Code d\'acces pour ' + email + ' : <b>' + code + '</b>', 'ok', 'pmMsg');
-  pmRenderUsers(); pmRenderPending();
+  pmRenderUsers(); pmRenderPending(); renderClientele();
 }
 
 function pmToggleStatus(email) {
@@ -11563,13 +11615,13 @@ function pmToggleStatus(email) {
   const u = users.find(x => x.email === email);
   if (!u || u.email === ADMIN_EMAIL) return;
   u.status = u.status === 'active' ? 'suspended' : 'active';
-  saveUsers(users); pmRenderUsers();
+  saveUsers(users); pmRenderUsers(); renderClientele();
 }
 function pmDeleteUser(email) {
   if (email === ADMIN_EMAIL) return;
   if (!confirm('Supprimer definitvement ' + email + ' ?')) return;
   saveUsers(getUsers().filter(u => u.email !== email));
-  pmRenderUsers();
+  pmRenderUsers(); renderClientele();
 }
 
 // ── DEMANDES EN ATTENTE (module params) ──────────────────────────────
@@ -12047,22 +12099,10 @@ async function renderClientele() {
   const users = getUsers();
   const plans = getPricing();
   document.getElementById('clienteleCount').textContent = users.length + ' client(s)';
-  // Dernier evenement de connexion par email — Supabase (toutes plateformes)
-  // si configure, sinon repli sur lastLogin local (cet appareil uniquement).
-  let dernierParEmail = {};
-  let source = 'local';
-  if (typeof fetchConnexionsRecentes === 'function') {
-    try {
-      const rows = await fetchConnexionsRecentes(300);
-      if (rows) {
-        source = 'supabase';
-        rows.forEach(r => {
-          const ts = new Date(r.created_at).getTime();
-          if (!dernierParEmail[r.email] || ts > dernierParEmail[r.email]) dernierParEmail[r.email] = ts;
-        });
-      }
-    } catch (_) {}
-  }
+  // Dernier evenement de connexion par email — meme source PARTAGEE que
+  // "Gestion des utilisateurs" (voir dernieresConnexionsParEmail), pour que
+  // les deux tableaux ne divergent jamais.
+  const { map: dernierParEmail, source } = await dernieresConnexionsParEmail();
   const dlQuotas = getDLQuotas();
   const dlStats = getDLStats();
   body.innerHTML = users.map(u => {
