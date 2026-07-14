@@ -13441,28 +13441,27 @@ async function renderAlertCard(score) {
   if (!pays) return '';
   const n = score.niv;
   const m = MESURES[score.key];
-  const lo = {rouge:0,marron:1,orange:2,jaune:3,vert:4};
-  // Tri : niveau de gravite d'abord (comme avant), puis — a niveau egal —
-  // l'evenement le plus recent d'abord. Sans ce second critere, un incident
-  // "verifie" fige depuis des semaines (ALERTE_EVENTS) passait toujours avant
-  // un signal RSS du jour de meme niveau, l'ecran donnant l'impression que
-  // les dernieres actualites ne sont jamais prises en compte.
-  const sortedParGravite = [...score.events].sort((a,b) => {
-    const diffNiv = (lo[a.level]||4) - (lo[b.level]||4);
-    return diffNiv !== 0 ? diffNiv : alertEventTimestamp(b) - alertEventTimestamp(a);
-  });
-  // Garde-fou complementaire : meme quand un pays cumule deja 5 incidents
-  // verifies plus graves (rouge/marron), on garantit qu'au moins les 2
-  // signaux RSS live les plus recents restent visibles dans la carte —
-  // sinon l'actualite du jour reste invisible derriere un historique fige.
+  // Tri : actualites classees du plus recent au plus ancien (demande
+  // explicite). Auparavant le niveau de gravite passait avant la date, ce
+  // qui pouvait remonter un incident "verifie" fige depuis des semaines
+  // au-dessus d'un signal RSS du jour moins grave — donnant l'impression
+  // trompeuse que les dernieres actualites n'etaient jamais prises en
+  // compte. La gravite reste visible (badge de niveau sur chaque ligne),
+  // mais ne determine plus l'ordre d'affichage.
+  const sortedParDate = [...score.events].sort((a,b) => alertEventTimestamp(b) - alertEventTimestamp(a));
+  // Garde-fou complementaire : meme quand un pays cumule plus de 5
+  // evenements, on garantit qu'au moins les 2 signaux RSS live les plus
+  // recents restent visibles dans la carte (utile si le tri chronologique
+  // pur les avait deja fait remonter en tete, ce garde-fou devient un
+  // simple filet de securite plutot qu'un correctif).
   const NB_AFFICHES = 5, NB_LIVE_GARANTIS = 2;
-  const topGravite = sortedParGravite.slice(0, NB_AFFICHES);
+  const topRecents = sortedParDate.slice(0, NB_AFFICHES);
   const cleEv = e => (e.date||'')+'|'+(e.title||'');
-  const clesAffichees = new Set(topGravite.map(cleEv));
-  const liveManquants = sortedParGravite
+  const clesAffichees = new Set(topRecents.map(cleEv));
+  const liveManquants = sortedParDate
     .filter(e => e.live && !clesAffichees.has(cleEv(e)))
     .slice(0, NB_LIVE_GARANTIS);
-  const sorted = [...topGravite, ...liveManquants];
+  const sorted = [...topRecents, ...liveManquants];
   const pct = Math.min(100, Math.round(score.total100));
 
   await preTraduireRapport([
