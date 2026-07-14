@@ -514,7 +514,7 @@ input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px soli
   font-size:9px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0;}
 .share-trigger:hover,.share-trigger.on{background:var(--b);color:#fff;border-color:var(--b)}
 .share-trigger i{font-size:10px}
-.share-menu{position:fixed;z-index:3000;min-width:190px;background:var(--w);
+.share-menu{position:fixed;z-index:200000;min-width:190px;background:var(--w);
   border:1px solid var(--bd);border-radius:8px;box-shadow:0 8px 24px rgba(18,42,32,.18);
   padding:5px;font-size:12px;}
 .share-fmt-row{display:flex;gap:4px;padding:2px 2px 7px;border-bottom:1px solid var(--bd);margin-bottom:4px;}
@@ -2208,10 +2208,12 @@ body.sentinel-protected img{ -webkit-user-drag:none; user-drag:none; pointer-eve
             </select>
             <select id="agTypeFilter" onchange="setAgendaType(this.value)" style="padding:4px 8px;border:1px solid var(--bd);border-radius:5px;font-size:11px;font-weight:600;color:var(--t);background:var(--w);">
               <option value="all">Tous les types</option>
+              <option value="manifestation">Manifestation</option>
               <option value="travaux">Travaux</option>
               <option value="gouvernemental">Gouvernemental</option>
               <option value="seminaire">Seminaire</option>
               <option value="colloque">Colloque</option>
+              <option value="foire">Foire / Salon</option>
               <option value="sportif">Sportif</option>
               <option value="concert">Concert</option>
               <option value="festival">Festival</option>
@@ -3373,7 +3375,6 @@ const SRCS=[
  {id:'anadolu_tr',n:'Anadolu Agency (FR)',col:'#C8102E',cy:'INT',sc:'regional',cat:'securite',score:55,url:'https://www.aa.com.tr/fr',rss:'https://news.google.com/rss/search?q=site:aa.com.tr&hl=fr&gl=FR&ceid=FR:fr',rss_method:'Google News RSS',note:'Agence de presse officielle de l Etat turc, largement consideree comme un organe proche du gouvernement Erdogan (qualifiee d organe de propagande par le SG-CIPDR francais). Recouper systematiquement.'},
  {id:'xinhua_cn',n:'Xinhua (edition Afrique, FR)',col:'#DE2910',cy:'INT',sc:'regional',cat:'securite',score:50,url:'http://french.news.cn/africa/index.htm',rss:'https://news.google.com/rss/search?q=site:french.news.cn&hl=fr&gl=FR&ceid=FR:fr',rss_method:'Google News RSS',note:'Agence de presse officielle de l Etat chinois (Conseil des Affaires d Etat). Ligne editoriale alignee sur la politique etrangere chinoise, notamment sur les investissements et partenariats Chine-Afrique. Recouper systematiquement.'},
  // ── SOURCES RSS PAYS MANQUANTS — via AllAfrica / APA News (couverture universelle Afrique) ────
- {id:'allafrica_bi',n:'AllAfrica — Burundi',col:'#CC0000',cy:'BI',sc:'national',cat:'securite',score:72,url:'https://fr.allafrica.com/burundi/',rss:'https://fr.allafrica.com/tools/headlines/rdf/burundi/headlines.rdf',rss_method:'RSS natif'},
  // ══ MEDIAS NATIONAUX A FLUX RSS NATIF (fiables, sans dependance RSSHub) ══
  {id:'lexpress_mg',n:'L Express de Madagascar',col:'#C8102E',cy:'MG',sc:'national',cat:'securite',score:80,url:'https://www.lexpress.mg/',rss:'https://www.lexpress.mg/feeds/posts/default?alt=rss',rss_method:'RSS natif'},
  {id:'matribune_mg',n:'Madagascar Tribune',col:'#4B5563',cy:'MG',sc:'national',cat:'politique',score:78,url:'https://www.madagascar-tribune.com/',rss:'https://www.madagascar-tribune.com/spip.php?page=backend',rss_method:'RSS natif'},
@@ -3395,20 +3396,7 @@ const SRCS=[
  {id:'abp_bi',n:'ABP — Agence Burundaise de Presse',col:'#1EB53A',cy:'BI',sc:'national',cat:'securite',score:64,url:'https://abpinfo.bi/',rss:'https://abpinfo.bi/feed/',rss_method:'RSS natif',note:'Agence d Etat sous tutelle du Ministere de la Communication. Contenu aligne sur les positions officielles, notamment sur les tensions avec le Rwanda. A recouper.'},
  {id:'inforpress_cv',n:'Inforpress — Agence Capverdienne de Presse',col:'#003893',cy:'CV',sc:'national',cat:'securite',score:76,url:'https://inforpress.cv/',rss:'https://inforpress.cv/feed/',rss_method:'RSS natif'},
  {id:'sopecam_cm',n:'Cameroon Tribune (SOPECAM)',col:'#007A5E',cy:'CM',sc:'national',cat:'securite',score:70,url:'https://www.cameroon-tribune.cm/',rss:'https://www.cameroon-tribune.cm/rss',rss_method:'RSS natif',note:'Quotidien public edite par la SOPECAM, societe de presse d Etat. Ligne editoriale proche du gouvernement.'},
- {id:'allafrica_cv',n:'AllAfrica — Cap-Vert',col:'#003893',cy:'CV',sc:'national',cat:'securite',score:72,url:'https://fr.allafrica.com/capeverde/',rss:'https://fr.allafrica.com/tools/headlines/rdf/capeverde/headlines.rdf',rss_method:'RSS natif'},
- {id:'allafrica_dj',n:'AllAfrica — Djibouti',col:'#6AB2E7',cy:'DJ',sc:'national',cat:'securite',score:72,url:'https://fr.allafrica.com/djibouti/',rss:'https://fr.allafrica.com/tools/headlines/rdf/djibouti/headlines.rdf',rss_method:'RSS natif'},
- {id:'allafrica_er',n:'AllAfrica — Erythree',col:'#4189DD',cy:'ER',sc:'national',cat:'securite',score:65,url:'https://fr.allafrica.com/eritrea/',rss:'https://fr.allafrica.com/tools/headlines/rdf/eritrea/headlines.rdf',rss_method:'RSS natif'},
- {id:'allafrica_gm',n:'AllAfrica — Gambie',col:'#3A7728',cy:'GM',sc:'national',cat:'securite',score:72,url:'https://fr.allafrica.com/gambia/',rss:'https://fr.allafrica.com/tools/headlines/rdf/gambia/headlines.rdf',rss_method:'RSS natif'},
- {id:'allafrica_gq',n:'AllAfrica — Guinee equatoriale',col:'#3E9A00',cy:'GQ',sc:'national',cat:'securite',score:65,url:'https://fr.allafrica.com/equatorialguinea/',rss:'https://fr.allafrica.com/tools/headlines/rdf/equatorialguinea/headlines.rdf',rss_method:'RSS natif'},
- {id:'allafrica_km',n:'AllAfrica — Comores',col:'#3A75C4',cy:'KM',sc:'national',cat:'securite',score:70,url:'https://fr.allafrica.com/comoros/',rss:'https://fr.allafrica.com/tools/headlines/rdf/comoros/headlines.rdf',rss_method:'RSS natif'},
- {id:'allafrica_ls',n:'AllAfrica — Lesotho',col:'#009A44',cy:'LS',sc:'national',cat:'securite',score:70,url:'https://fr.allafrica.com/lesotho/',rss:'https://fr.allafrica.com/tools/headlines/rdf/lesotho/headlines.rdf',rss_method:'RSS natif'},
- {id:'allafrica_mg',n:'AllAfrica — Madagascar',col:'#FC3D32',cy:'MG',sc:'national',cat:'securite',score:72,url:'https://fr.allafrica.com/madagascar/',rss:'https://fr.allafrica.com/tools/headlines/rdf/madagascar/headlines.rdf',rss_method:'RSS natif'},
- {id:'allafrica_mu',n:'AllAfrica — Maurice',col:'#EA2839',cy:'MU',sc:'national',cat:'securite',score:76,url:'https://fr.allafrica.com/mauritius/',rss:'https://fr.allafrica.com/tools/headlines/rdf/mauritius/headlines.rdf',rss_method:'RSS natif'},
- {id:'allafrica_mw',n:'AllAfrica — Malawi',col:'#000000',cy:'MW',sc:'national',cat:'securite',score:72,url:'https://fr.allafrica.com/malawi/',rss:'https://fr.allafrica.com/tools/headlines/rdf/malawi/headlines.rdf',rss_method:'RSS natif'},
- {id:'allafrica_sc',n:'AllAfrica — Seychelles',col:'#003F87',cy:'SC',sc:'national',cat:'securite',score:76,url:'https://fr.allafrica.com/seychelles/',rss:'https://fr.allafrica.com/tools/headlines/rdf/seychelles/headlines.rdf',rss_method:'RSS natif'},
- {id:'allafrica_so',n:'AllAfrica — Somalie',col:'#4189DD',cy:'SO',sc:'national',cat:'securite',score:68,url:'https://fr.allafrica.com/somalia/',rss:'https://fr.allafrica.com/tools/headlines/rdf/somalia/headlines.rdf',rss_method:'RSS natif'},
- {id:'allafrica_st',n:'AllAfrica — Sao Tome-et-Principe',col:'#12AD2B',cy:'ST',sc:'national',cat:'securite',score:74,url:'https://fr.allafrica.com/saotome/',rss:'https://fr.allafrica.com/tools/headlines/rdf/saotome/headlines.rdf',rss_method:'RSS natif'},
- {id:'allafrica_sz',n:'AllAfrica — Eswatini',col:'#3E5EB9',cy:'SZ',sc:'national',cat:'securite',score:70,url:'https://fr.allafrica.com/swaziland/',rss:'https://fr.allafrica.com/tools/headlines/rdf/swaziland/headlines.rdf',rss_method:'RSS natif'},
+ {id:'allafrica_st_alt',n:'AllAfrica — Sao Tome-et-Principe (variante)',col:'#12AD2B',cy:'ST',sc:'national',cat:'securite',score:74,url:'https://fr.allafrica.com/saotome/',rss:'https://fr.allafrica.com/tools/headlines/rdf/saotome/headlines.rdf',rss_method:'RSS natif',note:"Slug AllAfrica alternatif (saotome) en plus de saotomeprincipe — conserve car couverture historiquement faible pour ce pays, garde les deux tentatives."},
  // ── AGENCES NATIONALES — LOT 2 (verifiees) ───────────────────────────
  {id:'aps_dz',n:'APS — Algerie Presse Service',col:'#006233',cy:'DZ',sc:'national',cat:'securite',score:80,url:'https://www.aps.dz/fr',rss:'https://news.google.com/rss/search?q=site:aps.dz&hl=fr&gl=DZ&ceid=DZ:fr',rss_method:'Google News RSS'},
  {id:'rba_rw',n:'RBA — Rwanda Broadcasting Agency',col:'#00A1DE',cy:'RW',sc:'national',cat:'securite',score:65,url:'https://www.rba.co.rw/',rss:'https://news.google.com/rss/search?q=site:rba.co.rw&hl=fr&gl=RW&ceid=RW:fr',rss_method:'Google News RSS',note:'Radiodiffuseur public, successeur d ORINFOR (associe a la propagande d Etat avant 1994). Recouper avec sources independantes.'},
@@ -3626,6 +3614,7 @@ const SRCS=[
   {id:'ao_gn_pol',n:'Angola — Gouvernement (Google News)',col:'#4B5563',cy:'AO',sc:'national',cat:'politique',score:66,url:'https://news.google.com/search?q=Angola+governo+politica&hl=pt&gl=AO',rss:'https://news.google.com/rss/search?q=Angola+governo+politica&hl=pt&gl=AO&ceid=AO:pt',rss_method:'Google News RSS'},
   {id:'ao_gn_hum',n:'Angola — Humanitaire (Google News)',col:'#0F766E',cy:'AO',sc:'national',cat:'humanitaire',score:64,url:'https://news.google.com/search?q=Angola+crise+humanitaria&hl=pt&gl=AO',rss:'https://news.google.com/rss/search?q=Angola+crise+humanitaria&hl=pt&gl=AO&ceid=AO:pt',rss_method:'Google News RSS'},
   {id:'ao_gn_luanda',n:'Luanda — Local (Google News)',col:'#6B7280',cy:'AO',sc:'local',cat:'securite',score:62,url:'https://news.google.com/search?q=Luanda+Angola+seguranca&hl=pt&gl=AO',rss:'https://news.google.com/rss/search?q=Luanda+Angola+seguranca&hl=pt&gl=AO&ceid=AO:pt',rss_method:'Google News RSS'},
+  {id:'bi_gn_general',n:'Burundi — Actualités générales (Google News)',col:'#6B7280',cy:'BI',sc:'national',cat:'politique',score:58,url:'https://news.google.com/search?q=Burundi&hl=fr&gl=BI',rss:'https://news.google.com/rss/search?q=Burundi&hl=fr&gl=BI&ceid=BI:fr',rss_method:'Google News RSS',note:"Requete large (nom du pays seul, sans qualificatif securite/politique) ajoutee pour garantir un volume minimal d'actualites meme sur un pays a faible couverture mediatique."},
   {id:'bi_gn_secu',n:'Burundi — Sécurité (Google News)',col:'#4B5563',cy:'BI',sc:'national',cat:'securite',score:68,url:'https://news.google.com/search?q=Burundi+securite+actualite&hl=fr&gl=BI',rss:'https://news.google.com/rss/search?q=Burundi+securite+actualite&hl=fr&gl=BI&ceid=BI:fr',rss_method:'Google News RSS'},
   {id:'bi_gn_pol',n:'Burundi — Gouvernement (Google News)',col:'#4B5563',cy:'BI',sc:'national',cat:'politique',score:66,url:'https://news.google.com/search?q=Burundi+gouvernement+conseil+des+ministres&hl=fr&gl=BI',rss:'https://news.google.com/rss/search?q=Burundi+gouvernement+conseil+des+ministres&hl=fr&gl=BI&ceid=BI:fr',rss_method:'Google News RSS'},
   {id:'bi_gn_hum',n:'Burundi — Humanitaire (Google News)',col:'#0F766E',cy:'BI',sc:'national',cat:'humanitaire',score:64,url:'https://news.google.com/search?q=Burundi+humanitaire+crise&hl=fr&gl=BI',rss:'https://news.google.com/rss/search?q=Burundi+humanitaire+crise&hl=fr&gl=BI&ceid=BI:fr',rss_method:'Google News RSS'},
@@ -3634,6 +3623,7 @@ const SRCS=[
   {id:'bj_gn_pol',n:'Bénin — Gouvernement (Google News)',col:'#4B5563',cy:'BJ',sc:'national',cat:'politique',score:66,url:'https://news.google.com/search?q=B%C3%A9nin+gouvernement+conseil+des+ministres&hl=fr&gl=BJ',rss:'https://news.google.com/rss/search?q=B%C3%A9nin+gouvernement+conseil+des+ministres&hl=fr&gl=BJ&ceid=BJ:fr',rss_method:'Google News RSS'},
   {id:'bj_gn_hum',n:'Bénin — Humanitaire (Google News)',col:'#0F766E',cy:'BJ',sc:'national',cat:'humanitaire',score:64,url:'https://news.google.com/search?q=B%C3%A9nin+humanitaire+crise&hl=fr&gl=BJ',rss:'https://news.google.com/rss/search?q=B%C3%A9nin+humanitaire+crise&hl=fr&gl=BJ&ceid=BJ:fr',rss_method:'Google News RSS'},
   {id:'bj_gn_portonovo',n:'Porto-Novo — Local (Google News)',col:'#6B7280',cy:'BJ',sc:'local',cat:'securite',score:62,url:'https://news.google.com/search?q=Porto-Novo+B%C3%A9nin+securite&hl=fr&gl=BJ',rss:'https://news.google.com/rss/search?q=Porto-Novo+B%C3%A9nin+securite&hl=fr&gl=BJ&ceid=BJ:fr',rss_method:'Google News RSS'},
+  {id:'bw_gn_general',n:'Botswana — Actualités générales (Google News)',col:'#6B7280',cy:'BW',sc:'national',cat:'politique',score:58,url:'https://news.google.com/search?q=Botswana&hl=en&gl=BW',rss:'https://news.google.com/rss/search?q=Botswana&hl=en&gl=BW&ceid=BW:en',rss_method:'Google News RSS',note:"Requete large (nom du pays seul, sans qualificatif securite/politique) ajoutee pour garantir un volume minimal d'actualites meme sur un pays a faible couverture mediatique."},
   {id:'bw_gn_secu',n:'Botswana — Sécurité (Google News)',col:'#4B5563',cy:'BW',sc:'national',cat:'securite',score:68,url:'https://news.google.com/search?q=Botswana+security+news&hl=en&gl=BW',rss:'https://news.google.com/rss/search?q=Botswana+security+news&hl=en&gl=BW&ceid=BW:en',rss_method:'Google News RSS'},
   {id:'bw_gn_pol',n:'Botswana — Gouvernement (Google News)',col:'#4B5563',cy:'BW',sc:'national',cat:'politique',score:66,url:'https://news.google.com/search?q=Botswana+government+politics&hl=en&gl=BW',rss:'https://news.google.com/rss/search?q=Botswana+government+politics&hl=en&gl=BW&ceid=BW:en',rss_method:'Google News RSS'},
   {id:'bw_gn_hum',n:'Botswana — Humanitaire (Google News)',col:'#0F766E',cy:'BW',sc:'national',cat:'humanitaire',score:64,url:'https://news.google.com/search?q=Botswana+humanitarian+crisis&hl=en&gl=BW',rss:'https://news.google.com/rss/search?q=Botswana+humanitarian+crisis&hl=en&gl=BW&ceid=BW:en',rss_method:'Google News RSS'},
@@ -3657,10 +3647,12 @@ const SRCS=[
   {id:'cm_gn_hum',n:'Cameroun — Humanitaire (Google News)',col:'#0F766E',cy:'CM',sc:'national',cat:'humanitaire',score:64,url:'https://news.google.com/search?q=Cameroun+humanitaire+crise&hl=fr&gl=CM',rss:'https://news.google.com/rss/search?q=Cameroun+humanitaire+crise&hl=fr&gl=CM&ceid=CM:fr',rss_method:'Google News RSS'},
   {id:'cm_gn_yaound',n:'Yaoundé — Local (Google News)',col:'#6B7280',cy:'CM',sc:'local',cat:'securite',score:62,url:'https://news.google.com/search?q=Yaound%C3%A9+Cameroun+securite&hl=fr&gl=CM',rss:'https://news.google.com/rss/search?q=Yaound%C3%A9+Cameroun+securite&hl=fr&gl=CM&ceid=CM:fr',rss_method:'Google News RSS'},
   {id:'cm_gn_douala',n:'Douala — Local (Google News)',col:'#6B7280',cy:'CM',sc:'local',cat:'securite',score:62,url:'https://news.google.com/search?q=Douala+Cameroun+securite&hl=fr&gl=CM',rss:'https://news.google.com/rss/search?q=Douala+Cameroun+securite&hl=fr&gl=CM&ceid=CM:fr',rss_method:'Google News RSS'},
+  {id:'cv_gn_general',n:'Cap-Vert — Actualités générales (Google News)',col:'#6B7280',cy:'CV',sc:'national',cat:'politique',score:58,url:'https://news.google.com/search?q=Cap-Vert&hl=pt&gl=CV',rss:'https://news.google.com/rss/search?q=Cap-Vert&hl=pt&gl=CV&ceid=CV:pt',rss_method:'Google News RSS',note:"Requete large (nom du pays seul, sans qualificatif securite/politique) ajoutee pour garantir un volume minimal d'actualites meme sur un pays a faible couverture mediatique."},
   {id:'cv_gn_secu',n:'Cap-Vert — Sécurité (Google News)',col:'#4B5563',cy:'CV',sc:'national',cat:'securite',score:68,url:'https://news.google.com/search?q=Cap-Vert+seguranca+noticias&hl=pt&gl=CV',rss:'https://news.google.com/rss/search?q=Cap-Vert+seguranca+noticias&hl=pt&gl=CV&ceid=CV:pt',rss_method:'Google News RSS'},
   {id:'cv_gn_pol',n:'Cap-Vert — Gouvernement (Google News)',col:'#4B5563',cy:'CV',sc:'national',cat:'politique',score:66,url:'https://news.google.com/search?q=Cap-Vert+governo+politica&hl=pt&gl=CV',rss:'https://news.google.com/rss/search?q=Cap-Vert+governo+politica&hl=pt&gl=CV&ceid=CV:pt',rss_method:'Google News RSS'},
   {id:'cv_gn_hum',n:'Cap-Vert — Humanitaire (Google News)',col:'#0F766E',cy:'CV',sc:'national',cat:'humanitaire',score:64,url:'https://news.google.com/search?q=Cap-Vert+crise+humanitaria&hl=pt&gl=CV',rss:'https://news.google.com/rss/search?q=Cap-Vert+crise+humanitaria&hl=pt&gl=CV&ceid=CV:pt',rss_method:'Google News RSS'},
   {id:'cv_gn_praia',n:'Praia — Local (Google News)',col:'#6B7280',cy:'CV',sc:'local',cat:'securite',score:62,url:'https://news.google.com/search?q=Praia+Cap-Vert+seguranca&hl=pt&gl=CV',rss:'https://news.google.com/rss/search?q=Praia+Cap-Vert+seguranca&hl=pt&gl=CV&ceid=CV:pt',rss_method:'Google News RSS'},
+  {id:'dj_gn_general',n:'Djibouti — Actualités générales (Google News)',col:'#6B7280',cy:'DJ',sc:'national',cat:'politique',score:58,url:'https://news.google.com/search?q=Djibouti&hl=fr&gl=DJ',rss:'https://news.google.com/rss/search?q=Djibouti&hl=fr&gl=DJ&ceid=DJ:fr',rss_method:'Google News RSS',note:"Requete large (nom du pays seul, sans qualificatif securite/politique) ajoutee pour garantir un volume minimal d'actualites meme sur un pays a faible couverture mediatique."},
   {id:'dj_gn_secu',n:'Djibouti — Sécurité (Google News)',col:'#4B5563',cy:'DJ',sc:'national',cat:'securite',score:68,url:'https://news.google.com/search?q=Djibouti+securite+actualite&hl=fr&gl=DJ',rss:'https://news.google.com/rss/search?q=Djibouti+securite+actualite&hl=fr&gl=DJ&ceid=DJ:fr',rss_method:'Google News RSS'},
   {id:'dj_gn_pol',n:'Djibouti — Gouvernement (Google News)',col:'#4B5563',cy:'DJ',sc:'national',cat:'politique',score:66,url:'https://news.google.com/search?q=Djibouti+gouvernement+conseil+des+ministres&hl=fr&gl=DJ',rss:'https://news.google.com/rss/search?q=Djibouti+gouvernement+conseil+des+ministres&hl=fr&gl=DJ&ceid=DJ:fr',rss_method:'Google News RSS'},
   {id:'dj_gn_hum',n:'Djibouti — Humanitaire (Google News)',col:'#0F766E',cy:'DJ',sc:'national',cat:'humanitaire',score:64,url:'https://news.google.com/search?q=Djibouti+humanitaire+crise&hl=fr&gl=DJ',rss:'https://news.google.com/rss/search?q=Djibouti+humanitaire+crise&hl=fr&gl=DJ&ceid=DJ:fr',rss_method:'Google News RSS'},
@@ -3674,6 +3666,7 @@ const SRCS=[
   {id:'eg_gn_hum',n:'Égypte — Humanitaire (Google News)',col:'#0F766E',cy:'EG',sc:'national',cat:'humanitaire',score:64,url:'https://news.google.com/search?q=%C3%89gypte+%D8%A3%D8%B2%D9%85%D8%A9+%D8%A5%D9%86%D8%B3%D8%A7%D9%86%D9%8A%D8%A9&hl=ar&gl=EG',rss:'https://news.google.com/rss/search?q=%C3%89gypte+%D8%A3%D8%B2%D9%85%D8%A9+%D8%A5%D9%86%D8%B3%D8%A7%D9%86%D9%8A%D8%A9&hl=ar&gl=EG&ceid=EG:ar',rss_method:'Google News RSS'},
   {id:'eg_gn_lecaire',n:'Le Caire — Local (Google News)',col:'#6B7280',cy:'EG',sc:'local',cat:'securite',score:62,url:'https://news.google.com/search?q=Le+Caire+%C3%89gypte+%D8%A3%D9%85%D9%86&hl=ar&gl=EG',rss:'https://news.google.com/rss/search?q=Le+Caire+%C3%89gypte+%D8%A3%D9%85%D9%86&hl=ar&gl=EG&ceid=EG:ar',rss_method:'Google News RSS'},
   {id:'eg_gn_sinai',n:'Sinai — Local (Google News)',col:'#6B7280',cy:'EG',sc:'local',cat:'securite',score:62,url:'https://news.google.com/search?q=Sinai+%C3%89gypte+%D8%A3%D9%85%D9%86&hl=ar&gl=EG',rss:'https://news.google.com/rss/search?q=Sinai+%C3%89gypte+%D8%A3%D9%85%D9%86&hl=ar&gl=EG&ceid=EG:ar',rss_method:'Google News RSS'},
+  {id:'er_gn_general',n:'Érythrée — Actualités générales (Google News)',col:'#6B7280',cy:'ER',sc:'national',cat:'politique',score:58,url:'https://news.google.com/search?q=%C3%89rythr%C3%A9e&hl=en&gl=ER',rss:'https://news.google.com/rss/search?q=%C3%89rythr%C3%A9e&hl=en&gl=ER&ceid=ER:en',rss_method:'Google News RSS',note:"Requete large (nom du pays seul, sans qualificatif securite/politique) ajoutee pour garantir un volume minimal d'actualites meme sur un pays a faible couverture mediatique."},
   {id:'er_gn_secu',n:'Érythrée — Sécurité (Google News)',col:'#4B5563',cy:'ER',sc:'national',cat:'securite',score:68,url:'https://news.google.com/search?q=%C3%89rythr%C3%A9e+security+news&hl=en&gl=ER',rss:'https://news.google.com/rss/search?q=%C3%89rythr%C3%A9e+security+news&hl=en&gl=ER&ceid=ER:en',rss_method:'Google News RSS'},
   {id:'er_gn_pol',n:'Érythrée — Gouvernement (Google News)',col:'#4B5563',cy:'ER',sc:'national',cat:'politique',score:66,url:'https://news.google.com/search?q=%C3%89rythr%C3%A9e+government+politics&hl=en&gl=ER',rss:'https://news.google.com/rss/search?q=%C3%89rythr%C3%A9e+government+politics&hl=en&gl=ER&ceid=ER:en',rss_method:'Google News RSS'},
   {id:'er_gn_hum',n:'Érythrée — Humanitaire (Google News)',col:'#0F766E',cy:'ER',sc:'national',cat:'humanitaire',score:64,url:'https://news.google.com/search?q=%C3%89rythr%C3%A9e+humanitarian+crisis&hl=en&gl=ER',rss:'https://news.google.com/rss/search?q=%C3%89rythr%C3%A9e+humanitarian+crisis&hl=en&gl=ER&ceid=ER:en',rss_method:'Google News RSS'},
@@ -3691,6 +3684,7 @@ const SRCS=[
   {id:'gh_gn_pol',n:'Ghana — Gouvernement (Google News)',col:'#4B5563',cy:'GH',sc:'national',cat:'politique',score:66,url:'https://news.google.com/search?q=Ghana+government+politics&hl=en&gl=GH',rss:'https://news.google.com/rss/search?q=Ghana+government+politics&hl=en&gl=GH&ceid=GH:en',rss_method:'Google News RSS'},
   {id:'gh_gn_hum',n:'Ghana — Humanitaire (Google News)',col:'#0F766E',cy:'GH',sc:'national',cat:'humanitaire',score:64,url:'https://news.google.com/search?q=Ghana+humanitarian+crisis&hl=en&gl=GH',rss:'https://news.google.com/rss/search?q=Ghana+humanitarian+crisis&hl=en&gl=GH&ceid=GH:en',rss_method:'Google News RSS'},
   {id:'gh_gn_accra',n:'Accra — Local (Google News)',col:'#6B7280',cy:'GH',sc:'local',cat:'securite',score:62,url:'https://news.google.com/search?q=Accra+Ghana+security&hl=en&gl=GH',rss:'https://news.google.com/rss/search?q=Accra+Ghana+security&hl=en&gl=GH&ceid=GH:en',rss_method:'Google News RSS'},
+  {id:'gm_gn_general',n:'Gambie — Actualités générales (Google News)',col:'#6B7280',cy:'GM',sc:'national',cat:'politique',score:58,url:'https://news.google.com/search?q=Gambie&hl=en&gl=GM',rss:'https://news.google.com/rss/search?q=Gambie&hl=en&gl=GM&ceid=GM:en',rss_method:'Google News RSS',note:"Requete large (nom du pays seul, sans qualificatif securite/politique) ajoutee pour garantir un volume minimal d'actualites meme sur un pays a faible couverture mediatique."},
   {id:'gm_gn_secu',n:'Gambie — Sécurité (Google News)',col:'#4B5563',cy:'GM',sc:'national',cat:'securite',score:68,url:'https://news.google.com/search?q=Gambie+security+news&hl=en&gl=GM',rss:'https://news.google.com/rss/search?q=Gambie+security+news&hl=en&gl=GM&ceid=GM:en',rss_method:'Google News RSS'},
   {id:'gm_gn_pol',n:'Gambie — Gouvernement (Google News)',col:'#4B5563',cy:'GM',sc:'national',cat:'politique',score:66,url:'https://news.google.com/search?q=Gambie+government+politics&hl=en&gl=GM',rss:'https://news.google.com/rss/search?q=Gambie+government+politics&hl=en&gl=GM&ceid=GM:en',rss_method:'Google News RSS'},
   {id:'gm_gn_hum',n:'Gambie — Humanitaire (Google News)',col:'#0F766E',cy:'GM',sc:'national',cat:'humanitaire',score:64,url:'https://news.google.com/search?q=Gambie+humanitarian+crisis&hl=en&gl=GM',rss:'https://news.google.com/rss/search?q=Gambie+humanitarian+crisis&hl=en&gl=GM&ceid=GM:en',rss_method:'Google News RSS'},
@@ -3699,6 +3693,7 @@ const SRCS=[
   {id:'gn_gn_pol',n:'Guinée — Gouvernement (Google News)',col:'#4B5563',cy:'GN',sc:'national',cat:'politique',score:66,url:'https://news.google.com/search?q=Guin%C3%A9e+gouvernement+conseil+des+ministres&hl=fr&gl=GN',rss:'https://news.google.com/rss/search?q=Guin%C3%A9e+gouvernement+conseil+des+ministres&hl=fr&gl=GN&ceid=GN:fr',rss_method:'Google News RSS'},
   {id:'gn_gn_hum',n:'Guinée — Humanitaire (Google News)',col:'#0F766E',cy:'GN',sc:'national',cat:'humanitaire',score:64,url:'https://news.google.com/search?q=Guin%C3%A9e+humanitaire+crise&hl=fr&gl=GN',rss:'https://news.google.com/rss/search?q=Guin%C3%A9e+humanitaire+crise&hl=fr&gl=GN&ceid=GN:fr',rss_method:'Google News RSS'},
   {id:'gn_gn_conakry',n:'Conakry — Local (Google News)',col:'#6B7280',cy:'GN',sc:'local',cat:'securite',score:62,url:'https://news.google.com/search?q=Conakry+Guin%C3%A9e+securite&hl=fr&gl=GN',rss:'https://news.google.com/rss/search?q=Conakry+Guin%C3%A9e+securite&hl=fr&gl=GN&ceid=GN:fr',rss_method:'Google News RSS'},
+  {id:'gq_gn_general',n:'Guinée équatoriale — Actualités générales (Google News)',col:'#6B7280',cy:'GQ',sc:'national',cat:'politique',score:58,url:'https://news.google.com/search?q=Guin%C3%A9e+%C3%A9quatoriale&hl=fr&gl=GQ',rss:'https://news.google.com/rss/search?q=Guin%C3%A9e+%C3%A9quatoriale&hl=fr&gl=GQ&ceid=GQ:fr',rss_method:'Google News RSS',note:"Requete large (nom du pays seul, sans qualificatif securite/politique) ajoutee pour garantir un volume minimal d'actualites meme sur un pays a faible couverture mediatique."},
   {id:'gq_gn_secu',n:'Guinée équatoriale — Sécurité (Google News)',col:'#4B5563',cy:'GQ',sc:'national',cat:'securite',score:68,url:'https://news.google.com/search?q=Guin%C3%A9e+%C3%A9quatoriale+securite+actualite&hl=fr&gl=GQ',rss:'https://news.google.com/rss/search?q=Guin%C3%A9e+%C3%A9quatoriale+securite+actualite&hl=fr&gl=GQ&ceid=GQ:fr',rss_method:'Google News RSS'},
   {id:'gq_gn_pol',n:'Guinée équatoriale — Gouvernement (Google News)',col:'#4B5563',cy:'GQ',sc:'national',cat:'politique',score:66,url:'https://news.google.com/search?q=Guin%C3%A9e+%C3%A9quatoriale+gouvernement+conseil+des+ministres&hl=fr&gl=GQ',rss:'https://news.google.com/rss/search?q=Guin%C3%A9e+%C3%A9quatoriale+gouvernement+conseil+des+ministres&hl=fr&gl=GQ&ceid=GQ:fr',rss_method:'Google News RSS'},
   {id:'gq_gn_hum',n:'Guinée équatoriale — Humanitaire (Google News)',col:'#0F766E',cy:'GQ',sc:'national',cat:'humanitaire',score:64,url:'https://news.google.com/search?q=Guin%C3%A9e+%C3%A9quatoriale+humanitaire+crise&hl=fr&gl=GQ',rss:'https://news.google.com/rss/search?q=Guin%C3%A9e+%C3%A9quatoriale+humanitaire+crise&hl=fr&gl=GQ&ceid=GQ:fr',rss_method:'Google News RSS'},
@@ -3712,6 +3707,7 @@ const SRCS=[
   {id:'ke_gn_hum',n:'Kenya — Humanitaire (Google News)',col:'#0F766E',cy:'KE',sc:'national',cat:'humanitaire',score:64,url:'https://news.google.com/search?q=Kenya+humanitarian+crisis&hl=en&gl=KE',rss:'https://news.google.com/rss/search?q=Kenya+humanitarian+crisis&hl=en&gl=KE&ceid=KE:en',rss_method:'Google News RSS'},
   {id:'ke_gn_nairobi',n:'Nairobi — Local (Google News)',col:'#6B7280',cy:'KE',sc:'local',cat:'securite',score:62,url:'https://news.google.com/search?q=Nairobi+Kenya+security&hl=en&gl=KE',rss:'https://news.google.com/rss/search?q=Nairobi+Kenya+security&hl=en&gl=KE&ceid=KE:en',rss_method:'Google News RSS'},
   {id:'ke_gn_mombasa',n:'Mombasa — Local (Google News)',col:'#6B7280',cy:'KE',sc:'local',cat:'securite',score:62,url:'https://news.google.com/search?q=Mombasa+Kenya+security&hl=en&gl=KE',rss:'https://news.google.com/rss/search?q=Mombasa+Kenya+security&hl=en&gl=KE&ceid=KE:en',rss_method:'Google News RSS'},
+  {id:'km_gn_general',n:'Comores — Actualités générales (Google News)',col:'#6B7280',cy:'KM',sc:'national',cat:'politique',score:58,url:'https://news.google.com/search?q=Comores&hl=fr&gl=KM',rss:'https://news.google.com/rss/search?q=Comores&hl=fr&gl=KM&ceid=KM:fr',rss_method:'Google News RSS',note:"Requete large (nom du pays seul, sans qualificatif securite/politique) ajoutee pour garantir un volume minimal d'actualites meme sur un pays a faible couverture mediatique."},
   {id:'km_gn_secu',n:'Comores — Sécurité (Google News)',col:'#4B5563',cy:'KM',sc:'national',cat:'securite',score:68,url:'https://news.google.com/search?q=Comores+securite+actualite&hl=fr&gl=KM',rss:'https://news.google.com/rss/search?q=Comores+securite+actualite&hl=fr&gl=KM&ceid=KM:fr',rss_method:'Google News RSS'},
   {id:'km_gn_pol',n:'Comores — Gouvernement (Google News)',col:'#4B5563',cy:'KM',sc:'national',cat:'politique',score:66,url:'https://news.google.com/search?q=Comores+gouvernement+conseil+des+ministres&hl=fr&gl=KM',rss:'https://news.google.com/rss/search?q=Comores+gouvernement+conseil+des+ministres&hl=fr&gl=KM&ceid=KM:fr',rss_method:'Google News RSS'},
   {id:'km_gn_hum',n:'Comores — Humanitaire (Google News)',col:'#0F766E',cy:'KM',sc:'national',cat:'humanitaire',score:64,url:'https://news.google.com/search?q=Comores+humanitaire+crise&hl=fr&gl=KM',rss:'https://news.google.com/rss/search?q=Comores+humanitaire+crise&hl=fr&gl=KM&ceid=KM:fr',rss_method:'Google News RSS'},
@@ -3720,6 +3716,7 @@ const SRCS=[
   {id:'lr_gn_pol',n:'Liberia — Gouvernement (Google News)',col:'#4B5563',cy:'LR',sc:'national',cat:'politique',score:66,url:'https://news.google.com/search?q=Liberia+government+politics&hl=en&gl=LR',rss:'https://news.google.com/rss/search?q=Liberia+government+politics&hl=en&gl=LR&ceid=LR:en',rss_method:'Google News RSS'},
   {id:'lr_gn_hum',n:'Liberia — Humanitaire (Google News)',col:'#0F766E',cy:'LR',sc:'national',cat:'humanitaire',score:64,url:'https://news.google.com/search?q=Liberia+humanitarian+crisis&hl=en&gl=LR',rss:'https://news.google.com/rss/search?q=Liberia+humanitarian+crisis&hl=en&gl=LR&ceid=LR:en',rss_method:'Google News RSS'},
   {id:'lr_gn_monrovia',n:'Monrovia — Local (Google News)',col:'#6B7280',cy:'LR',sc:'local',cat:'securite',score:62,url:'https://news.google.com/search?q=Monrovia+Liberia+security&hl=en&gl=LR',rss:'https://news.google.com/rss/search?q=Monrovia+Liberia+security&hl=en&gl=LR&ceid=LR:en',rss_method:'Google News RSS'},
+  {id:'ls_gn_general',n:'Lesotho — Actualités générales (Google News)',col:'#6B7280',cy:'LS',sc:'national',cat:'politique',score:58,url:'https://news.google.com/search?q=Lesotho&hl=en&gl=LS',rss:'https://news.google.com/rss/search?q=Lesotho&hl=en&gl=LS&ceid=LS:en',rss_method:'Google News RSS',note:"Requete large (nom du pays seul, sans qualificatif securite/politique) ajoutee pour garantir un volume minimal d'actualites meme sur un pays a faible couverture mediatique."},
   {id:'ls_gn_secu',n:'Lesotho — Sécurité (Google News)',col:'#4B5563',cy:'LS',sc:'national',cat:'securite',score:68,url:'https://news.google.com/search?q=Lesotho+security+news&hl=en&gl=LS',rss:'https://news.google.com/rss/search?q=Lesotho+security+news&hl=en&gl=LS&ceid=LS:en',rss_method:'Google News RSS'},
   {id:'ls_gn_pol',n:'Lesotho — Gouvernement (Google News)',col:'#4B5563',cy:'LS',sc:'national',cat:'politique',score:66,url:'https://news.google.com/search?q=Lesotho+government+politics&hl=en&gl=LS',rss:'https://news.google.com/rss/search?q=Lesotho+government+politics&hl=en&gl=LS&ceid=LS:en',rss_method:'Google News RSS'},
   {id:'ls_gn_hum',n:'Lesotho — Humanitaire (Google News)',col:'#0F766E',cy:'LS',sc:'national',cat:'humanitaire',score:64,url:'https://news.google.com/search?q=Lesotho+humanitarian+crisis&hl=en&gl=LS',rss:'https://news.google.com/rss/search?q=Lesotho+humanitarian+crisis&hl=en&gl=LS&ceid=LS:en',rss_method:'Google News RSS'},
@@ -3733,6 +3730,7 @@ const SRCS=[
   {id:'ma_gn_pol',n:'Maroc — Gouvernement (Google News)',col:'#4B5563',cy:'MA',sc:'national',cat:'politique',score:66,url:'https://news.google.com/search?q=Maroc+gouvernement+conseil+des+ministres&hl=fr&gl=MA',rss:'https://news.google.com/rss/search?q=Maroc+gouvernement+conseil+des+ministres&hl=fr&gl=MA&ceid=MA:fr',rss_method:'Google News RSS'},
   {id:'ma_gn_hum',n:'Maroc — Humanitaire (Google News)',col:'#0F766E',cy:'MA',sc:'national',cat:'humanitaire',score:64,url:'https://news.google.com/search?q=Maroc+humanitaire+crise&hl=fr&gl=MA',rss:'https://news.google.com/rss/search?q=Maroc+humanitaire+crise&hl=fr&gl=MA&ceid=MA:fr',rss_method:'Google News RSS'},
   {id:'ma_gn_rabat',n:'Rabat — Local (Google News)',col:'#6B7280',cy:'MA',sc:'local',cat:'securite',score:62,url:'https://news.google.com/search?q=Rabat+Maroc+securite&hl=fr&gl=MA',rss:'https://news.google.com/rss/search?q=Rabat+Maroc+securite&hl=fr&gl=MA&ceid=MA:fr',rss_method:'Google News RSS'},
+  {id:'mg_gn_general',n:'Madagascar — Actualités générales (Google News)',col:'#6B7280',cy:'MG',sc:'national',cat:'politique',score:58,url:'https://news.google.com/search?q=Madagascar&hl=fr&gl=MG',rss:'https://news.google.com/rss/search?q=Madagascar&hl=fr&gl=MG&ceid=MG:fr',rss_method:'Google News RSS',note:"Requete large (nom du pays seul, sans qualificatif securite/politique) ajoutee pour garantir un volume minimal d'actualites meme sur un pays a faible couverture mediatique."},
   {id:'mg_gn_secu',n:'Madagascar — Sécurité (Google News)',col:'#4B5563',cy:'MG',sc:'national',cat:'securite',score:68,url:'https://news.google.com/search?q=Madagascar+securite+actualite&hl=fr&gl=MG',rss:'https://news.google.com/rss/search?q=Madagascar+securite+actualite&hl=fr&gl=MG&ceid=MG:fr',rss_method:'Google News RSS'},
   {id:'mg_gn_pol',n:'Madagascar — Gouvernement (Google News)',col:'#4B5563',cy:'MG',sc:'national',cat:'politique',score:66,url:'https://news.google.com/search?q=Madagascar+gouvernement+conseil+des+ministres&hl=fr&gl=MG',rss:'https://news.google.com/rss/search?q=Madagascar+gouvernement+conseil+des+ministres&hl=fr&gl=MG&ceid=MG:fr',rss_method:'Google News RSS'},
   {id:'mg_gn_hum',n:'Madagascar — Humanitaire (Google News)',col:'#0F766E',cy:'MG',sc:'national',cat:'humanitaire',score:64,url:'https://news.google.com/search?q=Madagascar+humanitaire+crise&hl=fr&gl=MG',rss:'https://news.google.com/rss/search?q=Madagascar+humanitaire+crise&hl=fr&gl=MG&ceid=MG:fr',rss_method:'Google News RSS'},
@@ -3741,10 +3739,12 @@ const SRCS=[
   {id:'mr_gn_pol',n:'Mauritanie — Gouvernement (Google News)',col:'#4B5563',cy:'MR',sc:'national',cat:'politique',score:66,url:'https://news.google.com/search?q=Mauritanie+gouvernement+conseil+des+ministres&hl=fr&gl=MR',rss:'https://news.google.com/rss/search?q=Mauritanie+gouvernement+conseil+des+ministres&hl=fr&gl=MR&ceid=MR:fr',rss_method:'Google News RSS'},
   {id:'mr_gn_hum',n:'Mauritanie — Humanitaire (Google News)',col:'#0F766E',cy:'MR',sc:'national',cat:'humanitaire',score:64,url:'https://news.google.com/search?q=Mauritanie+humanitaire+crise&hl=fr&gl=MR',rss:'https://news.google.com/rss/search?q=Mauritanie+humanitaire+crise&hl=fr&gl=MR&ceid=MR:fr',rss_method:'Google News RSS'},
   {id:'mr_gn_nouakchott',n:'Nouakchott — Local (Google News)',col:'#6B7280',cy:'MR',sc:'local',cat:'securite',score:62,url:'https://news.google.com/search?q=Nouakchott+Mauritanie+securite&hl=fr&gl=MR',rss:'https://news.google.com/rss/search?q=Nouakchott+Mauritanie+securite&hl=fr&gl=MR&ceid=MR:fr',rss_method:'Google News RSS'},
+  {id:'mu_gn_general',n:'Maurice — Actualités générales (Google News)',col:'#6B7280',cy:'MU',sc:'national',cat:'politique',score:58,url:'https://news.google.com/search?q=Maurice&hl=en&gl=MU',rss:'https://news.google.com/rss/search?q=Maurice&hl=en&gl=MU&ceid=MU:en',rss_method:'Google News RSS',note:"Requete large (nom du pays seul, sans qualificatif securite/politique) ajoutee pour garantir un volume minimal d'actualites meme sur un pays a faible couverture mediatique."},
   {id:'mu_gn_secu',n:'Maurice — Sécurité (Google News)',col:'#4B5563',cy:'MU',sc:'national',cat:'securite',score:68,url:'https://news.google.com/search?q=Maurice+security+news&hl=en&gl=MU',rss:'https://news.google.com/rss/search?q=Maurice+security+news&hl=en&gl=MU&ceid=MU:en',rss_method:'Google News RSS'},
   {id:'mu_gn_pol',n:'Maurice — Gouvernement (Google News)',col:'#4B5563',cy:'MU',sc:'national',cat:'politique',score:66,url:'https://news.google.com/search?q=Maurice+government+politics&hl=en&gl=MU',rss:'https://news.google.com/rss/search?q=Maurice+government+politics&hl=en&gl=MU&ceid=MU:en',rss_method:'Google News RSS'},
   {id:'mu_gn_hum',n:'Maurice — Humanitaire (Google News)',col:'#0F766E',cy:'MU',sc:'national',cat:'humanitaire',score:64,url:'https://news.google.com/search?q=Maurice+humanitarian+crisis&hl=en&gl=MU',rss:'https://news.google.com/rss/search?q=Maurice+humanitarian+crisis&hl=en&gl=MU&ceid=MU:en',rss_method:'Google News RSS'},
   {id:'mu_gn_portlouis',n:'Port-Louis — Local (Google News)',col:'#6B7280',cy:'MU',sc:'local',cat:'securite',score:62,url:'https://news.google.com/search?q=Port-Louis+Maurice+security&hl=en&gl=MU',rss:'https://news.google.com/rss/search?q=Port-Louis+Maurice+security&hl=en&gl=MU&ceid=MU:en',rss_method:'Google News RSS'},
+  {id:'mw_gn_general',n:'Malawi — Actualités générales (Google News)',col:'#6B7280',cy:'MW',sc:'national',cat:'politique',score:58,url:'https://news.google.com/search?q=Malawi&hl=en&gl=MW',rss:'https://news.google.com/rss/search?q=Malawi&hl=en&gl=MW&ceid=MW:en',rss_method:'Google News RSS',note:"Requete large (nom du pays seul, sans qualificatif securite/politique) ajoutee pour garantir un volume minimal d'actualites meme sur un pays a faible couverture mediatique."},
   {id:'mw_gn_secu',n:'Malawi — Sécurité (Google News)',col:'#4B5563',cy:'MW',sc:'national',cat:'securite',score:68,url:'https://news.google.com/search?q=Malawi+security+news&hl=en&gl=MW',rss:'https://news.google.com/rss/search?q=Malawi+security+news&hl=en&gl=MW&ceid=MW:en',rss_method:'Google News RSS'},
   {id:'mw_gn_pol',n:'Malawi — Gouvernement (Google News)',col:'#4B5563',cy:'MW',sc:'national',cat:'politique',score:66,url:'https://news.google.com/search?q=Malawi+government+politics&hl=en&gl=MW',rss:'https://news.google.com/rss/search?q=Malawi+government+politics&hl=en&gl=MW&ceid=MW:en',rss_method:'Google News RSS'},
   {id:'mw_gn_hum',n:'Malawi — Humanitaire (Google News)',col:'#0F766E',cy:'MW',sc:'national',cat:'humanitaire',score:64,url:'https://news.google.com/search?q=Malawi+humanitarian+crisis&hl=en&gl=MW',rss:'https://news.google.com/rss/search?q=Malawi+humanitarian+crisis&hl=en&gl=MW&ceid=MW:en',rss_method:'Google News RSS'},
@@ -3768,6 +3768,7 @@ const SRCS=[
   {id:'rw_gn_pol',n:'Rwanda — Gouvernement (Google News)',col:'#4B5563',cy:'RW',sc:'national',cat:'politique',score:66,url:'https://news.google.com/search?q=Rwanda+government+politics&hl=en&gl=RW',rss:'https://news.google.com/rss/search?q=Rwanda+government+politics&hl=en&gl=RW&ceid=RW:en',rss_method:'Google News RSS'},
   {id:'rw_gn_hum',n:'Rwanda — Humanitaire (Google News)',col:'#0F766E',cy:'RW',sc:'national',cat:'humanitaire',score:64,url:'https://news.google.com/search?q=Rwanda+humanitarian+crisis&hl=en&gl=RW',rss:'https://news.google.com/rss/search?q=Rwanda+humanitarian+crisis&hl=en&gl=RW&ceid=RW:en',rss_method:'Google News RSS'},
   {id:'rw_gn_kigali',n:'Kigali — Local (Google News)',col:'#6B7280',cy:'RW',sc:'local',cat:'securite',score:62,url:'https://news.google.com/search?q=Kigali+Rwanda+security&hl=en&gl=RW',rss:'https://news.google.com/rss/search?q=Kigali+Rwanda+security&hl=en&gl=RW&ceid=RW:en',rss_method:'Google News RSS'},
+  {id:'sc_gn_general',n:'Seychelles — Actualités générales (Google News)',col:'#6B7280',cy:'SC',sc:'national',cat:'politique',score:58,url:'https://news.google.com/search?q=Seychelles&hl=fr&gl=SC',rss:'https://news.google.com/rss/search?q=Seychelles&hl=fr&gl=SC&ceid=SC:fr',rss_method:'Google News RSS',note:"Requete large (nom du pays seul, sans qualificatif securite/politique) ajoutee pour garantir un volume minimal d'actualites meme sur un pays a faible couverture mediatique."},
   {id:'sc_gn_secu',n:'Seychelles — Sécurité (Google News)',col:'#4B5563',cy:'SC',sc:'national',cat:'securite',score:68,url:'https://news.google.com/search?q=Seychelles+securite+actualite&hl=fr&gl=SC',rss:'https://news.google.com/rss/search?q=Seychelles+securite+actualite&hl=fr&gl=SC&ceid=SC:fr',rss_method:'Google News RSS'},
   {id:'sc_gn_pol',n:'Seychelles — Gouvernement (Google News)',col:'#4B5563',cy:'SC',sc:'national',cat:'politique',score:66,url:'https://news.google.com/search?q=Seychelles+gouvernement+conseil+des+ministres&hl=fr&gl=SC',rss:'https://news.google.com/rss/search?q=Seychelles+gouvernement+conseil+des+ministres&hl=fr&gl=SC&ceid=SC:fr',rss_method:'Google News RSS'},
   {id:'sc_gn_hum',n:'Seychelles — Humanitaire (Google News)',col:'#0F766E',cy:'SC',sc:'national',cat:'humanitaire',score:64,url:'https://news.google.com/search?q=Seychelles+humanitaire+crise&hl=fr&gl=SC',rss:'https://news.google.com/rss/search?q=Seychelles+humanitaire+crise&hl=fr&gl=SC&ceid=SC:fr',rss_method:'Google News RSS'},
@@ -3781,6 +3782,7 @@ const SRCS=[
   {id:'sl_gn_pol',n:'Sierra Leone — Gouvernement (Google News)',col:'#4B5563',cy:'SL',sc:'national',cat:'politique',score:66,url:'https://news.google.com/search?q=Sierra+Leone+government+politics&hl=en&gl=SL',rss:'https://news.google.com/rss/search?q=Sierra+Leone+government+politics&hl=en&gl=SL&ceid=SL:en',rss_method:'Google News RSS'},
   {id:'sl_gn_hum',n:'Sierra Leone — Humanitaire (Google News)',col:'#0F766E',cy:'SL',sc:'national',cat:'humanitaire',score:64,url:'https://news.google.com/search?q=Sierra+Leone+humanitarian+crisis&hl=en&gl=SL',rss:'https://news.google.com/rss/search?q=Sierra+Leone+humanitarian+crisis&hl=en&gl=SL&ceid=SL:en',rss_method:'Google News RSS'},
   {id:'sl_gn_freetown',n:'Freetown — Local (Google News)',col:'#6B7280',cy:'SL',sc:'local',cat:'securite',score:62,url:'https://news.google.com/search?q=Freetown+Sierra+Leone+security&hl=en&gl=SL',rss:'https://news.google.com/rss/search?q=Freetown+Sierra+Leone+security&hl=en&gl=SL&ceid=SL:en',rss_method:'Google News RSS'},
+  {id:'so_gn_general',n:'Somalie — Actualités générales (Google News)',col:'#6B7280',cy:'SO',sc:'national',cat:'politique',score:58,url:'https://news.google.com/search?q=Somalie&hl=en&gl=SO',rss:'https://news.google.com/rss/search?q=Somalie&hl=en&gl=SO&ceid=SO:en',rss_method:'Google News RSS',note:"Requete large (nom du pays seul, sans qualificatif securite/politique) ajoutee pour garantir un volume minimal d'actualites meme sur un pays a faible couverture mediatique."},
   {id:'so_gn_secu',n:'Somalie — Sécurité (Google News)',col:'#4B5563',cy:'SO',sc:'national',cat:'securite',score:68,url:'https://news.google.com/search?q=Somalie+security+news&hl=en&gl=SO',rss:'https://news.google.com/rss/search?q=Somalie+security+news&hl=en&gl=SO&ceid=SO:en',rss_method:'Google News RSS'},
   {id:'so_gn_pol',n:'Somalie — Gouvernement (Google News)',col:'#4B5563',cy:'SO',sc:'national',cat:'politique',score:66,url:'https://news.google.com/search?q=Somalie+government+politics&hl=en&gl=SO',rss:'https://news.google.com/rss/search?q=Somalie+government+politics&hl=en&gl=SO&ceid=SO:en',rss_method:'Google News RSS'},
   {id:'so_gn_hum',n:'Somalie — Humanitaire (Google News)',col:'#0F766E',cy:'SO',sc:'national',cat:'humanitaire',score:64,url:'https://news.google.com/search?q=Somalie+humanitarian+crisis&hl=en&gl=SO',rss:'https://news.google.com/rss/search?q=Somalie+humanitarian+crisis&hl=en&gl=SO&ceid=SO:en',rss_method:'Google News RSS'},
@@ -3789,10 +3791,12 @@ const SRCS=[
   {id:'ss_gn_pol',n:'Soudan du Sud — Gouvernement (Google News)',col:'#4B5563',cy:'SS',sc:'national',cat:'politique',score:66,url:'https://news.google.com/search?q=Soudan+du+Sud+government+politics&hl=en&gl=SS',rss:'https://news.google.com/rss/search?q=Soudan+du+Sud+government+politics&hl=en&gl=SS&ceid=SS:en',rss_method:'Google News RSS'},
   {id:'ss_gn_hum',n:'Soudan du Sud — Humanitaire (Google News)',col:'#0F766E',cy:'SS',sc:'national',cat:'humanitaire',score:64,url:'https://news.google.com/search?q=Soudan+du+Sud+humanitarian+crisis&hl=en&gl=SS',rss:'https://news.google.com/rss/search?q=Soudan+du+Sud+humanitarian+crisis&hl=en&gl=SS&ceid=SS:en',rss_method:'Google News RSS'},
   {id:'ss_gn_djouba',n:'Djouba — Local (Google News)',col:'#6B7280',cy:'SS',sc:'local',cat:'securite',score:62,url:'https://news.google.com/search?q=Djouba+Soudan+du+Sud+security&hl=en&gl=SS',rss:'https://news.google.com/rss/search?q=Djouba+Soudan+du+Sud+security&hl=en&gl=SS&ceid=SS:en',rss_method:'Google News RSS'},
+  {id:'st_gn_general',n:'Sao Tomé-et-Principe — Actualités générales (Google News)',col:'#6B7280',cy:'ST',sc:'national',cat:'politique',score:58,url:'https://news.google.com/search?q=Sao+Tom%C3%A9-et-Principe&hl=pt&gl=ST',rss:'https://news.google.com/rss/search?q=Sao+Tom%C3%A9-et-Principe&hl=pt&gl=ST&ceid=ST:pt',rss_method:'Google News RSS',note:"Requete large (nom du pays seul, sans qualificatif securite/politique) ajoutee pour garantir un volume minimal d'actualites meme sur un pays a faible couverture mediatique."},
   {id:'st_gn_secu',n:'Sao Tomé-et-Principe — Sécurité (Google News)',col:'#4B5563',cy:'ST',sc:'national',cat:'securite',score:68,url:'https://news.google.com/search?q=Sao+Tom%C3%A9-et-Principe+seguranca+noticias&hl=pt&gl=ST',rss:'https://news.google.com/rss/search?q=Sao+Tom%C3%A9-et-Principe+seguranca+noticias&hl=pt&gl=ST&ceid=ST:pt',rss_method:'Google News RSS'},
   {id:'st_gn_pol',n:'Sao Tomé-et-Principe — Gouvernement (Google News)',col:'#4B5563',cy:'ST',sc:'national',cat:'politique',score:66,url:'https://news.google.com/search?q=Sao+Tom%C3%A9-et-Principe+governo+politica&hl=pt&gl=ST',rss:'https://news.google.com/rss/search?q=Sao+Tom%C3%A9-et-Principe+governo+politica&hl=pt&gl=ST&ceid=ST:pt',rss_method:'Google News RSS'},
   {id:'st_gn_hum',n:'Sao Tomé-et-Principe — Humanitaire (Google News)',col:'#0F766E',cy:'ST',sc:'national',cat:'humanitaire',score:64,url:'https://news.google.com/search?q=Sao+Tom%C3%A9-et-Principe+crise+humanitaria&hl=pt&gl=ST',rss:'https://news.google.com/rss/search?q=Sao+Tom%C3%A9-et-Principe+crise+humanitaria&hl=pt&gl=ST&ceid=ST:pt',rss_method:'Google News RSS'},
   {id:'st_gn_sotom',n:'São Tomé — Local (Google News)',col:'#6B7280',cy:'ST',sc:'local',cat:'securite',score:62,url:'https://news.google.com/search?q=S%C3%A3o+Tom%C3%A9+Sao+Tom%C3%A9-et-Principe+seguranca&hl=pt&gl=ST',rss:'https://news.google.com/rss/search?q=S%C3%A3o+Tom%C3%A9+Sao+Tom%C3%A9-et-Principe+seguranca&hl=pt&gl=ST&ceid=ST:pt',rss_method:'Google News RSS'},
+  {id:'sz_gn_general',n:'Eswatini — Actualités générales (Google News)',col:'#6B7280',cy:'SZ',sc:'national',cat:'politique',score:58,url:'https://news.google.com/search?q=Eswatini&hl=en&gl=SZ',rss:'https://news.google.com/rss/search?q=Eswatini&hl=en&gl=SZ&ceid=SZ:en',rss_method:'Google News RSS',note:"Requete large (nom du pays seul, sans qualificatif securite/politique) ajoutee pour garantir un volume minimal d'actualites meme sur un pays a faible couverture mediatique."},
   {id:'sz_gn_secu',n:'Eswatini — Sécurité (Google News)',col:'#4B5563',cy:'SZ',sc:'national',cat:'securite',score:68,url:'https://news.google.com/search?q=Eswatini+security+news&hl=en&gl=SZ',rss:'https://news.google.com/rss/search?q=Eswatini+security+news&hl=en&gl=SZ&ceid=SZ:en',rss_method:'Google News RSS'},
   {id:'sz_gn_pol',n:'Eswatini — Gouvernement (Google News)',col:'#4B5563',cy:'SZ',sc:'national',cat:'politique',score:66,url:'https://news.google.com/search?q=Eswatini+government+politics&hl=en&gl=SZ',rss:'https://news.google.com/rss/search?q=Eswatini+government+politics&hl=en&gl=SZ&ceid=SZ:en',rss_method:'Google News RSS'},
   {id:'sz_gn_hum',n:'Eswatini — Humanitaire (Google News)',col:'#0F766E',cy:'SZ',sc:'national',cat:'humanitaire',score:64,url:'https://news.google.com/search?q=Eswatini+humanitarian+crisis&hl=en&gl=SZ',rss:'https://news.google.com/rss/search?q=Eswatini+humanitarian+crisis&hl=en&gl=SZ&ceid=SZ:en',rss_method:'Google News RSS'},
@@ -5614,27 +5618,50 @@ function detectPaysFromText(titre, contenu, srcCy) {
 // le Flux. Une seule forme (accentuee) suffit par mot-cle : typeEvenementDetecte()
 // normalise les accents des deux cotes de la comparaison (voir plus bas).
 const EVENT_PLANIFIE_KW = {
-  colloque:      ['colloque'],
-  seminaire:     ['séminaire', 'atelier de formation', 'workshop'],
-  concert:       ['concert', 'spectacle musical'],
-  festival:      ['festival'],
+  colloque:      ['colloque', 'symposium', "table ronde"],
+  seminaire:     ['séminaire', 'atelier de formation', 'atelier de', 'workshop', 'formation des'],
+  concert:       ['concert', 'spectacle musical', 'soirée musicale', 'showcase'],
+  festival:      ['festival', 'biennale'],
+  foire:         ['foire', 'salon international', 'salon régional', 'salon de', 'salon des',
+                  'exposition commerciale', "exposition d'art", 'exposition de', 'expo-vente',
+                  'journées commerciales'],
   gouvernemental:['conseil des ministres', 'conseil de ministres', 'réunion du sénat',
                   'séance plénière', 'conseil économique et social', 'cese',
                   'assemblée nationale', 'assemblée générale', 'réunion plénière',
-                  'sommet', 'conférence', 'congrès', 'forum', 'salon'],
+                  'sommet', 'conférence', 'congrès', 'forum'],
+  // Manifestations, marches de protestation, greves, mobilisations sociales :
+  // demande explicite de l'utilisateur (module Agenda "vide de sens" faute
+  // de detecter ces evenements). Reste distinct de CK_HIGH (classify()) qui
+  // scanne les memes mots pour la severite Flux/Alertes — voir getFiltered()
+  // qui garde ces articles visibles en Flux ET en Agenda (contrairement aux
+  // autres types agenda, purement calendaires, retires du Flux).
+  manifestation: ['manifestation', 'manifestants', "marche de protestation", 'marche pacifique',
+                  'appel à manifester', "appel à la grève", 'grève générale', 'grève des',
+                  'mouvement de grève', 'sit-in', 'mobilisation sociale', 'mobilisation syndicale',
+                  'rassemblement de protestation', 'cortège de protestation', 'défilé de protestation',
+                  'mouvement de contestation', 'contestation sociale', 'marche de contestation',
+                  'appel à la mobilisation', 'préavis de grève', 'journée de mobilisation',
+                  'marche des mécontents', 'sifflets et pancartes'],
   // Grands travaux perturbant significativement les deplacements (routes,
   // ponts, aeroports, frontieres...) — objectif explicite de l'agent de
   // collecte Agenda : un responsable surete doit voir ces perturbations
   // logistiques au meme titre que les evenements institutionnels, meme
   // quand aucun mot-cle de securite classique (CK_CRIT/CK_HIGH) n'apparait.
+  // Liste elargie aux formulations courantes de la presse (pas seulement
+  // les tournures administratives), sinon quasiment aucun article ne
+  // matchait jamais en pratique.
   travaux:       ['travaux routiers', "travaux d'infrastructure", 'travaux de réhabilitation',
-                  'travaux de voirie', 'fermeture de route', 'fermeture de pont', 'route barrée',
+                  'travaux de voirie', 'travaux de construction', 'grands travaux', 'chantier de',
+                  'lancement des travaux', 'démarrage des travaux', 'début des travaux',
+                  'fermeture de route', 'fermeture de pont', 'route barrée', 'axe fermé', 'voie fermée',
                   'route fermée', 'pont fermé', 'déviation de circulation', 'chantier routier',
                   'construction du pont', 'réhabilitation de la route', 'réfection de la route',
                   'fermeture temporaire de la route', "fermeture de l'aéroport", 'aéroport fermé',
                   'fermeture de la frontière', 'frontière fermée', 'élargissement de la route',
                   'coupure de circulation', 'circulation perturbée', 'circulation interrompue',
-                  'route impraticable', 'pont impraticable', 'bac hors service', 'traversier hors service'],
+                  'route impraticable', 'pont impraticable', 'bac hors service', 'traversier hors service',
+                  'chaussée endommagée', 'pont effondré', 'glissement de terrain', 'route coupée',
+                  'route inondée', 'axe routier bloqué', 'bouchon monstre', 'embouteillage géant'],
 };
 
 // estEvenementPlanifie(texte) : vrai si le texte correspond a un evenement
@@ -5674,10 +5701,13 @@ const STATUT_A_VENIR_KW = ['prevu', 'prevue', 'prevus', 'prevues', 'aura lieu', 
   'commencera', 'prochain', 'prochaine', 'des le'];
 
 // Fenetre d'affichage de l'Agenda : plus longue que celle du Flux (12h) —
-// un evenement (grands travaux, sommet...) reste pertinent pour un
-// responsable surete plusieurs jours apres sa detection, le temps que la
-// perturbation se resorbe reellement sur le terrain. Cf. estAgendaRecent().
-const AGENDA_MAX_AGE = 72*60*60*1000;
+// un evenement (grands travaux, sommet, manifestation...) reste pertinent
+// pour un responsable surete plusieurs jours apres sa detection, le temps
+// que la perturbation se resorbe reellement sur le terrain. Portee a 7
+// jours (etait 72h) : avec le volume d'articles reellement detectes comme
+// evenements planifies, une fenetre de 3 jours ne laissait quasiment rien
+// s'accumuler et donnait une impression de module vide. Cf. estAgendaRecent().
+const AGENDA_MAX_AGE = 7*24*60*60*1000;
 function estAgendaRecent(a) {
   return !!a.pubDate && (Date.now() - a.pubDate) < AGENDA_MAX_AGE;
 }
@@ -5710,6 +5740,11 @@ function recoAgendaAuto(agendaType) {
       ? 'Anticipate travel — plan an alternative route and factor delays into field visits.'
       : 'Anticiper les déplacements — prévoir un itinéraire alternatif et intégrer les délais dans les visites de terrain.';
   }
+  if (agendaType === 'manifestation') {
+    return LANG === 'en'
+      ? 'Avoid the announced gathering point and axis — monitor for escalation before any movement in the area.'
+      : "Éviter le point de rassemblement et l'axe annoncé — surveiller une éventuelle escalade avant tout déplacement dans la zone.";
+  }
   return '';
 }
 
@@ -5720,20 +5755,53 @@ function articleVersAgenda(a) {
   const MOIS_ABBR = ['Jan','Fev','Mar','Avr','Mai','Jun','Jul','Aou','Sep','Oct','Nov','Dec'];
   const d = new Date(a.pubDate || Date.now());
   const texteComplet = a.title+' '+(a.analysis||'');
-  // Travaux de grande envergure perturbant les deplacements : impact au
-  // moins "moyen" meme quand le texte ne contient aucun mot-cle de securite
-  // classique (CK_CRIT/CK_HIGH), qui laisserait sinon a.level a 'mod' par
-  // defaut et l'impact retomberait a tort a "faible".
-  const impactTravaux = a._agendaType === 'travaux' ? 'moyen' : null;
+  // Travaux et manifestations perturbant significativement les deplacements
+  // ou l'ordre public : impact au moins "moyen" meme quand le texte ne
+  // contient aucun mot-cle de securite classique (CK_CRIT/CK_HIGH), qui
+  // laisserait sinon a.level a 'mod' par defaut et l'impact retomberait a
+  // tort a "faible".
+  const impactPlancher = (a._agendaType === 'travaux' || a._agendaType === 'manifestation') ? 'moyen' : null;
   return {
     day: String(d.getDate()).padStart(2,'0'), month: MOIS_ABBR[d.getMonth()], year: String(d.getFullYear()),
     hour: d.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}),
     title: a.title, desc: extraitLoyal(a.analysis, 220),
     status: detecterStatutAgenda(texteComplet, a.level, a.pubDate),
     type: a._agendaType || 'securite', cy: a.cy,
-    impact: impactTravaux || (a.level==='crit'?'haut':a.level==='high'?'moyen':'faible'),
-    surl: a.url, src: srcName(a.primary), reco: recoAgendaAuto(a._agendaType), _detecteAuto: true,
+    impact: impactPlancher || (a.level==='crit'?'haut':a.level==='high'?'moyen':'faible'),
+    surl: a.url, src: srcName(a.primary), reco: recoAgendaAuto(a._agendaType), _detecteAuto: true, _ts: a.pubDate || Date.now(),
   };
+}
+
+// _agendaTs(e)/_agendaSortKey(e) : l'Agenda etait affiche dans l'ordre brut
+// du tableau AGENDA (donc une vieille echeance de fevrier restait toujours
+// en tete) avec les evenements detectes en direct simplement ajoutes a la
+// fin, invisibles sans defiler toute la liste. Tri desormais applique :
+// urgent > en cours > (detecte automatiquement, le plus recent d'abord) >
+// planifie/surveillance (le plus proche dans le temps d'abord) > echeances
+// deja passees, reléguees en fin de liste.
+const MOIS_IDX = {Jan:0,Fev:1,Mar:2,Avr:3,Mai:4,Jun:5,Jul:6,Aou:7,Sep:8,Oct:9,Nov:10,Dec:11};
+function _agendaTs(e) {
+  if (typeof e._ts === 'number') return e._ts;
+  const y = parseInt(e.year || '2026', 10);
+  const mIdx = MOIS_IDX[e.month] != null ? MOIS_IDX[e.month] : 0;
+  const d = parseInt(e.day || '1', 10);
+  return Date.UTC(y, mIdx, d);
+}
+function _agendaSortKey(e) {
+  const ts = _agendaTs(e);
+  if (e._detecteAuto) return Math.abs(Date.now() - ts); // detecte : le plus recent d'abord
+  const delta = ts - Date.now();
+  return delta >= 0 ? delta : (Math.abs(delta) + 1e13); // echeance passee : forte penalite, en fin de liste
+}
+function trierAgenda(liste) {
+  const STATUT_PRIORITE = {urgent:0,'en-cours':1,planifie:2,surveillance:2,acheve:3};
+  return [...liste].sort((a,b) => {
+    const sa = STATUT_PRIORITE[a.status] != null ? STATUT_PRIORITE[a.status] : 2;
+    const sb = STATUT_PRIORITE[b.status] != null ? STATUT_PRIORITE[b.status] : 2;
+    if (sa !== sb) return sa - sb;
+    if (!!a._detecteAuto !== !!b._detecteAuto) return a._detecteAuto ? -1 : 1;
+    return _agendaSortKey(a) - _agendaSortKey(b);
+  });
 }
 
 // normaliserAccents(t) : retire les diacritiques (é->e, è->e, ô->o...) pour
@@ -8788,8 +8856,12 @@ function getFiltered() {
     ? antiHalluFilter([...ALL], MAX_AGE)
     : [...ALL].filter(x=>estRecentReel(x));
   // Les evenements planifies (colloque, seminaire, concert, conseil des
-  // ministres, senat, CESE...) sont achemines vers le module Agenda, pas le Flux.
-  a = a.filter(x => !x._estAgenda);
+  // ministres, senat, CESE...) sont achemines vers le module Agenda, pas le
+  // Flux. Exception : les manifestations/greves restent aussi visibles en
+  // Flux (contrairement aux autres types, purement calendaires, ce sont de
+  // vraies actualites securitaires, deja prises en compte dans le score
+  // d'alerte du pays).
+  a = a.filter(x => !x._estAgenda || x._agendaType === 'manifestation');
   const q=document.getElementById('artQ').value.toLowerCase();
   if(q) a=a.filter(x=>x.title.toLowerCase().includes(q)||x.analysis.toLowerCase().includes(q));
   if(fCat==='crit') a=a.filter(x=>x.level==='crit');
@@ -10186,6 +10258,7 @@ async function renderAgenda() {
     .map(a => articleVersAgenda(a));
 
   let filt = fAg==='all' ? [...AGENDA, ...detectes] : [...AGENDA, ...detectes].filter(e=>e.status===fAg);
+  filt = trierAgenda(filt);
   let libelleZone = 'Toutes zones';
 
   if (fAgCy !== 'all') {
@@ -10207,17 +10280,18 @@ async function renderAgenda() {
   const IC={'haut':'ih','moyen':'im','faible':'if'};
   const TYP={gouvernemental:['🏛️','Gouvernemental','#1D9A6C'],seminaire:['📋','Seminaire','#4B5563'],
     colloque:['🎓','Colloque','#4B5563'],sportif:['🏅','Sportif','#0F766E'],concert:['🎵','Concert','#7C3AED'],
-    festival:['🎭','Festival','#7C3AED'],securite:['🛡️','Securite','#8B1A1A'],humanitaire:['🤝','Humanitaire','#7C4A00'],
+    festival:['🎭','Festival','#7C3AED'],foire:['🎪','Foire / Salon','#7C3AED'],securite:['🛡️','Securite','#8B1A1A'],humanitaire:['🤝','Humanitaire','#7C4A00'],
     politique:['🗳️','Politique','#1D9A6C'],economique:['📊','Economique','#0F4F2A'],sanitaire:['⚕️','Sanitaire','#0E7490'],
-    travaux:['🚧','Travaux','#B45309']};
+    travaux:['🚧','Travaux','#B45309'],manifestation:['📢','Manifestation','#8B1A1A']};
   if(!filt.length){document.getElementById('agTl').innerHTML='<div class="empty"><i class="ti ti-calendar-off"></i><p>Aucun evenement pour ce filtre</p></div>';return;}
   await preTraduireRapport(filt.flatMap(e => [e.title, e.desc, e.reco]));
   const agHtml = filt.map((e,i)=>{
     const sl=SL[e.status]||SL.planifie;
     const typ = TYP[e.type||'securite']||TYP.securite;
     const typBadge = '<span style="font-size:8px;font-weight:700;padding:1px 6px;border-radius:3px;margin-left:5px;color:'+typ[2]+';background:'+typ[2]+'1A;border:1px solid '+typ[2]+'44;">'+typ[0]+' '+typ[1]+'</span>';
-    const fresh=(e.year==='2026'&&e.month==='Jun'&&parseInt(e.day)>=28);
-    const freshTag=fresh?'<span style="font-size:8px;font-weight:700;color:#fff;background:#15803D;padding:1px 6px;border-radius:3px;margin-left:6px;">−18H</span>':'';
+    const ageHFresh = e._detecteAuto ? (Date.now() - _agendaTs(e)) / 3600000 : Infinity;
+    const fresh = ageHFresh < 24;
+    const freshTag=fresh?'<span style="font-size:8px;font-weight:700;color:#fff;background:#15803D;padding:1px 6px;border-radius:3px;margin-left:6px;">−'+Math.max(1,Math.round(ageHFresh))+'H</span>':'';
     const autoTag=e._detecteAuto?'<span style="font-size:8px;font-weight:700;color:#1D9A6C;background:#EFF6FF;border:1px solid #BFDBFE;padding:1px 6px;border-radius:3px;margin-left:6px;" title="Detecte automatiquement depuis les flux RSS"><i class="ti ti-robot" style="font-size:9px;"></i> Auto</span>':'';
     const evId = e.id || ('agidx-'+i);
     const ttId = 'evtt-'+evId, dcId = 'evdc-'+evId, rcId = 'evrc-'+evId;
