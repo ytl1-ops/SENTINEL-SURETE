@@ -7080,7 +7080,19 @@ async function doCollect() {
       reconcilierDatesPremiereVue(fresh);
       const mapPartial={}; ALL.forEach(a=>mapPartial[a.id]=a); Object.assign(mapPartial, fresh);
       const partial = Object.values(mapPartial).filter(a=>estRecentReel(a));
-      if (partial.length > ALL.length) { ALL = partial; renderFeed(); updStats(); }
+      if (partial.length > ALL.length) {
+        ALL = partial; renderFeed(); updStats();
+        // Auparavant, seul le Flux se rafraichissait pendant la collecte (ici)
+        // — Alertes/Tableau de bord/Agenda/Synthese restaient figes sur l'etat
+        // d'AVANT le cycle jusqu'a la toute fin (~495 sources), donnant
+        // l'impression trompeuse qu'une actu deja visible dans le Flux
+        // "n'existe pas encore" dans les autres modules. Meme cadence de
+        // rafraichissement desormais appliquee partout, pas seulement au Flux.
+        if (typeof recalcAlertes === 'function') recalcAlertes({ silencieux:true });
+        if (typeof renderDashboard === 'function' && document.getElementById('dashContent')) renderDashboard();
+        if (typeof renderAgenda === 'function' && document.getElementById('v-agenda')?.classList.contains('on')) renderAgenda();
+        if (typeof updSynthese === 'function') updSynthese();
+      }
     }
   }
 
