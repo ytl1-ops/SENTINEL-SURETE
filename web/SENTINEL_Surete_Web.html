@@ -7480,8 +7480,26 @@ function saveEmailGroupes(list) {
 //  toujours "SENTINEL SÛRETÉ" par defaut, sans configuration possible.
 // ═══════════════════════════════════════════════════════════════════════════
 const MARQUE_PERSO_KEY = 'sentinel_marque_perso';
+// _marquePersoDefautInstitutions() : 3 identites d'envoi pre-remplies pour
+// un compte jamais encore personnalise (demande explicite — "insere 3
+// identites d'envoi pour les institutions") — des libelles institutionnels
+// neutres, applicables a n'importe quelle structure gouvernementale,
+// librement modifiables et enregistrables depuis Parametres >
+// Personnalisation de marque. Des qu'un enregistrement reel existe (meme
+// partiel), getMarquePerso() renvoie ce qui a ete effectivement enregistre
+// — ce repli ne s'applique jamais par-dessus une configuration existante,
+// meme incomplete (voir getMarquePerso ci-dessous).
+function _marquePersoDefautInstitutions() {
+  return LANG === 'en'
+    ? { identite1: 'Security Directorate', identite2: 'Security Monitoring Cell', identite3: 'Intelligence Service', identiteActive: 1 }
+    : { identite1: 'Direction de la Sûreté', identite2: 'Cellule de Veille Sécuritaire', identite3: 'Service de Renseignement', identiteActive: 1 };
+}
 function getMarquePerso() {
-  try { return JSON.parse(localStorage.getItem(MARQUE_PERSO_KEY) || 'null') || {}; } catch (e) { return {}; }
+  try {
+    const brut = localStorage.getItem(MARQUE_PERSO_KEY);
+    if (brut === null) return _marquePersoDefautInstitutions();
+    return JSON.parse(brut) || {};
+  } catch (e) { return {}; }
 }
 function saveMarquePerso(m) {
   try { localStorage.setItem(MARQUE_PERSO_KEY, JSON.stringify(m)); } catch (e) {}
