@@ -13766,7 +13766,7 @@ async function ouvrirVuePays(cy) {
         ${section('Agenda', 'ti-calendar-event', evenementsAgenda.length, htmlAgenda)}
         ${section('Zones a risque cartographiees', 'ti-map-2', zones.length, htmlZones)}
         <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap;">
-          <button onclick="document.getElementById('vuePaysOverlay').remove();goToAlerteIncident('${cy}')" style="flex:1;min-width:160px;padding:9px;background:var(--b);border:none;border-radius:6px;color:#fff;font-size:11px;font-weight:700;cursor:pointer;">
+          <button onclick="document.getElementById('vuePaysOverlay').remove();afficherAlerteCartePleinEcran('${cy}')" style="flex:1;min-width:160px;padding:9px;background:var(--b);border:none;border-radius:6px;color:#fff;font-size:11px;font-weight:700;cursor:pointer;">
             <i class="ti ti-shield-exclamation"></i> Detail complet Alertes
           </button>
           <button onclick="document.getElementById('vuePaysOverlay').remove();setSyntheseCy('${cy}');switchView('analyse',document.querySelector('.ntab[data-view=analyse]'))" style="flex:1;min-width:160px;padding:9px;background:var(--sf);border:1px solid var(--bd);border-radius:6px;color:var(--t);font-size:11px;font-weight:700;cursor:pointer;">
@@ -13821,6 +13821,38 @@ function goToAlerteIncident(cy) {
     card.style.boxShadow = '0 0 0 4px rgba(156,163,175,.55), 0 4px 16px rgba(0,0,0,.15)';
     setTimeout(() => { card.style.boxShadow = '0 1px 3px rgba(0,0,0,.06)'; card.style.transition = originalTransition; }, 2200);
   }, 220);
+}
+
+// afficherAlerteCartePleinEcran(cy) : presente la fiche d'alerte d'UN pays
+// SEULE, en grand, sur toute la page — demande explicite depuis le bouton
+// "Detail complet Alertes" de la vue consolidee pays (au lieu de basculer
+// vers l'onglet Alertes et scroller dans la grille complete, ce qui noyait
+// la fiche au milieu des 54 autres). Echap referme et revient a l'etat
+// precedent (voir _fermerAlertePleinEcranEscape).
+async function afficherAlerteCartePleinEcran(cy) {
+  const score = (typeof calcAlertScore === 'function') ? calcAlertScore(cy) : null;
+  if (!score) return;
+  let overlay = document.getElementById('alertePleinEcranOverlay');
+  if (overlay) overlay.remove();
+  overlay = document.createElement('div');
+  overlay.id = 'alertePleinEcranOverlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(11,26,39,.88);z-index:100000;display:flex;flex-direction:column;align-items:center;padding:26px 16px;overflow-y:auto;';
+  overlay.innerHTML =
+    '<div style="width:100%;max-width:900px;margin:0 auto 14px;display:flex;justify-content:flex-end;">' +
+      '<span onclick="fermerAlertePleinEcran()" style="cursor:pointer;color:#fff;font-size:26px;line-height:1;padding:4px 10px;" title="Fermer (Echap)">&times;</span>' +
+    '</div>' +
+    '<div id="aplecranCarte" style="width:100%;max-width:720px;margin:0 auto;transform:scale(1.28);transform-origin:top center;padding-bottom:140px;"></div>';
+  document.body.appendChild(overlay);
+  document.getElementById('aplecranCarte').innerHTML = await renderAlertCard(score);
+  document.addEventListener('keydown', _fermerAlertePleinEcranEscape);
+}
+function fermerAlertePleinEcran() {
+  const overlay = document.getElementById('alertePleinEcranOverlay');
+  if (overlay) overlay.remove();
+  document.removeEventListener('keydown', _fermerAlertePleinEcranEscape);
+}
+function _fermerAlertePleinEcranEscape(e) {
+  if (e.key === 'Escape') fermerAlertePleinEcran();
 }
 
 // ════════════════════════════════════════════════════════════════════
