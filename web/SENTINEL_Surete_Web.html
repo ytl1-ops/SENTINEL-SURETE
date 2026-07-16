@@ -6989,17 +6989,22 @@ async function doCollect() {
 
   let ok=0, err=0, nw=0, done=0;
   const fresh={};
-  // BATCH_SIZE agressif : les proxies en course parallèle absorbent la charge.
-  // Releve une troisieme fois (x3, etait 20/25/30/40) : chaque lot s'execute
-  // via Promise.all SANS pause entre lots (voir plus bas) — le temps total de
-  // collecte est domine par le nombre de lots successifs, pas par le nombre
-  // de sources. Tripler la taille des lots divise d'autant le nombre de lots,
-  // ce qui triple le debit effectif de la collecte sans changer le nombre
-  // total de requetes reseau emises (juste leur repartition dans le temps).
-  const BATCH_SIZE = bestProxy === 'local' ? 120
-                   : bestProxy === 'rss2json' ? 90
-                   : typeof bestProxy === 'number' ? 75
-                   : 60;
+  // BATCH_SIZE : ramene a environ la moitie des valeurs precedentes
+  // (etait 120/90/75/60) — priorite revue en faveur de l'accessibilite a
+  // grande echelle plutot que de la vitesse individuelle maximale. Un lot
+  // de 120 requetes simultanees par ONGLET, multiplie par des millions de
+  // sessions ouvertes au meme moment, pese lourd sur le petit pool de
+  // services CORS partages (allorigins, codetabs, rss2json...) dont
+  // beaucoup d'autres applications dependent aussi — au risque de les
+  // faire rate-limiter/bloquer pour tout le monde. Reduire le pic de
+  // charge par session (quitte a etaler la collecte d'un utilisateur sur
+  // quelques lots de plus) protege la disponibilite collective ; voir
+  // aussi le delai de demarrage aleatoire et le jitter du cycle de
+  // rafraichissement plus bas dans le fichier, memes objectifs.
+  const BATCH_SIZE = bestProxy === 'local' ? 60
+                   : bestProxy === 'rss2json' ? 45
+                   : typeof bestProxy === 'number' ? 40
+                   : 30;
 
   function normaliseTitle(t) {
     return (t||'').toLowerCase().replace(/[^a-z0-9àâéèêëîïôùûüç]/g,' ').replace(/\s+/g,' ').trim().slice(0,80);
@@ -10821,6 +10826,15 @@ function activerProtectionsSecurite(user) {
 // se desynchronise silencieusement de ce qui est reellement teste/deployee.
 function _demarrerAutoRefresh() {
   if (window._sentinelAutoRefresh) return; // deja demarre — evite un double intervalle
+  // Ecart aleatoire STABLE pour cette session (calcule une seule fois, pas a
+  // chaque verification) : sans lui, tous les utilisateurs ouverts au meme
+  // moment restent synchronises sur EXACTEMENT le meme cycle de 15 min
+  // indefiniment, reproduisant a chaque cycle le meme pic de charge groupe
+  // sur les services de collecte partages que le delai de demarrage
+  // ci-dessus attenue seulement pour la toute premiere collecte. -2 a +3
+  // min : reste proche du planning annonce a l'utilisateur (~15 min) tout
+  // en desynchronisant l'agregat de millions de sessions.
+  const jitterMin = (Math.random() * 5) - 2;
   window._sentinelAutoRefresh = setInterval(() => {
     if (typeof doCollect !== 'function') return;
     // Verifie la preference en temps reel : si l'utilisateur la desactive, on s'arrete
@@ -10829,7 +10843,7 @@ function _demarrerAutoRefresh() {
       window._sentinelAutoRefresh = null;
       return;
     }
-    const INTERVAL_MIN = 15; // planification fixe : mise a jour toutes les 15 minutes, visible ou non
+    const INTERVAL_MIN = 15 + jitterMin; // planification a ~15 minutes (desynchronisee par session), visible ou non
     const lastTs = parseInt(localStorage.getItem('sentinel_lastCollectTs') || '0');
     const elapsed = (Date.now() - lastTs) / 60000;
     if (elapsed >= INTERVAL_MIN) {
@@ -10903,6 +10917,20 @@ async function init() {
         }
       }
     }catch(e){}
+    // ── Delai aleatoire avant la PREMIERE collecte reseau ────────────────────
+    // Sans lui, des millions d'utilisateurs ouvrant l'appli au meme moment
+    // (heure de pointe, lien partage, rentree...) lanceraient TOUS, a
+    // l'instant pres, ~500 requetes chacun vers le meme petit pool de
+    // services CORS partages (allorigins, codetabs, rss2json...) — au
+    // risque de faire rate-limiter/bloquer ces services partages pour tout
+    // le monde a la fois. Le cache local vient deja d'etre affiche
+    // instantanement ci-dessus (aucun impact visible pour l'utilisateur) ;
+    // seul le VRAI trafic reseau est etale sur une fenetre de 0 a 45s,
+    // aleatoire et independante par onglet/appareil — a l'echelle de
+    // millions de sessions, ceci lisse le pic de charge au lieu de le
+    // concentrer sur une seule seconde. Voir aussi jitterAutoRefresh()
+    // ci-dessous pour le meme principe applique aux cycles recurrents.
+    await new Promise(r => setTimeout(r, Math.floor(Math.random() * 45000)));
     // Detection du proxy puis lancement automatique de la collecte en direct
     await detectProxy();
     // Collecte RSS automatique sans clic, des l'ouverture de l'application
