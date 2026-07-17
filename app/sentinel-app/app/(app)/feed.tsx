@@ -6,7 +6,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { getLiveFeed, getActiveAlerts, getEngineStats, type Article, type Alert as SentinelAlert, type Stats } from '../../lib/sentinel-api';
+import { getLiveFeed, getActiveAlerts, getEngineStats, isDemoMode, type Article, type Alert as SentinelAlert, type Stats } from '../../lib/sentinel-api';
 import { trackArticleRead, getArticleReadCount } from '../../lib/supabase';
 import { ensureNotificationSetup, notifyNewCriticalAlerts, clearBadge } from '../../lib/notifications';
 import { useAuth } from '../../hooks/useAuth';
@@ -54,6 +54,7 @@ export default function FeedScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [articlesRead, setArticlesRead] = useState(0);
+  const [isDemo, setIsDemo] = useState(isDemoMode());
 
   useEffect(() => { loadData(); }, [category]);
   useEffect(() => { ensureNotificationSetup(); clearBadge(); }, []);
@@ -77,11 +78,13 @@ export default function FeedScreen() {
       setPage(1);
       setAlerts(alertRes.slice(0, 3));
       setStats(statsRes);
+      setIsDemo(false);
       notifyNewCriticalAlerts(alertRes).catch(() => {});
     } catch {
       // Données de démo si API non disponible
       setArticles(DEMO_ARTICLES);
       setAlerts(DEMO_ALERTS);
+      setIsDemo(true);
       notifyNewCriticalAlerts(DEMO_ALERTS).catch(() => {});
     } finally {
       setLoading(false);
@@ -150,6 +153,11 @@ export default function FeedScreen() {
           <Text style={s.headerSub}>Afrique de l'Ouest · Flux temps réel</Text>
         </View>
         <View style={s.headerRight}>
+          {isDemo && (
+            <View style={s.demoDot}>
+              <Text style={s.demoText}>Démo</Text>
+            </View>
+          )}
           {stats && (
             <View style={s.liveDot}>
               <View style={s.livePulse} />
@@ -299,6 +307,8 @@ const s = StyleSheet.create({
   liveDot: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 12, paddingHorizontal: 8, paddingVertical: 3 },
   livePulse: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#ef4444' },
   liveText: { fontSize: 10, color: '#ef4444', fontWeight: '600' },
+  demoDot: { backgroundColor: 'rgba(245,158,11,0.18)', borderRadius: 12, paddingHorizontal: 8, paddingVertical: 3 },
+  demoText: { fontSize: 10, color: '#f59e0b', fontWeight: '700', letterSpacing: 0.5 },
   statsRow: { flexDirection: 'row', backgroundColor: Colors.white, borderBottomWidth: 0.5, borderBottomColor: Colors.border },
   statItem: { flex: 1, alignItems: 'center', paddingVertical: 8, borderRightWidth: 0.5, borderRightColor: Colors.border },
   statN: { fontSize: 15, fontWeight: '600', color: Colors.text },

@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { getMapPoints, type MapPoint } from '../../lib/sentinel-api';
+import { getMapPoints, isDemoMode, type MapPoint } from '../../lib/sentinel-api';
 import { useAuth } from '../../hooks/useAuth';
 import { Colors, Spacing, Radius, COUNTRIES_CEDEAO } from '../../constants/theme';
 
@@ -50,6 +50,7 @@ export default function MapScreen() {
   const [loading, setLoading] = useState(true);
   const [type, setType] = useState('all');
   const [selectedCountry, setSelectedCountry] = useState<string | null>(null);
+  const [isDemo, setIsDemo] = useState(isDemoMode());
 
   useEffect(() => { loadData(); }, []);
 
@@ -57,8 +58,10 @@ export default function MapScreen() {
     setLoading(true);
     try {
       setPoints(await getMapPoints());
+      setIsDemo(false);
     } catch {
       setPoints(DEMO_POINTS);
+      setIsDemo(true);
     } finally {
       setLoading(false);
     }
@@ -102,7 +105,14 @@ export default function MapScreen() {
   return (
     <SafeAreaView style={s.safe} edges={['top']}>
       <View style={s.header}>
-        <Text style={s.headerTitle}>Carte des risques</Text>
+        <View style={s.headerTitleRow}>
+          <Text style={s.headerTitle}>Carte des risques</Text>
+          {isDemo && (
+            <View style={s.demoDot}>
+              <Text style={s.demoText}>Démo</Text>
+            </View>
+          )}
+        </View>
         <Text style={s.headerSub}>Afrique de l'Ouest · surveillance géospatiale</Text>
       </View>
 
@@ -204,6 +214,9 @@ const DEMO_POINTS: MapPoint[] = [
 const s = StyleSheet.create({
   safe: { flex: 1, backgroundColor: Colors.surface },
   header: { backgroundColor: Colors.dark, paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md },
+  headerTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  demoDot: { backgroundColor: 'rgba(245,158,11,0.18)', borderRadius: 12, paddingHorizontal: 8, paddingVertical: 3 },
+  demoText: { fontSize: 10, color: '#f59e0b', fontWeight: '700', letterSpacing: 0.5 },
   headerTitle: { fontSize: 16, fontWeight: '700', color: '#fff' },
   headerSub: { fontSize: 11, color: 'rgba(255,255,255,0.6)', marginTop: 2 },
   statsRow: { flexDirection: 'row', backgroundColor: Colors.white, borderBottomWidth: 0.5, borderBottomColor: Colors.border },

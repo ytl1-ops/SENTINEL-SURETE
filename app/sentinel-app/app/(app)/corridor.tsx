@@ -6,7 +6,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { getLiveFeed, type Article } from '../../lib/sentinel-api';
+import { getLiveFeed, isDemoMode, type Article } from '../../lib/sentinel-api';
 import { useAuth } from '../../hooks/useAuth';
 import { Colors, Spacing, Radius } from '../../constants/theme';
 import { ZONES_GEO, CORRIDORS_PAR_ZONE, SCOPES_FENETRE, type ZoneKey } from '../../constants/corridors';
@@ -48,6 +48,7 @@ export default function CorridorScreen() {
   const [articles, setArticles] = useState<Article[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [isDemo, setIsDemo] = useState(isDemoMode());
 
   const corridors = CORRIDORS_PAR_ZONE[zone];
   const corridor = corridors.find(c => c.id === corridorId) ?? corridors[0];
@@ -63,8 +64,10 @@ export default function CorridorScreen() {
     try {
       const res = await getLiveFeed({ page: 1, limit: 100, category: category === 'all' ? undefined : category });
       setArticles(res.articles);
+      setIsDemo(false);
     } catch {
       setArticles(DEMO_ARTICLES);
+      setIsDemo(true);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -107,7 +110,14 @@ export default function CorridorScreen() {
           <Ionicons name="chevron-back" size={22} color="#fff" />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
-          <Text style={s.headerTitle}>CORRIDOR DE RÉFÉRENCE</Text>
+          <View style={s.headerTitleRow}>
+            <Text style={s.headerTitle}>CORRIDOR DE RÉFÉRENCE</Text>
+            {isDemo && (
+              <View style={s.demoDot}>
+                <Text style={s.demoText}>Démo</Text>
+              </View>
+            )}
+          </View>
           <Text style={s.headerSub} numberOfLines={1}>{corridor.villes.map(v => v.nom).join(' → ')}</Text>
         </View>
       </View>
@@ -249,6 +259,9 @@ const s = StyleSheet.create({
   safe: { flex: 1, backgroundColor: Colors.surface },
   header: { backgroundColor: Colors.dark, paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md, flexDirection: 'row', alignItems: 'center' },
   headerTitle: { fontSize: 14, fontWeight: '700', color: '#fff', letterSpacing: 1 },
+  headerTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  demoDot: { backgroundColor: 'rgba(245,158,11,0.18)', borderRadius: 12, paddingHorizontal: 8, paddingVertical: 3 },
+  demoText: { fontSize: 10, color: '#f59e0b', fontWeight: '700', letterSpacing: 0.5 },
   headerSub: { fontSize: 11, color: 'rgba(255,255,255,0.65)', marginTop: 2 },
 
   zoneChip: { paddingHorizontal: 12, paddingVertical: 5, borderRadius: Radius.full, borderWidth: 0.5, borderColor: Colors.border, backgroundColor: Colors.white, marginRight: 6 },

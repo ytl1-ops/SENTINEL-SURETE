@@ -5,6 +5,12 @@
 const SENTINEL_API_URL = process.env.EXPO_PUBLIC_SENTINEL_API_URL;
 const SENTINEL_API_KEY = process.env.EXPO_PUBLIC_SENTINEL_API_KEY;
 
+// Permet aux écrans d'afficher un indicateur "démo" quand ils retombent
+// sur leurs données locales faute de moteur SENTINEL configuré.
+export function isDemoMode(): boolean {
+  return !SENTINEL_API_URL;
+}
+
 export type Article = {
   id: string;
   title: string;
