@@ -595,7 +595,20 @@ input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px soli
   font-size:10px;font-weight:700;cursor:pointer;letter-spacing:.04em;
   text-transform:uppercase}
 .af.on{background:var(--bl);border-color:var(--b);color:var(--b)}
-.tl{display:flex;flex-direction:column}
+
+/* ── CORRIDOR DE RÉFÉRENCE — stepper des villes-étapes ─────────────── */
+.cor-stepper{display:flex;align-items:flex-start;gap:0;overflow-x:auto;
+  background:var(--w);border:1px solid var(--bd);border-radius:8px;
+  padding:16px 18px;margin-bottom:12px}
+.cor-step{display:flex;flex-direction:column;align-items:center;min-width:92px;flex-shrink:0}
+.cor-step-row{display:flex;align-items:center;width:100%}
+.cor-node{width:34px;height:34px;border-radius:50%;border:2px solid var(--bd);
+  background:var(--sf);display:flex;align-items:center;justify-content:center;
+  font-size:12px;font-weight:800;color:var(--lg);flex-shrink:0}
+.cor-node.on{border-color:var(--r);background:var(--rl);color:var(--r)}
+.cor-line{flex:1;height:2px;background:var(--bd);margin:0 -2px}
+.cor-city{font-size:10.5px;font-weight:700;color:var(--t);margin-top:6px;text-align:center}
+.cor-cy{font-size:9px;color:var(--lg)}
 .ev{display:flex;gap:11px;padding:9px 12px;background:var(--w);
   border:1px solid var(--bd);border-radius:7px;margin-bottom:6px}
 .ev.en-cours{border-left:4px solid #4ade80}
@@ -729,8 +742,15 @@ input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px soli
 .view-note i{font-size:12px;color:var(--b);flex-shrink:0}
 
 /* ── AUTH OVERLAY ────────────────────────────────────────────────── */
+/* overflow-y:auto + padding vertical : le body est en overflow:hidden
+   total (voir plus haut), donc sans cela la molette/le trackpad ne
+   scrollent rien ici. Sur un ecran bas (portable, zoom, barre d'adresse
+   mobile) l'auth-box (champs + zone prioritaire + stats + liens publics)
+   peut depasser la hauteur visible : il faut pouvoir defiler pour
+   atteindre le bouton "Se connecter" et les champs du bas. */
 .auth-overlay{position:fixed;inset:0;background:rgba(5,12,20,.97);
-  z-index:9000;display:flex;align-items:center;justify-content:center}
+  z-index:9000;display:flex;align-items:center;justify-content:center;
+  overflow-y:auto;-webkit-overflow-scrolling:touch;padding:32px 16px}
 .auth-overlay.hidden{display:none}
 
 /* ═══ SCÈNE D'ACCUEIL — centre d'opérations (écran de connexion) ══════════
@@ -1965,6 +1985,7 @@ body.sentinel-protected img{ -webkit-user-drag:none; user-drag:none; pointer-eve
     <div class="ntab" id="tabRecherche" data-view="recherche" onclick="switchView(&#39;recherche&#39;,this)"><i class="ti ti-search"></i><span data-i18n="nav_recherche">Recherche</span></div>
     <div class="ntab" data-view="analyse" onclick="switchView(&#39;analyse&#39;,this)"><i class="ti ti-chart-dots"></i><span data-i18n="nav_analyse">Synthèse</span></div>
     <div class="ntab" id="tabAgenda" data-view="agenda" onclick="switchView(&#39;agenda&#39;,this)"><i class="ti ti-calendar-event"></i><span data-i18n="nav_agenda">Agenda</span></div>
+    <div class="ntab" id="tabCorridors" data-view="corridors" onclick="switchView(&#39;corridors&#39;,this)"><i class="ti ti-route"></i><span data-i18n="nav_corridors">Corridors</span></div>
     <div class="ntab" data-view="rapports" onclick="switchView(&#39;rapports&#39;,this)"><i class="ti ti-download"></i><span data-i18n="nav_rapports">Rapports</span></div>
     <div class="ntab" id="tabAlertes" data-view="alertes" onclick="switchView(&#39;alertes&#39;,this)"><i class="ti ti-shield-exclamation"></i><span data-i18n="nav_alertes">Alertes</span></div>
     <div class="ntab on" data-view="dashboard" onclick="switchView(&#39;dashboard&#39;,this)"><i class="ti ti-layout-dashboard"></i><span>Tableau de bord</span></div>
@@ -2230,6 +2251,44 @@ body.sentinel-protected img{ -webkit-user-drag:none; user-drag:none; pointer-eve
         </div>
       </div>
       <div class="view-note"><i class="ti ti-info-circle"></i><span data-i18n="note_agenda">Agenda : événements en cours, à venir et échéances de sûreté, classés par statut et par zone.</span></div>
+    </div>
+
+    <div class="view" id="v-corridors">
+      <div style="overflow-y:auto;flex:1">
+        <div class="ag-wrap">
+          <div class="ag-hdr">
+            <div>
+              <div class="ag-tt" id="corTitreCorridor">Corridor de référence</div>
+              <div class="ag-sb" id="corSousTitre">Sélectionnez une zone et un corridor pour suivre les évènements le long de l'itinéraire.</div>
+            </div>
+          </div>
+          <div class="tlbr" style="flex-shrink:0;margin-bottom:8px;flex-wrap:wrap;">
+            <span style="font-size:11px;font-weight:700;color:var(--t);display:flex;align-items:center;gap:5px;"><i class="ti ti-filter" style="font-size:14px"></i>Filtrer</span>
+            <select id="corZoneFilter" onchange="setCorridorZone(this.value)" style="padding:4px 8px;border:1px solid var(--bd);border-radius:5px;font-size:11px;font-weight:600;color:var(--t);background:var(--w);"></select>
+            <select id="corCorridorFilter" onchange="setCorridorId(this.value)" style="padding:4px 8px;border:1px solid var(--bd);border-radius:5px;font-size:11px;font-weight:600;color:var(--t);background:var(--w);max-width:260px;"></select>
+            <select id="corFenetreFilter" onchange="setCorridorFenetre(this.value)" style="padding:4px 8px;border:1px solid var(--bd);border-radius:5px;font-size:11px;font-weight:600;color:var(--t);background:var(--w);">
+              <option value="24">24 heures</option>
+              <option value="72" selected>72 heures</option>
+              <option value="168">7 jours</option>
+              <option value="720">30 jours</option>
+            </select>
+            <button onclick="renderCorridors()" title="Rafraichir depuis les donnees deja collectees" style="padding:5px 12px;background:rgba(61,100,134,.12);border:1px solid rgba(61,100,134,.4);border-radius:5px;color:var(--b);font-size:11px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:5px;">
+              <i class="ti ti-refresh"></i> Actualiser
+            </button>
+          </div>
+          <div class="srch" style="margin-bottom:8px;"><i class="ti ti-search"></i><input type="text" id="corQ" placeholder="Rechercher sur ce corridor..." oninput="renderCorridorsDebounced()"></div>
+          <div class="chips" id="corChips" style="margin-bottom:10px;">
+            <span class="chip on" onclick="setCorCat(this,'all')">Tout</span>
+            <span class="chip" onclick="setCorCat(this,'securite')">Securite</span>
+            <span class="chip" onclick="setCorCat(this,'humanitaire')">Humanitaire</span>
+            <span class="chip" onclick="setCorCat(this,'politique')">Politique</span>
+            <span class="chip" onclick="setCorCat(this,'economique')">Economique</span>
+          </div>
+          <div id="corStepper" class="cor-stepper"></div>
+          <div id="corList"></div>
+        </div>
+      </div>
+      <div class="view-note"><i class="ti ti-info-circle"></i><span data-i18n="note_corridors">Corridor de référence : suit les évènements le long des principaux corridors logistiques et transfrontaliers, étape par étape — configurable par zone.</span></div>
     </div>
 
     <div class="view" id="v-rapports">
@@ -3971,7 +4030,7 @@ const I18N = {
     menu_mode_emploi:"Mode d'emploi (PDF)",
     proxy_title:'Collecte RSS automatique — Cliquez Actualiser',
     cbar_lbl:'Collecte RSS', cbar_init:'Collecte en parallèle : Malijet... (15/195)',
-    nav_flux:'Flux', nav_analyse:'Synthèse', nav_agenda:'Agenda', nav_rapports:'Rapports',
+    nav_flux:'Flux', nav_analyse:'Synthèse', nav_agenda:'Agenda', nav_corridors:'Corridors', nav_rapports:'Rapports',
     nav_alertes:'Alertes', nav_recherche:'Recherche',
     chip_tout:'Tout', chip_critique:'Critique', chip_eleve:'Élevé', chip_securite:'Sécurité',
     ph_recherche:'Rechercher...',
@@ -3981,6 +4040,7 @@ const I18N = {
     note_recherche:'Recherche : retrouvez un pays, un événement, un thème ou une source dans l\'ensemble des données collectées par SENTINEL.',
     note_analyse:'Synthèse : rapport analytique thématique généré automatiquement à partir du Flux, filtrable par zone ou par pays.',
     note_agenda:'Agenda : événements en cours, à venir et échéances de sûreté, classés par statut et par zone.',
+    note_corridors:'Corridor de référence : suit les évènements le long des principaux corridors logistiques et transfrontaliers, étape par étape — configurable par zone.',
     note_rapports:'Rapports : génère des documents Word, PDF, PowerPoint, Excel et CSV à partir des données collectées, filtrés par périmètre.',
     note_alertes:'Alertes : niveau de risque calculé automatiquement par pays, consultable en grille ou en chronologie des incidents.',
     note_dashboard:'Tableau de bord : vision d\'ensemble en temps réel des 54 pays d\'Afrique, scores de risque et zones de tension.',
@@ -4029,7 +4089,7 @@ const I18N = {
     menu_mode_emploi:'User guide (PDF)',
     proxy_title:'Automatic RSS collection — Click Refresh',
     cbar_lbl:'RSS Collection', cbar_init:'Parallel collection: Malijet... (15/195)',
-    nav_flux:'Feed', nav_analyse:'Synthesis', nav_agenda:'Agenda', nav_rapports:'Reports',
+    nav_flux:'Feed', nav_analyse:'Synthesis', nav_agenda:'Agenda', nav_corridors:'Corridors', nav_rapports:'Reports',
     nav_alertes:'Alerts', nav_recherche:'Search',
     chip_tout:'All', chip_critique:'Critical', chip_eleve:'High', chip_securite:'Security',
     ph_recherche:'Search...',
@@ -4039,6 +4099,7 @@ const I18N = {
     note_recherche:'Search: find a country, event, theme or source across all data collected by SENTINEL.',
     note_analyse:'Summary: thematic analytical report automatically generated from the Feed, filterable by zone or country.',
     note_agenda:'Agenda: ongoing and upcoming security events and deadlines, classified by status and zone.',
+    note_corridors:'Reference corridor: tracks events along major logistics and cross-border corridors, waypoint by waypoint — configurable by zone.',
     note_rapports:'Reports: generate Word, PDF, PowerPoint, Excel and CSV documents from collected data, filtered by scope.',
     note_alertes:'Alerts: risk level automatically computed per country, viewable as a grid or as an incident timeline.',
     note_dashboard:'Dashboard: real-time overview of all 54 African countries, risk scores and tension zones.',
@@ -4705,6 +4766,66 @@ const CY_TO_ZONE = {
   RW:'grands_lacs', BI:'grands_lacs', TZ:'grands_lacs',
   ZA:'afrique_australe', ZW:'afrique_australe', MZ:'afrique_australe', ZM:'afrique_australe', MW:'afrique_australe', NA:'afrique_australe', BW:'afrique_australe', LS:'afrique_australe', SZ:'afrique_australe', MG:'afrique_australe', MU:'afrique_australe', KM:'afrique_australe', SC:'afrique_australe', AO:'afrique_australe',
   MA:'afrique_nord', DZ:'afrique_nord', TN:'afrique_nord', LY:'afrique_nord', EG:'afrique_nord',
+};
+
+// CORRIDORS_PAR_ZONE : module Corridor de référence — corridors logistiques
+// et transfrontaliers surveillés, regroupés par zone (ZONES_GEO). Chaque
+// corridor liste ses villes-étapes ; le pays de chaque étape sert à
+// rattacher les actus du Flux (ALL[].cy) à cette étape. Configurable par
+// zone : plusieurs corridors par zone, jamais un itinéraire unique figé.
+const CORRIDORS_PAR_ZONE = {
+  sahel: [
+    { id:'abj-ouaga', nom:'Abidjan – Ouagadougou', villes:[
+      {nom:'Abidjan',cy:'CI'}, {nom:'Ouangolodougou',cy:'CI'}, {nom:'Ouagadougou',cy:'BF'} ] },
+    { id:'dkr-bko', nom:'Dakar – Bamako', villes:[
+      {nom:'Dakar',cy:'SN'}, {nom:'Tambacounda',cy:'SN'}, {nom:'Kayes',cy:'ML'}, {nom:'Bamako',cy:'ML'} ] },
+    { id:'lom-ouaga-niam', nom:'Lomé – Ouagadougou – Niamey', villes:[
+      {nom:'Lomé',cy:'TG'}, {nom:'Ouagadougou',cy:'BF'}, {nom:'Niamey',cy:'NE'} ] },
+  ],
+  golfe_guinee: [
+    { id:'tema-ouaga', nom:'Tema – Ouagadougou', villes:[
+      {nom:'Tema',cy:'GH'}, {nom:'Kumasi',cy:'GH'}, {nom:'Bobo-Dioulasso',cy:'BF'}, {nom:'Ouagadougou',cy:'BF'} ] },
+    { id:'cot-niam', nom:'Cotonou – Niamey', villes:[
+      {nom:'Cotonou',cy:'BJ'}, {nom:'Parakou',cy:'BJ'}, {nom:'Niamey',cy:'NE'} ] },
+    { id:'lag-abj', nom:'Lagos – Abidjan (côtier)', villes:[
+      {nom:'Lagos',cy:'NG'}, {nom:'Cotonou',cy:'BJ'}, {nom:'Lomé',cy:'TG'}, {nom:'Accra',cy:'GH'}, {nom:'Abidjan',cy:'CI'} ] },
+  ],
+  ao_cotiere: [
+    { id:'dkr-conakry', nom:'Dakar – Bissau – Conakry', villes:[
+      {nom:'Dakar',cy:'SN'}, {nom:'Bissau',cy:'GW'}, {nom:'Conakry',cy:'GN'} ] },
+    { id:'conakry-monrovia', nom:'Conakry – Freetown – Monrovia', villes:[
+      {nom:'Conakry',cy:'GN'}, {nom:'Freetown',cy:'SL'}, {nom:'Monrovia',cy:'LR'} ] },
+  ],
+  afrique_centrale: [
+    { id:'douala-ndj', nom:"Douala – N'Djaména", villes:[
+      {nom:'Douala',cy:'CM'}, {nom:'Ngaoundéré',cy:'CM'}, {nom:"N'Djaména",cy:'TD'} ] },
+    { id:'pnr-brz-bgi', nom:'Pointe-Noire – Brazzaville – Bangui', villes:[
+      {nom:'Pointe-Noire',cy:'CG'}, {nom:'Brazzaville',cy:'CG'}, {nom:'Bangui',cy:'CF'} ] },
+  ],
+  corne_afrique: [
+    { id:'dji-addis', nom:'Djibouti – Addis-Abeba', villes:[
+      {nom:'Djibouti',cy:'DJ'}, {nom:'Dire Dawa',cy:'ET'}, {nom:'Addis-Abeba',cy:'ET'} ] },
+    { id:'mombasa-nairobi-kampala', nom:'Corridor Nord : Mombasa – Nairobi – Kampala', villes:[
+      {nom:'Mombasa',cy:'KE'}, {nom:'Nairobi',cy:'KE'}, {nom:'Kampala',cy:'UG'} ] },
+  ],
+  grands_lacs: [
+    { id:'kampala-kigali-buja', nom:'Kampala – Kigali – Bujumbura', villes:[
+      {nom:'Kampala',cy:'UG'}, {nom:'Kigali',cy:'RW'}, {nom:'Bujumbura',cy:'BI'} ] },
+    { id:'dar-kigali', nom:'Dar es-Salaam – Kigali', villes:[
+      {nom:'Dar es-Salaam',cy:'TZ'}, {nom:'Kigoma',cy:'TZ'}, {nom:'Kigali',cy:'RW'} ] },
+  ],
+  afrique_australe: [
+    { id:'beira', nom:'Corridor de Beira', villes:[
+      {nom:'Beira',cy:'MZ'}, {nom:'Harare',cy:'ZW'}, {nom:'Lusaka',cy:'ZM'} ] },
+    { id:'walvis-bay', nom:'Corridor de Walvis Bay', villes:[
+      {nom:'Walvis Bay',cy:'NA'}, {nom:'Gaborone',cy:'BW'}, {nom:'Johannesburg',cy:'ZA'} ] },
+  ],
+  afrique_nord: [
+    { id:'trans-maghreb', nom:'Corridor Trans-Maghrébin', villes:[
+      {nom:'Casablanca',cy:'MA'}, {nom:'Alger',cy:'DZ'}, {nom:'Tunis',cy:'TN'}, {nom:'Tripoli',cy:'LY'} ] },
+    { id:'rabat-nouakchott', nom:'Rabat – Nouakchott', villes:[
+      {nom:'Rabat',cy:'MA'}, {nom:'Dakhla',cy:'MA'}, {nom:'Nouakchott',cy:'MR'} ] },
+  ],
 };
 
 const DEMO=[]; // Donnees de demonstration retirees : le flux ne contient que de vraies donnees collectees.
@@ -10357,6 +10478,121 @@ async function renderAgenda() {
   requestAnimationFrame(() => { agEl.innerHTML = agHtml; });
 }
 
+// ── CORRIDOR DE RÉFÉRENCE ───────────────────────────────────────────────────
+// Module de suivi des corridors logistiques/transfrontaliers surveillés
+// (CORRIDORS_PAR_ZONE, voir plus haut), configurable par zone : listes de
+// choix zone -> corridor (jamais un itinéraire unique figé). Chaque etape
+// (ville) est rattachee aux actus du Flux (ALL) par son pays.
+let fCorZone = 'sahel', fCorId = CORRIDORS_PAR_ZONE.sahel[0].id, fCorFenetre = 72, fCorCat = 'all', fCorQ = '';
+
+function peuplerFiltresCorridors() {
+  const selZone = document.getElementById('corZoneFilter');
+  if (!selZone || selZone.options.length) return;
+  for (const zc in ZONES_GEO) {
+    const opt = document.createElement('option');
+    opt.value = zc; opt.textContent = ZONES_GEO[zc].nom;
+    selZone.appendChild(opt);
+  }
+  selZone.value = fCorZone;
+  peuplerCorridorsDeLaZone();
+}
+
+function peuplerCorridorsDeLaZone() {
+  const selCor = document.getElementById('corCorridorFilter');
+  if (!selCor) return;
+  const liste = CORRIDORS_PAR_ZONE[fCorZone] || [];
+  selCor.innerHTML = liste.map(c => '<option value="' + c.id + '">' + c.nom + '</option>').join('');
+  if (!liste.some(c => c.id === fCorId)) fCorId = liste[0] ? liste[0].id : null;
+  selCor.value = fCorId || '';
+}
+
+function setCorridorZone(zc) {
+  fCorZone = zc;
+  peuplerCorridorsDeLaZone();
+  renderCorridors();
+}
+
+function setCorridorId(id) {
+  fCorId = id;
+  renderCorridors();
+}
+
+function setCorridorFenetre(h) {
+  fCorFenetre = parseInt(h, 10) || 72;
+  renderCorridors();
+}
+
+function setCorCat(el, cat) {
+  fCorCat = cat;
+  document.querySelectorAll('#corChips .chip').forEach(c => c.classList.remove('on'));
+  if (el) el.classList.add('on');
+  renderCorridors();
+}
+
+function renderCorridors() {
+  peuplerFiltresCorridors();
+  const corridor = (CORRIDORS_PAR_ZONE[fCorZone] || []).find(c => c.id === fCorId) || (CORRIDORS_PAR_ZONE[fCorZone] || [])[0];
+  const titreEl = document.getElementById('corTitreCorridor');
+  const sousTitreEl = document.getElementById('corSousTitre');
+  const stepperEl = document.getElementById('corStepper');
+  const listEl = document.getElementById('corList');
+  if (!corridor) {
+    if (titreEl) titreEl.textContent = 'Corridor de référence';
+    if (sousTitreEl) sousTitreEl.textContent = 'Aucun corridor défini pour cette zone.';
+    if (stepperEl) stepperEl.innerHTML = '';
+    if (listEl) listEl.innerHTML = '';
+    return;
+  }
+  if (titreEl) titreEl.textContent = 'Corridor de référence — ' + corridor.nom;
+  if (sousTitreEl) sousTitreEl.textContent = (ZONES_GEO[fCorZone] || {}).nom + ' · ' + corridor.villes.map(v => v.nom).join(' → ');
+
+  const seuil = Date.now() - fCorFenetre * 3600000;
+  const paysCorridor = new Set(corridor.villes.map(v => v.cy));
+  const q = (fCorQ || '').toLowerCase();
+  const evenements = (ALL || []).filter(a =>
+    paysCorridor.has(a.cy) &&
+    (a.pubDate || 0) >= seuil &&
+    (fCorCat === 'all' || a.cat === fCorCat) &&
+    (!q || L(a.title).toLowerCase().includes(q))
+  ).sort((a, b) => (b.pubDate || 0) - (a.pubDate || 0));
+
+  if (stepperEl) {
+    stepperEl.innerHTML = corridor.villes.map((v, i) => {
+      const n = evenements.filter(e => e.cy === v.cy).length;
+      return '<div class="cor-step">' +
+        '<div class="cor-step-row">' +
+          '<div class="cor-node' + (n > 0 ? ' on' : '') + '">' + n + '</div>' +
+          (i < corridor.villes.length - 1 ? '<div class="cor-line"></div>' : '') +
+        '</div>' +
+        '<div class="cor-city">' + v.nom + '</div>' +
+        '<div class="cor-cy">' + ((PAYS_INFO[v.cy] || {}).flag || '') + ' ' + v.cy + '</div>' +
+      '</div>';
+    }).join('');
+  }
+
+  if (!listEl) return;
+  if (!evenements.length) {
+    listEl.innerHTML = '<div class="empty"><i class="ti ti-inbox"></i><p>AUCUN FAIT DANS CETTE FENÊTRE</p>' +
+      '<span style="font-size:11px;color:var(--lg);margin-top:4px">Aucun évènement sur ce corridor pour la fenêtre et les filtres sélectionnés.</span></div>';
+    return;
+  }
+  listEl.innerHTML = evenements.map(a => {
+    const cc = CYS.find(x => x.code === a.cy) || { flag: '🌍', name: a.cy };
+    const pl = lp(a.level);
+    return '<div class="art l' + a.level.charAt(0) + '2" data-level="' + a.level + '" onclick="showDet(\'' + a.id + '\')">' +
+      '<div class="al"><span class="rpill ' + pl[0] + '">' + pl[1] + '</span></div>' +
+      '<div class="ab">' +
+        '<div class="art-top"><span class="flagcy">' + cc.flag + ' ' + cc.name + '</span><span class="survtime"><i class="ti ti-history"></i>' + fmtAge(a.pubDate || 0) + '</span></div>' +
+        '<div class="atit">' + L(a.title) + '</div>' +
+      '</div></div>';
+  }).join('');
+}
+
+const renderCorridorsDebounced = _debounce(function () {
+  fCorQ = document.getElementById('corQ').value;
+  renderCorridors();
+}, 300);
+
 // ── CONTROLES ─────────────────────────────────────────────────────────────────
 function setCy(c) { applyGlobalCountryFilter(c); if (window.innerWidth<=760) toggleLP(false); }
 // Filtre de portee (fSc) retire de l'interface : le flux couvre desormais
@@ -10414,6 +10650,7 @@ function switchView(name,el){
   const _lpEl = document.getElementById('lp');
   if (_lpEl) _lpEl.style.display=(name==='rapports'||name==='params')?'none':'flex';
   if(name==='agenda')    { renderAgenda(); }
+  if(name==='corridors') { renderCorridors(); }
   if(name==='dashboard') { renderDashboard(); }
   // Ouverture de l'onglet Alertes : force un recalcul/repeinture immediat.
   // Sans cette branche (absente jusqu'ici, contrairement a tous les autres
