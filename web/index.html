@@ -175,19 +175,23 @@ section{position:relative;padding:110px 0}
 @media (max-width:860px){.cov-wrap{grid-template-columns:1fr}}
 
 /* ── PRICING ──────────────────────────────────────────────────────── */
-.plans{display:grid;grid-template-columns:1fr 1fr;gap:24px;max-width:840px;margin:0 auto}
-.plan{background:var(--panel);border:1px solid var(--line2);border-radius:14px;padding:32px}
+.plans{display:grid;grid-template-columns:repeat(4,1fr);gap:20px;max-width:1180px;margin:0 auto}
+.plan{background:var(--panel);border:1px solid var(--line2);border-radius:14px;padding:26px 24px;display:flex;flex-direction:column}
 .plan.hi{border-color:var(--blue);background:linear-gradient(180deg,rgba(58,160,255,.07),var(--panel) 40%);position:relative}
-.plan-badge{position:absolute;top:-11px;right:24px;background:var(--blue);color:#04101c;font-family:var(--mono);
-  font-size:9.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:3px 10px;border-radius:20px}
-.plan-name{font-family:var(--serif);font-size:20px;font-weight:700;color:#fff;margin-bottom:6px}
-.plan-price{font-family:var(--serif);font-size:34px;font-weight:700;color:#fff;margin:14px 0 4px}
-.plan-price span{font-family:var(--sans);font-size:13px;font-weight:500;color:var(--ink3)}
-.plan-desc{font-size:12.5px;color:var(--ink3);margin-bottom:20px;line-height:1.6}
-.plan ul{list-style:none;margin-bottom:24px}
-.plan li{display:flex;gap:9px;font-size:13px;color:var(--ink2);margin-bottom:10px;line-height:1.5}
+.plan.inst{border-color:#7FB2CC44}
+.plan-badge{position:absolute;top:-11px;left:50%;transform:translateX(-50%);background:var(--blue);color:#04101c;font-family:var(--mono);
+  font-size:9.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:3px 10px;border-radius:20px;white-space:nowrap}
+.plan-name{font-family:var(--serif);font-size:18px;font-weight:700;color:#fff;margin-bottom:6px}
+.plan-price{font-family:var(--serif);font-size:28px;font-weight:700;color:#fff;margin:12px 0 2px;line-height:1.15}
+.plan-price span{font-family:var(--sans);font-size:12px;font-weight:500;color:var(--ink3)}
+.plan-price-alt{font-family:var(--mono);font-size:10.5px;color:var(--ink4);margin-bottom:2px}
+.plan-desc{font-size:11.5px;color:var(--ink3);margin-bottom:18px;line-height:1.55;min-height:32px}
+.plan ul{list-style:none;margin-bottom:20px;flex:1}
+.plan li{display:flex;gap:8px;font-size:12px;color:var(--ink2);margin-bottom:9px;line-height:1.45}
 .plan li::before{content:'✓';color:var(--sky);font-weight:700;flex-shrink:0}
-@media (max-width:760px){.plans{grid-template-columns:1fr}}
+.plan .btn{margin-top:auto}
+@media (max-width:1000px){.plans{grid-template-columns:1fr 1fr}}
+@media (max-width:560px){.plans{grid-template-columns:1fr}}
 
 /* ── FINAL CTA ────────────────────────────────────────────────────── */
 .cta-band{background:linear-gradient(135deg,var(--navy) 0%,#24384A 100%);border-radius:20px;margin:0 28px;
@@ -470,34 +474,12 @@ footer{padding:60px 0 36px;border-top:1px solid var(--line2);margin-top:60px}
   <div class="wrap">
     <div class="sec-head center rv">
       <span class="eyebrow">Tarifs</span>
-      <h2>Commencez gratuitement.</h2>
-      <p>Passez à une offre entreprise quand vos équipes ont besoin de plus de comptes et de droits d'administration.</p>
+      <h2>Un forfait pour chaque niveau d'engagement.</h2>
+      <p>Paiement Mobile Money ou virement, aucune carte bancaire requise. 72h d'essai gratuit sur tous les modules avant de choisir.</p>
     </div>
-    <div class="plans rv">
-      <div class="plan hi">
-        <span class="plan-badge">Recommandé</span>
-        <div class="plan-name">Gratuit</div>
-        <div class="plan-price">0€<span> / compte</span></div>
-        <div class="plan-desc">Accès immédiat, sans carte bancaire.</div>
-        <ul>
-          <li>Flux temps réel sur les 54 pays</li>
-          <li>Synthèse analytique et corrélations régionales</li>
-          <li>Alertes pays et agenda sûreté</li>
-          <li>Export Word, PDF, PowerPoint, Excel, CSV</li>
-        </ul>
-        <button class="btn btn-primary" style="width:100%" onclick="openSignup()">Créer un compte gratuit</button>
-      </div>
-      <div class="plan">
-        <div class="plan-name">Entreprise</div>
-        <div class="plan-price">Sur devis</div>
-        <div class="plan-desc">Pour les équipes sûreté avec plusieurs sites ou zones.</div>
-        <ul>
-          <li>Comptes multiples et gestion des droits par rôle</li>
-          <li>Périmètres dédiés par site ou business unit</li>
-          <li>Accompagnement à la mise en place</li>
-        </ul>
-        <a class="btn btn-ghost" style="width:100%" href="mailto:yorot225@gmail.com?subject=SENTINEL%20S%C3%BBret%C3%A9%20—%20Offre%20Entreprise">Nous contacter</a>
-      </div>
+    <div class="plans rv" id="pricingCards"></div>
+    <div style="text-align:center;margin-top:24px;font-size:12px;color:var(--ink3)">
+      Facturation possible en USD/EUR pour les organismes internationaux — <a href="mailto:yorot225@gmail.com?subject=SENTINEL%20S%C3%BBret%C3%A9%20—%20Facturation%20internationale" style="color:var(--sky);text-decoration:underline">nous contacter</a>.
     </div>
   </div>
 </section>
@@ -561,7 +543,7 @@ footer{padding:60px 0 36px;border-top:1px solid var(--line2);margin-top:60px}
     <div id="signupBody">
       <span class="plan-chip"><i>●</i> Plan gratuit</span>
       <div class="modal-title">Créer votre compte</div>
-      <div class="modal-sub">Accès immédiat à la plateforme, aucune carte bancaire requise.</div>
+      <div class="modal-sub" id="suModalSub">Accès immédiat à la plateforme, aucune carte bancaire requise.</div>
       <div class="field">
         <label>Nom complet</label>
         <input type="text" id="suName" placeholder="Prénom Nom">
@@ -584,7 +566,7 @@ footer{padding:60px 0 36px;border-top:1px solid var(--line2);margin-top:60px}
         <input type="checkbox" id="suTerms">
         <label for="suTerms">J'utilise SENTINEL SÛRETÉ dans un cadre professionnel de sûreté/gestion des risques et j'accepte l'usage restreint de la plateforme.</label>
       </div>
-      <button class="btn btn-primary" style="width:100%" onclick="submitSignup()">Créer mon compte gratuit</button>
+      <button class="btn btn-primary" style="width:100%" id="suSubmitBtn" onclick="submitSignup()">Créer mon compte gratuit</button>
       <div class="modal-err" id="suErr"></div>
     </div>
   </div>
@@ -636,8 +618,71 @@ ZONES.forEach((z, i) => {
   zoneSelect.appendChild(opt);
 });
 
+// ── Tarifs — grille réelle de l'application ────────────────────────────
+// Copie de PRICING_DEFAUT (SENTINEL_Surete_Web.html) : seule grille de
+// tarification affichée publiquement, plutôt qu'une page "Gratuit /
+// Sur devis" qui ne montrait aucun prix réel. Si l'administrateur a
+// personnalisé la grille depuis l'application (Paramètres → Tarifs), la
+// même clé localStorage (même origine) est relue ici pour rester
+// synchronisé sans duplication manuelle ; PLANS_DEFAUT ne sert que de
+// repli pour un visiteur qui n'a jamais ouvert l'application sur cet
+// appareil.
+const PRICING_KEY = 'sentinel_pricing_v1';
+const PLANS_DEFAUT = [
+  {key:'gratuit',   nom:'Découverte',              prix:0,     periode:'/mois', featured:false,
+    feats:['Compte gratuit valable 72h','Flux 12h, 1 pays suivi','5 partages par mode (WhatsApp/Telegram/Email/Copier)','Publicités affichées']},
+  {key:'standard',  nom:'Particulier',              prix:9000,  periode:'/mois', featured:false,
+    feats:['54 pays, tous modules','Sans publicité','Partages illimités (tous modes)','Exports Excel/CSV','1 compte utilisateur']},
+  {key:'pro',       nom:'Professionnel Sûreté',     prix:39000, periode:'/mois', featured:true,
+    feats:['Exports Word/PDF/PowerPoint illimités','Alertes multi-pays','Marque personnalisée (en-têtes, partages)','Captures image dimensionnées WhatsApp/Telegram/Email','5 comptes utilisateurs']},
+  {key:'entreprise',nom:'Institution / International', prix:250000, periode:'/mois', featured:false,
+    feats:['Facturation possible en USD/EUR pour bailleurs','Comptes illimités','API / intégration sur mesure','Accompagnement dédié, SLA prioritaire']},
+];
+function getPlans() {
+  try { const s = JSON.parse(localStorage.getItem(PRICING_KEY) || 'null'); if (Array.isArray(s) && s.length) return s; } catch (e) {}
+  return PLANS_DEFAUT;
+}
+const EUR_RATE = 655.957; // repli par defaut, editable cote admin (voir SENTINEL_Surete_Web.html)
+function planDesc(p) {
+  if (p.key === 'gratuit') return 'Découvrez la plateforme sans engagement.';
+  if (p.key === 'entreprise') return 'Pour les ONG, bailleurs et organismes multi-pays.';
+  if (p.featured) return "Le plus choisi par les professionnels de la sûreté.";
+  return "Pour un usage individuel, tous pays confondus.";
+}
+document.getElementById('pricingCards').innerHTML = getPlans().map(p => {
+  const eur = p.prix ? Math.round(p.prix / EUR_RATE).toLocaleString('fr-FR') : null;
+  return '<div class="plan' + (p.featured ? ' hi' : '') + (p.key === 'entreprise' ? ' inst' : '') + '">'
+    + (p.featured ? '<span class="plan-badge">Recommandé</span>' : '')
+    + '<div class="plan-name">' + p.nom + '</div>'
+    + '<div class="plan-price">' + (p.prix ? p.prix.toLocaleString('fr-FR') + ' FCFA' : 'Gratuit') + '<span>' + (p.prix ? p.periode : ' — 72h') + '</span></div>'
+    + (eur ? '<div class="plan-price-alt">≈ ' + eur + ' € ' + p.periode + '</div>' : '')
+    + '<div class="plan-desc">' + planDesc(p) + '</div>'
+    + '<ul>' + p.feats.map(f => '<li>' + f + '</li>').join('') + '</ul>'
+    + '<button class="btn ' + (p.featured ? 'btn-primary' : 'btn-ghost') + '" style="width:100%" onclick="openSignup(\'' + p.key + '\')">'
+    + (p.key === 'gratuit' ? 'Créer un compte gratuit' : 'Choisir ce forfait') + '</button>'
+    + '</div>';
+}).join('');
+
 // ── Signup modal open/close ────────────────────────────────────────────
-function openSignup() {
+// SIGNUP_FORM_HTML : template du formulaire capture avant toute soumission
+// — submitSignup() remplace #signupBody par un ecran de succes/erreur, donc
+// sans ce reset, rouvrir la modale (ex. depuis une autre carte de tarif)
+// apres une premiere soumission laissait apparaitre l'ancien ecran de
+// succes au lieu du formulaire.
+const SIGNUP_FORM_HTML = document.getElementById('signupBody').innerHTML;
+let signupPlanKey = 'gratuit';
+function openSignup(planKey) {
+  signupPlanKey = planKey || 'gratuit';
+  document.getElementById('signupBody').innerHTML = SIGNUP_FORM_HTML;
+  const plan = getPlans().find(p => p.key === signupPlanKey) || PLANS_DEFAUT[0];
+  const chip = document.querySelector('#signupBody .plan-chip');
+  if (chip) chip.innerHTML = '<i>●</i> ' + plan.nom + (plan.prix ? ' — ' + plan.prix.toLocaleString('fr-FR') + ' FCFA' + plan.periode : ' — gratuit 72h');
+  const sub = document.getElementById('suModalSub');
+  if (sub) sub.textContent = plan.key === 'gratuit'
+    ? 'Accès immédiat à la plateforme, aucune carte bancaire requise.'
+    : 'Créez votre compte, puis activez ce forfait par Mobile Money depuis l\'application — aucune carte bancaire requise.';
+  const btn = document.getElementById('suSubmitBtn');
+  if (btn) btn.textContent = plan.key === 'gratuit' ? 'Créer mon compte gratuit' : 'Créer mon compte';
   document.getElementById('signupOverlay').classList.add('open');
   document.body.style.overflow = 'hidden';
 }
@@ -687,20 +732,39 @@ function submitSignup() {
   }
 
   const code = makeCode(email);
+  // planSouhaite : le forfait choisi sur cette page — n'active PAS le forfait
+  // payant lui-meme (u.plan reste 'gratuit' tant qu'un admin n'a pas verifie
+  // le paiement, voir fonctionnalitePayante() cote application), il sert
+  // uniquement a pre-selectionner le forfait dans "Déclarer un paiement"
+  // une fois le client connecte (voir openPaiementDeclare()).
   users.push({
     email, name, role: 'user', status: 'active',
-    org, zone,
+    org, zone, planSouhaite: signupPlanKey,
     createdAt: new Date().toISOString(), lastLogin: null, code,
   });
   saveUsers(users);
 
-  document.getElementById('signupBody').innerHTML =
-    '<div class="modal-success"><div class="ico">✓</div>' +
-    '<div class="modal-title" style="font-size:18px">Compte créé</div>' +
-    '<div class="modal-sub">Votre accès gratuit est actif immédiatement. Conservez ce code de connexion :</div>' +
-    '<div class="code-box">' + code + '</div>' +
-    '<div class="modal-sub" style="margin-top:0">Adresse : <b style="color:#e7ecf2">' + email + '</b></div>' +
-    '<a class="btn btn-primary" style="width:100%;margin-top:10px" href="SENTINEL_Surete_Web.html">Accéder à l\'application</a></div>';
+  const plan = getPlans().find(p => p.key === signupPlanKey);
+  const estPayant = plan && plan.prix;
+  document.getElementById('signupBody').innerHTML = estPayant
+    ? '<div class="modal-success"><div class="ico">✓</div>' +
+      '<div class="modal-title" style="font-size:18px">Compte créé</div>' +
+      '<div class="modal-sub">Conservez ce code de connexion :</div>' +
+      '<div class="code-box">' + code + '</div>' +
+      '<div class="modal-sub" style="margin-top:0">Adresse : <b style="color:#e7ecf2">' + email + '</b></div>' +
+      '<div class="modal-sub" style="margin-top:14px;text-align:left;background:rgba(58,160,255,.08);border:1px solid rgba(58,160,255,.2);border-radius:8px;padding:12px 14px">' +
+        '<b style="color:#fff">Pour activer le forfait ' + plan.nom + ' (' + plan.prix.toLocaleString('fr-FR') + ' FCFA' + plan.periode + ') :</b><br>' +
+        '1. Connectez-vous avec ce code.<br>' +
+        '2. Menu profil → « Déclarer un paiement ».<br>' +
+        '3. Transférez le montant par Mobile Money et indiquez la référence — votre forfait est activé sous 24h.' +
+      '</div>' +
+      '<a class="btn btn-primary" style="width:100%;margin-top:14px" href="SENTINEL_Surete_Web.html">Accéder à l\'application</a></div>'
+    : '<div class="modal-success"><div class="ico">✓</div>' +
+      '<div class="modal-title" style="font-size:18px">Compte créé</div>' +
+      '<div class="modal-sub">Votre accès gratuit est actif immédiatement. Conservez ce code de connexion :</div>' +
+      '<div class="code-box">' + code + '</div>' +
+      '<div class="modal-sub" style="margin-top:0">Adresse : <b style="color:#e7ecf2">' + email + '</b></div>' +
+      '<a class="btn btn-primary" style="width:100%;margin-top:10px" href="SENTINEL_Surete_Web.html">Accéder à l\'application</a></div>';
 }
 </script>
 </body>

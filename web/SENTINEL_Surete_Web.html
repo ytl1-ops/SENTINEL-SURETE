@@ -13048,6 +13048,15 @@ function openPaiementDeclare() {
   const sel = document.getElementById('pdForfait');
   const plans = getPricing().filter(p => p.prix);
   sel.innerHTML = plans.map(p => '<option value="'+p.key+'">'+p.nom+' — '+p.prix.toLocaleString('fr-FR')+' FCFA'+p.periode+'</option>').join('');
+  // Pre-selection du forfait choisi a l'inscription (page publique, voir
+  // index.html/planSouhaite) — evite au client de devoir re-identifier le
+  // bon forfait dans la liste alors qu'il l'a deja choisi une fois.
+  const session = getSession();
+  const users = getUsers();
+  const moi = users.find(u => u.email === session.email);
+  if (moi && moi.planSouhaite && plans.some(p => p.key === moi.planSouhaite)) {
+    sel.value = moi.planSouhaite;
+  }
   const moyenSel = document.getElementById('pdMoyen');
   const moyens = getPaymethods().filter(m => m.actif);
   moyenSel.innerHTML = moyens.map(m => '<option value="'+m.id+'">'+m.nom+(m.detail?' — '+m.detail:'')+'</option>').join('');
