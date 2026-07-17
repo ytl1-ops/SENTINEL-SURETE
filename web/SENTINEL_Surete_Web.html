@@ -11284,29 +11284,50 @@ async function init() {
         }
       }
     }catch(e){}
-    // ── Delai aleatoire avant la PREMIERE collecte reseau ────────────────────
-    // Sans lui, des millions d'utilisateurs ouvrant l'appli au meme moment
-    // (heure de pointe, lien partage, rentree...) lanceraient TOUS, a
-    // l'instant pres, ~500 requetes chacun vers le meme petit pool de
-    // services CORS partages (allorigins, codetabs, rss2json...) — au
-    // risque de faire rate-limiter/bloquer ces services partages pour tout
-    // le monde a la fois. Le cache local vient deja d'etre affiche
-    // instantanement ci-dessus (aucun impact visible pour l'utilisateur) ;
-    // seul le VRAI trafic reseau est etale sur une fenetre de 0 a 45s,
-    // aleatoire et independante par onglet/appareil — a l'echelle de
-    // millions de sessions, ceci lisse le pic de charge au lieu de le
-    // concentrer sur une seule seconde. Voir aussi jitterAutoRefresh()
-    // ci-dessous pour le meme principe applique aux cycles recurrents.
-    await new Promise(r => setTimeout(r, Math.floor(Math.random() * 45000)));
-    // Detection du proxy puis lancement automatique de la collecte en direct
-    await detectProxy();
-    // Collecte RSS automatique sans clic, des l'ouverture de l'application
-    try {
-      await doCollect();
-    } catch(e){
-      // Si la collecte echoue totalement, le filet pre-charge reste affiche
-      document.getElementById('stbarLeft').textContent='Veille en direct indisponible · Donnees de reference affichees · Reessayez avec Actualiser';
-      document.getElementById('liveTxt').textContent='Hors ligne';
+    // ── Éviter une collecte réseau redondante à CHAQUE connexion ─────────────
+    // Auparavant, une collecte complète (~500 sources) repartait sans condition
+    // à chaque ouverture de l'appli (nouvel onglet, reconnexion, plusieurs
+    // appareils/comptes coup sur coup) — même si une collecte venait de se
+    // terminer quelques secondes plus tôt. À l'échelle de milliers/millions de
+    // connexions, ceci multiplie inutilement la charge sur le petit pool de
+    // services CORS partagés (et affiche a chaque fois un module "Collecte en
+    // cours..." la ou le cache recent suffit deja). sentinel_lastCollectTs est
+    // persistant et partagé entre tous les onglets/connexions de ce navigateur :
+    // s'il date de moins de COLLECTE_RECENTE_MS, le cache deja affiche ci-dessus
+    // (issu de CETTE collecte recente ou d'une connexion anterieure proche)
+    // suffit — inutile de relancer un cycle reseau immediat ; le planning
+    // d'auto-refresh (~15 min, plus bas) prend le relais normalement.
+    const COLLECTE_RECENTE_MS = 4 * 60 * 1000;
+    const _dernCollecteTs = parseInt(localStorage.getItem('sentinel_lastCollectTs') || '0');
+    const _collecteRecente = (Date.now() - _dernCollecteTs) < COLLECTE_RECENTE_MS;
+    if (_collecteRecente) {
+      document.getElementById('stbarLeft').textContent = 'À jour (collecte récente, moins de '+Math.ceil(COLLECTE_RECENTE_MS/60000)+' min) · Prochaine actualisation automatique en cours de planification';
+      document.getElementById('liveTxt').textContent = 'En direct';
+    } else {
+      // ── Delai aleatoire avant la PREMIERE collecte reseau ────────────────────
+      // Sans lui, des millions d'utilisateurs ouvrant l'appli au meme moment
+      // (heure de pointe, lien partage, rentree...) lanceraient TOUS, a
+      // l'instant pres, ~500 requetes chacun vers le meme petit pool de
+      // services CORS partages (allorigins, codetabs, rss2json...) — au
+      // risque de faire rate-limiter/bloquer ces services partages pour tout
+      // le monde a la fois. Le cache local vient deja d'etre affiche
+      // instantanement ci-dessus (aucun impact visible pour l'utilisateur) ;
+      // seul le VRAI trafic reseau est etale sur une fenetre de 0 a 45s,
+      // aleatoire et independante par onglet/appareil — a l'echelle de
+      // millions de sessions, ceci lisse le pic de charge au lieu de le
+      // concentrer sur une seule seconde. Voir aussi jitterAutoRefresh()
+      // ci-dessous pour le meme principe applique aux cycles recurrents.
+      await new Promise(r => setTimeout(r, Math.floor(Math.random() * 45000)));
+      // Detection du proxy puis lancement automatique de la collecte en direct
+      await detectProxy();
+      // Collecte RSS automatique sans clic, des l'ouverture de l'application
+      try {
+        await doCollect();
+      } catch(e){
+        // Si la collecte echoue totalement, le filet pre-charge reste affiche
+        document.getElementById('stbarLeft').textContent='Veille en direct indisponible · Donnees de reference affichees · Reessayez avec Actualiser';
+        document.getElementById('liveTxt').textContent='Hors ligne';
+      }
     }
     // ── Auto-refresh : respecte la préférence utilisateur ────────────────────
     // La préférence est sauvegardée dans localStorage par saveAutoRefreshPref().
