@@ -2286,34 +2286,40 @@ body.sentinel-protected img{ -webkit-user-drag:none; user-drag:none; pointer-eve
         <div class="ag-wrap">
           <div class="ag-hdr">
             <div>
-              <div class="ag-tt" id="corTitreCorridor">Corridor de référence</div>
-              <div class="ag-sb" id="corSousTitre">Sélectionnez une zone et un corridor pour suivre les évènements le long de l'itinéraire.</div>
+              <div class="ag-tt" id="corTitreCorridor" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">Corridors de référence <span id="corNiveauBadge"></span></div>
+              <div class="ag-sb" id="corSousTitre">Vue d'ensemble de tous les corridors surveillés — niveau recoupé sur les actualités sécuritaires (attaques, coupeurs de route, vols, agressions).</div>
             </div>
           </div>
-          <div class="tlbr" style="flex-shrink:0;margin-bottom:8px;flex-wrap:wrap;">
-            <span style="font-size:11px;font-weight:700;color:var(--t);display:flex;align-items:center;gap:5px;"><i class="ti ti-filter" style="font-size:14px"></i>Filtrer</span>
-            <select id="corZoneFilter" onchange="setCorridorZone(this.value)" style="padding:4px 8px;border:1px solid var(--bd);border-radius:5px;font-size:11px;font-weight:600;color:var(--t);background:var(--w);"></select>
-            <select id="corCorridorFilter" onchange="setCorridorId(this.value)" style="padding:4px 8px;border:1px solid var(--bd);border-radius:5px;font-size:11px;font-weight:600;color:var(--t);background:var(--w);max-width:260px;"></select>
-            <select id="corFenetreFilter" onchange="setCorridorFenetre(this.value)" style="padding:4px 8px;border:1px solid var(--bd);border-radius:5px;font-size:11px;font-weight:600;color:var(--t);background:var(--w);">
-              <option value="24">24 heures</option>
-              <option value="72" selected>72 heures</option>
-              <option value="168">7 jours</option>
-              <option value="720">30 jours</option>
-            </select>
-            <button onclick="renderCorridors()" title="Rafraichir depuis les donnees deja collectees" style="padding:5px 12px;background:rgba(61,100,134,.12);border:1px solid rgba(61,100,134,.4);border-radius:5px;color:var(--b);font-size:11px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:5px;">
-              <i class="ti ti-refresh"></i> Actualiser
-            </button>
+          <div id="corApercu"></div>
+          <div id="corDetailWrap" style="display:none">
+            <div class="tlbr" style="flex-shrink:0;margin-bottom:8px;flex-wrap:wrap;">
+              <button onclick="retourApercuCorridors()" title="Revenir a la vue d'ensemble de tous les corridors" style="padding:5px 12px;background:var(--sf);border:1px solid var(--bd);border-radius:5px;color:var(--t);font-size:11px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:5px;">
+                <i class="ti ti-arrow-left"></i> Vue d'ensemble
+              </button>
+              <span style="font-size:11px;font-weight:700;color:var(--t);display:flex;align-items:center;gap:5px;"><i class="ti ti-filter" style="font-size:14px"></i>Filtrer</span>
+              <select id="corZoneFilter" onchange="setCorridorZone(this.value)" style="padding:4px 8px;border:1px solid var(--bd);border-radius:5px;font-size:11px;font-weight:600;color:var(--t);background:var(--w);"></select>
+              <select id="corCorridorFilter" onchange="setCorridorId(this.value)" style="padding:4px 8px;border:1px solid var(--bd);border-radius:5px;font-size:11px;font-weight:600;color:var(--t);background:var(--w);max-width:260px;"></select>
+              <select id="corFenetreFilter" onchange="setCorridorFenetre(this.value)" style="padding:4px 8px;border:1px solid var(--bd);border-radius:5px;font-size:11px;font-weight:600;color:var(--t);background:var(--w);">
+                <option value="24">24 heures</option>
+                <option value="72" selected>72 heures</option>
+                <option value="168">7 jours</option>
+                <option value="720">30 jours</option>
+              </select>
+              <button onclick="renderCorridors()" title="Rafraichir depuis les donnees deja collectees" style="padding:5px 12px;background:rgba(61,100,134,.12);border:1px solid rgba(61,100,134,.4);border-radius:5px;color:var(--b);font-size:11px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:5px;">
+                <i class="ti ti-refresh"></i> Actualiser
+              </button>
+            </div>
+            <div class="srch" style="margin-bottom:8px;"><i class="ti ti-search"></i><input type="text" id="corQ" placeholder="Rechercher sur ce corridor..." oninput="renderCorridorsDebounced()"></div>
+            <div class="chips" id="corChips" style="margin-bottom:10px;">
+              <span class="chip on" onclick="setCorCat(this,'all')">Tout</span>
+              <span class="chip" onclick="setCorCat(this,'securite')">Securite</span>
+              <span class="chip" onclick="setCorCat(this,'humanitaire')">Humanitaire</span>
+              <span class="chip" onclick="setCorCat(this,'politique')">Politique</span>
+              <span class="chip" onclick="setCorCat(this,'economique')">Economique</span>
+            </div>
+            <div id="corStepper" class="cor-stepper"></div>
+            <div id="corList"></div>
           </div>
-          <div class="srch" style="margin-bottom:8px;"><i class="ti ti-search"></i><input type="text" id="corQ" placeholder="Rechercher sur ce corridor..." oninput="renderCorridorsDebounced()"></div>
-          <div class="chips" id="corChips" style="margin-bottom:10px;">
-            <span class="chip on" onclick="setCorCat(this,'all')">Tout</span>
-            <span class="chip" onclick="setCorCat(this,'securite')">Securite</span>
-            <span class="chip" onclick="setCorCat(this,'humanitaire')">Humanitaire</span>
-            <span class="chip" onclick="setCorCat(this,'politique')">Politique</span>
-            <span class="chip" onclick="setCorCat(this,'economique')">Economique</span>
-          </div>
-          <div id="corStepper" class="cor-stepper"></div>
-          <div id="corList"></div>
         </div>
       </div>
       <div class="view-note"><i class="ti ti-info-circle"></i><span data-i18n="note_corridors">Corridor de référence : suit les évènements le long des principaux corridors logistiques et transfrontaliers, étape par étape — configurable par zone.</span></div>
@@ -4877,6 +4883,50 @@ const CORRIDORS_PAR_ZONE = {
       {nom:'Rabat',cy:'MA'}, {nom:'Dakhla',cy:'MA'}, {nom:'Nouakchott',cy:'MR'} ] },
   ],
 };
+
+// CORRIDOR_SECURITE_KW : mots-cles recoupes pour calculer le NIVEAU D'ALERTE
+// de chaque corridor — cible specifiquement les faits qui menacent la
+// securite d'un deplacement/transport le long de l'itineraire (attaques,
+// coupeurs de route, vols, agressions), plutot que l'ensemble generique de
+// la categorie "securite" (qui couvre aussi la politique, le terrorisme
+// ideologique, etc. sans lien direct avec le risque de circuler sur ce
+// corridor). "Coupeurs de route" (bandits armes qui rançonnent/attaquent
+// les vehicules sur les axes routiers) est un risque routier majeur au
+// Sahel/Afrique de l'Ouest, distinct des autres formes de criminalite.
+const CORRIDOR_SECURITE_KW = [
+  'attaque','attentat','assaut','embuscade',
+  'coupeur de route','coupeurs de route','coupeur de routes','coupeurs de routes',
+  'bandit arme','bandits armes','bandit armé','bandits armés',
+  'braquage','vol a main armee','vol à main armée','vol de vehicule','vol de véhicule','carjacking',
+  'agression','agresse ','agressee','agressé','agressée',
+];
+function articleEstSecuriteCorridor(a) {
+  if (!a) return false;
+  const t = (L(a.title||'') + ' ' + L(a.analysis||'')).toLowerCase();
+  return CORRIDOR_SECURITE_KW.some(k => t.includes(k));
+}
+// Fenetre volontairement plus large (7 jours) que la fenetre d'affichage de
+// la liste d'evenements (72h par defaut, ajustable) : un niveau d'alerte de
+// corridor qui basculerait au vert des la moindre accalmie de quelques
+// heures donnerait une fausse impression de securite retablie. La liste
+// detaillee, elle, reste pilotee par le filtre fCorFenetre choisi par
+// l'utilisateur.
+const NIVEAU_CORRIDOR_FENETRE_MS = 7 * 24 * 60 * 60 * 1000;
+function calcNiveauCorridor(corridor) {
+  const seuil = Date.now() - NIVEAU_CORRIDOR_FENETRE_MS;
+  const paysCorridor = new Set(corridor.villes.map(v => v.cy));
+  const faits = (typeof ALL !== 'undefined' ? ALL : []).filter(a =>
+    a && paysCorridor.has(a.cy) && (a.pubDate || 0) >= seuil && articleEstSecuriteCorridor(a)
+  );
+  const nbCrit = faits.filter(a => a.level === 'crit').length;
+  const nbHigh = faits.filter(a => a.level === 'high').length;
+  let niveau;
+  if (nbCrit >= 1) niveau = 'crit';
+  else if (nbHigh >= 2 || faits.length >= 4) niveau = 'high';
+  else if (faits.length >= 1) niveau = 'mod';
+  else niveau = 'ok';
+  return { niveau, count: faits.length, faits };
+}
 
 const DEMO=[]; // Donnees de demonstration retirees : le flux ne contient que de vraies donnees collectees.
 
@@ -10608,6 +10658,10 @@ async function renderAgenda() {
 // choix zone -> corridor (jamais un itinéraire unique figé). Chaque etape
 // (ville) est rattachee aux actus du Flux (ALL) par son pays.
 let fCorZone = 'sahel', fCorId = CORRIDORS_PAR_ZONE.sahel[0].id, fCorFenetre = 72, fCorCat = 'all', fCorQ = '';
+// corridorVueApercu : vue d'ensemble de TOUS les corridors (toutes zones),
+// avec niveau d'alerte recoupe, affichee par defaut AVANT toute selection —
+// bascule a false uniquement quand l'utilisateur choisit un corridor precis.
+let corridorVueApercu = true;
 
 function peuplerFiltresCorridors() {
   const selZone = document.getElementById('corZoneFilter');
@@ -10653,22 +10707,111 @@ function setCorCat(el, cat) {
   renderCorridors();
 }
 
+// renderCorridors() : simple aiguillage — vue d'ensemble (tous les
+// corridors, niveaux d'alerte recoupes) tant que rien n'est selectionne,
+// detail (stepper + liste d'evenements) une fois un corridor choisi. Tous
+// les points d'entree existants (filtres, recherche, bouton Actualiser,
+// switchView) continuent d'appeler renderCorridors() sans changement.
 function renderCorridors() {
+  if (corridorVueApercu) renderCorridorsApercu();
+  else renderCorridorsDetail();
+}
+
+function ouvrirCorridorDepuisApercu(zc, id) {
+  fCorZone = zc;
+  fCorId = id;
+  corridorVueApercu = false;
+  renderCorridors();
+}
+
+function retourApercuCorridors() {
+  corridorVueApercu = true;
+  renderCorridors();
+}
+
+const NIVEAU_CORRIDOR_COULEUR = { crit: 'var(--r)', high: 'var(--a)', mod: 'var(--b)', ok: 'var(--g)' };
+const NIVEAU_CORRIDOR_RANG    = { crit: 0, high: 1, mod: 2, ok: 3 };
+
+// renderCorridorsApercu() : affiche TOUS les corridors (toutes zones
+// confondues), chacun avec son niveau d'alerte recoupe (voir
+// calcNiveauCorridor / CORRIDOR_SECURITE_KW) — trie du plus critique au plus
+// stable, pour une lecture de risque immediate avant meme d'avoir choisi un
+// corridor precis.
+function renderCorridorsApercu() {
+  const titreEl = document.getElementById('corTitreCorridor');
+  const sousTitreEl = document.getElementById('corSousTitre');
+  const badgeEl = document.getElementById('corNiveauBadge');
+  const apercuEl = document.getElementById('corApercu');
+  const detailEl = document.getElementById('corDetailWrap');
+  if (titreEl) titreEl.childNodes[0].nodeValue = 'Corridors de référence ';
+  if (badgeEl) badgeEl.innerHTML = '';
+  if (sousTitreEl) sousTitreEl.textContent = "Vue d'ensemble de tous les corridors surveillés · niveau recoupé sur les actualités sécuritaires (attaques, coupeurs de route, vols, agressions) des 7 derniers jours.";
+  if (detailEl) detailEl.style.display = 'none';
+  if (apercuEl) apercuEl.style.display = '';
+  if (!apercuEl) return;
+
+  const tousCorridors = [];
+  for (const zc in CORRIDORS_PAR_ZONE) {
+    (CORRIDORS_PAR_ZONE[zc] || []).forEach(c => tousCorridors.push(Object.assign({ zc }, c)));
+  }
+  const cartes = tousCorridors
+    .map(c => Object.assign({ c }, calcNiveauCorridor(c)))
+    .sort((a, b) => {
+      const r = NIVEAU_CORRIDOR_RANG[a.niveau] - NIVEAU_CORRIDOR_RANG[b.niveau];
+      return r !== 0 ? r : b.count - a.count;
+    });
+
+  apercuEl.innerHTML = '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px;margin-bottom:14px">' +
+    cartes.map(({ c, niveau, count }) => {
+      const pl = lp(niveau);
+      const col = NIVEAU_CORRIDOR_COULEUR[niveau] || 'var(--b)';
+      const zoneNom = (ZONES_GEO[c.zc] || {}).nom || c.zc;
+      return '<div class="acard" onclick="ouvrirCorridorDepuisApercu(\'' + c.zc + '\',\'' + c.id + '\')" ' +
+        'style="cursor:pointer;padding:12px;border-top:3px solid ' + col + ';display:flex;flex-direction:column;gap:6px">' +
+          '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px">' +
+            '<span style="font-size:9px;font-weight:700;color:var(--lg);text-transform:uppercase;letter-spacing:.05em">' + escHtml(zoneNom) + '</span>' +
+            '<span class="rpill ' + pl[0] + '">' + pl[1] + '</span>' +
+          '</div>' +
+          '<div style="font-size:13px;font-weight:700;color:var(--t)">' + escHtml(c.nom) + '</div>' +
+          '<div style="font-size:10px;color:var(--lg);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + escHtml(c.villes.map(v => v.nom).join(' → ')) + '</div>' +
+          '<div style="font-size:10px;color:' + col + ';font-weight:700;margin-top:2px">' +
+            (count > 0 ? count + ' fait(s) sécuritaire(s) recoupé(s) · 7 jours' : 'Aucun fait sécuritaire recoupé · 7 jours') +
+          '</div>' +
+        '</div>';
+    }).join('') +
+  '</div>';
+}
+
+// renderCorridorsDetail() : detail d'UN corridor selectionne (stepper etape
+// par etape + liste d'evenements filtrable) — ancien comportement de
+// renderCorridors(), inchange, avec en plus le badge de niveau d'alerte
+// recoupe dans l'en-tete et un marqueur sur les faits qui l'alimentent.
+function renderCorridorsDetail() {
   peuplerFiltresCorridors();
+  const apercuEl = document.getElementById('corApercu');
+  const detailEl = document.getElementById('corDetailWrap');
+  if (apercuEl) apercuEl.style.display = 'none';
+  if (detailEl) detailEl.style.display = '';
   const corridor = (CORRIDORS_PAR_ZONE[fCorZone] || []).find(c => c.id === fCorId) || (CORRIDORS_PAR_ZONE[fCorZone] || [])[0];
   const titreEl = document.getElementById('corTitreCorridor');
   const sousTitreEl = document.getElementById('corSousTitre');
+  const badgeEl = document.getElementById('corNiveauBadge');
   const stepperEl = document.getElementById('corStepper');
   const listEl = document.getElementById('corList');
   if (!corridor) {
-    if (titreEl) titreEl.textContent = 'Corridor de référence';
+    if (titreEl) titreEl.childNodes[0].nodeValue = 'Corridor de référence ';
+    if (badgeEl) badgeEl.innerHTML = '';
     if (sousTitreEl) sousTitreEl.textContent = 'Aucun corridor défini pour cette zone.';
     if (stepperEl) stepperEl.innerHTML = '';
     if (listEl) listEl.innerHTML = '';
     return;
   }
-  if (titreEl) titreEl.textContent = 'Corridor de référence — ' + corridor.nom;
-  if (sousTitreEl) sousTitreEl.textContent = (ZONES_GEO[fCorZone] || {}).nom + ' · ' + corridor.villes.map(v => v.nom).join(' → ');
+  const niv = calcNiveauCorridor(corridor);
+  const pl = lp(niv.niveau);
+  if (titreEl) titreEl.childNodes[0].nodeValue = 'Corridor de référence — ' + corridor.nom + ' ';
+  if (badgeEl) badgeEl.innerHTML = '<span class="rpill ' + pl[0] + '">' + pl[1] + '</span>';
+  if (sousTitreEl) sousTitreEl.textContent = (ZONES_GEO[fCorZone] || {}).nom + ' · ' + corridor.villes.map(v => v.nom).join(' → ') +
+    ' · ' + (niv.count > 0 ? niv.count + ' fait(s) sécuritaire(s) recoupé(s) (attaques, coupeurs de route, vols, agressions) sur 7 jours' : 'aucun fait sécuritaire recoupé sur 7 jours');
 
   const seuil = Date.now() - fCorFenetre * 3600000;
   const paysCorridor = new Set(corridor.villes.map(v => v.cy));
@@ -10703,10 +10846,13 @@ function renderCorridors() {
   listEl.innerHTML = evenements.map(a => {
     const cc = CYS.find(x => x.code === a.cy) || { flag: '🌍', name: a.cy };
     const pl = lp(a.level);
+    const estSecRoute = articleEstSecuriteCorridor(a);
     return '<div class="art l' + a.level.charAt(0) + '2" data-level="' + a.level + '" onclick="showDet(\'' + a.id + '\')">' +
       '<div class="al"><span class="rpill ' + pl[0] + '">' + pl[1] + '</span></div>' +
       '<div class="ab">' +
-        '<div class="art-top"><span class="flagcy">' + cc.flag + ' ' + cc.name + '</span><span class="survtime"><i class="ti ti-history"></i>' + fmtAge(a.pubDate || 0) + '</span></div>' +
+        '<div class="art-top"><span class="flagcy">' + cc.flag + ' ' + cc.name + '</span>' +
+          (estSecRoute ? '<span class="rpill rc2" title="Recoupé : sécurité routière (attaque/coupeurs de route/vol/agression)">ROUTE</span>' : '') +
+          '<span class="survtime"><i class="ti ti-history"></i>' + fmtAge(a.pubDate || 0) + '</span></div>' +
         '<div class="atit">' + escHtml(L(a.title)) + '</div>' +
       '</div></div>';
   }).join('');
@@ -10774,7 +10920,7 @@ function switchView(name,el){
   const _lpEl = document.getElementById('lp');
   if (_lpEl) _lpEl.style.display=(name==='rapports'||name==='params')?'none':'flex';
   if(name==='agenda')    { renderAgenda(); }
-  if(name==='corridors') { renderCorridors(); }
+  if(name==='corridors') { corridorVueApercu = true; renderCorridors(); }
   if(name==='dashboard') { renderDashboard(); }
   // Ouverture de l'onglet Alertes : force un recalcul/repeinture immediat.
   // Sans cette branche (absente jusqu'ici, contrairement a tous les autres
