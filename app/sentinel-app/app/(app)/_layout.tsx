@@ -75,6 +75,7 @@ export default function AppLayout() {
         }}
       />
       <Tabs.Screen name="article" options={{ href: null }} />
+      <Tabs.Screen name="corridor" options={{ href: null }} />
     </Tabs>
   );
 }

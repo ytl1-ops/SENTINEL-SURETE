@@ -156,6 +156,9 @@ export default function FeedScreen() {
               <Text style={s.liveText}>Live</Text>
             </View>
           )}
+          <TouchableOpacity onPress={() => router.push('/(app)/corridor')}>
+            <Ionicons name="trail-sign-outline" size={22} color={Colors.white} />
+          </TouchableOpacity>
           <TouchableOpacity onPress={() => router.push('/notifications')}>
             <Ionicons name="notifications-outline" size={22} color={Colors.white} />
           </TouchableOpacity>
