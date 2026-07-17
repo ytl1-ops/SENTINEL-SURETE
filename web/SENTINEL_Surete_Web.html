@@ -2318,6 +2318,7 @@ body.sentinel-protected img{ -webkit-user-drag:none; user-drag:none; pointer-eve
               <span class="chip" onclick="setCorCat(this,'economique')">Economique</span>
             </div>
             <div id="corStepper" class="cor-stepper"></div>
+            <div id="corFaitsMarquants"></div>
             <div id="corList"></div>
           </div>
         </div>
@@ -4917,7 +4918,7 @@ function calcNiveauCorridor(corridor) {
   const paysCorridor = new Set(corridor.villes.map(v => v.cy));
   const faits = (typeof ALL !== 'undefined' ? ALL : []).filter(a =>
     a && paysCorridor.has(a.cy) && (a.pubDate || 0) >= seuil && articleEstSecuriteCorridor(a)
-  );
+  ).sort((a, b) => (b.pubDate || 0) - (a.pubDate || 0)); // plus recent en premier — "faits marquants"
   const nbCrit = faits.filter(a => a.level === 'crit').length;
   const nbHigh = faits.filter(a => a.level === 'high').length;
   let niveau;
@@ -4926,6 +4927,23 @@ function calcNiveauCorridor(corridor) {
   else if (faits.length >= 1) niveau = 'mod';
   else niveau = 'ok';
   return { niveau, count: faits.length, faits };
+}
+
+// resumeCorridor(corridor) : calcNiveauCorridor() + actualites recentes
+// generales (toutes categories, 72h) pour ce corridor, hors doublons deja
+// comptes comme "faits marquants" — permet d'afficher un contenu utile meme
+// sur un corridor STABLE (aucun fait securitaire recoupe) plutot qu'une
+// carte vide.
+const CORRIDOR_ACTU_RECENTE_FENETRE_MS = 72 * 60 * 60 * 1000;
+function resumeCorridor(corridor) {
+  const niv = calcNiveauCorridor(corridor);
+  const paysCorridor = new Set(corridor.villes.map(v => v.cy));
+  const seuilRecent = Date.now() - CORRIDOR_ACTU_RECENTE_FENETRE_MS;
+  const idsFaits = new Set(niv.faits.map(a => a.id));
+  const actuRecentes = (typeof ALL !== 'undefined' ? ALL : [])
+    .filter(a => a && paysCorridor.has(a.cy) && (a.pubDate || 0) >= seuilRecent && !idsFaits.has(a.id))
+    .sort((a, b) => (b.pubDate || 0) - (a.pubDate || 0));
+  return Object.assign({}, niv, { actuRecentes });
 }
 
 const DEMO=[]; // Donnees de demonstration retirees : le flux ne contient que de vraies donnees collectees.
@@ -10730,13 +10748,36 @@ function retourApercuCorridors() {
 }
 
 const NIVEAU_CORRIDOR_COULEUR = { crit: 'var(--r)', high: 'var(--a)', mod: 'var(--b)', ok: 'var(--g)' };
-const NIVEAU_CORRIDOR_RANG    = { crit: 0, high: 1, mod: 2, ok: 3 };
+// Hierarchie du VERT (stable) au ROUGE (critique) — rang croissant avec la
+// gravite, utilise pour trier la vue d'ensemble dans cet ordre (du plus
+// calme au plus alarmant), demande explicitement.
+const NIVEAU_CORRIDOR_RANG = { ok: 0, mod: 1, high: 2, crit: 3 };
+
+// apercuFaitsMarquants(resume, max) : jusqu'a `max` lignes de contenu pour
+// une carte — priorite aux faits securitaires recoupes ("faits marquants"),
+// completes si besoin par les actualites recentes generales du corridor
+// ("actu recentes"), pour qu'une carte STABLE affiche tout de meme du
+// contenu utile plutot qu'une case vide.
+function apercuFaitsMarquants(resume, max) {
+  const items = [];
+  resume.faits.forEach(a => { if (items.length < max) items.push({ a, marquant: true }); });
+  resume.actuRecentes.forEach(a => { if (items.length < max) items.push({ a, marquant: false }); });
+  return items;
+}
+
+function ligneFaitApercu(item) {
+  const titre = escHtml(extraitLoyal(L(item.a.title), 58));
+  const puce = item.marquant ? '⚠' : '•';
+  return '<div style="font-size:10px;color:var(--t);line-height:1.4;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + titre + '">' +
+    puce + ' ' + titre + ' <span style="color:var(--lg)">· ' + fmtAge(item.a.pubDate || 0) + '</span>' +
+  '</div>';
+}
 
 // renderCorridorsApercu() : affiche TOUS les corridors (toutes zones
 // confondues), chacun avec son niveau d'alerte recoupe (voir
-// calcNiveauCorridor / CORRIDOR_SECURITE_KW) — trie du plus critique au plus
-// stable, pour une lecture de risque immediate avant meme d'avoir choisi un
-// corridor precis.
+// calcNiveauCorridor / CORRIDOR_SECURITE_KW), ses faits marquants et ses
+// actualites recentes — trie du VERT (stable) au ROUGE (critique) pour une
+// lecture de risque immediate avant meme d'avoir choisi un corridor precis.
 function renderCorridorsApercu() {
   const titreEl = document.getElementById('corTitreCorridor');
   const sousTitreEl = document.getElementById('corSousTitre');
@@ -10745,7 +10786,7 @@ function renderCorridorsApercu() {
   const detailEl = document.getElementById('corDetailWrap');
   if (titreEl) titreEl.childNodes[0].nodeValue = 'Corridors de référence ';
   if (badgeEl) badgeEl.innerHTML = '';
-  if (sousTitreEl) sousTitreEl.textContent = "Vue d'ensemble de tous les corridors surveillés · niveau recoupé sur les actualités sécuritaires (attaques, coupeurs de route, vols, agressions) des 7 derniers jours.";
+  if (sousTitreEl) sousTitreEl.textContent = "Vue d'ensemble de tous les corridors surveillés · du plus stable au plus critique · niveau recoupé sur les actualités sécuritaires (attaques, coupeurs de route, vols, agressions) des 7 derniers jours.";
   if (detailEl) detailEl.style.display = 'none';
   if (apercuEl) apercuEl.style.display = '';
   if (!apercuEl) return;
@@ -10755,17 +10796,19 @@ function renderCorridorsApercu() {
     (CORRIDORS_PAR_ZONE[zc] || []).forEach(c => tousCorridors.push(Object.assign({ zc }, c)));
   }
   const cartes = tousCorridors
-    .map(c => Object.assign({ c }, calcNiveauCorridor(c)))
+    .map(c => Object.assign({ c }, resumeCorridor(c)))
     .sort((a, b) => {
       const r = NIVEAU_CORRIDOR_RANG[a.niveau] - NIVEAU_CORRIDOR_RANG[b.niveau];
-      return r !== 0 ? r : b.count - a.count;
+      return r !== 0 ? r : a.count - b.count;
     });
 
   apercuEl.innerHTML = '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px;margin-bottom:14px">' +
-    cartes.map(({ c, niveau, count }) => {
+    cartes.map((resume) => {
+      const { c, niveau, count } = resume;
       const pl = lp(niveau);
       const col = NIVEAU_CORRIDOR_COULEUR[niveau] || 'var(--b)';
       const zoneNom = (ZONES_GEO[c.zc] || {}).nom || c.zc;
+      const lignes = apercuFaitsMarquants(resume, 2);
       return '<div class="acard" onclick="ouvrirCorridorDepuisApercu(\'' + c.zc + '\',\'' + c.id + '\')" ' +
         'style="cursor:pointer;padding:12px;border-top:3px solid ' + col + ';display:flex;flex-direction:column;gap:6px">' +
           '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px">' +
@@ -10777,6 +10820,7 @@ function renderCorridorsApercu() {
           '<div style="font-size:10px;color:' + col + ';font-weight:700;margin-top:2px">' +
             (count > 0 ? count + ' fait(s) sécuritaire(s) recoupé(s) · 7 jours' : 'Aucun fait sécuritaire recoupé · 7 jours') +
           '</div>' +
+          (lignes.length ? '<div style="display:flex;flex-direction:column;gap:2px;margin-top:2px;padding-top:6px;border-top:1px dashed var(--bd)">' + lignes.map(ligneFaitApercu).join('') + '</div>' : '') +
         '</div>';
     }).join('') +
   '</div>';
@@ -10798,20 +10842,37 @@ function renderCorridorsDetail() {
   const badgeEl = document.getElementById('corNiveauBadge');
   const stepperEl = document.getElementById('corStepper');
   const listEl = document.getElementById('corList');
+  const faitsEl = document.getElementById('corFaitsMarquants');
   if (!corridor) {
     if (titreEl) titreEl.childNodes[0].nodeValue = 'Corridor de référence ';
     if (badgeEl) badgeEl.innerHTML = '';
     if (sousTitreEl) sousTitreEl.textContent = 'Aucun corridor défini pour cette zone.';
     if (stepperEl) stepperEl.innerHTML = '';
+    if (faitsEl) faitsEl.innerHTML = '';
     if (listEl) listEl.innerHTML = '';
     return;
   }
-  const niv = calcNiveauCorridor(corridor);
+  const resume = resumeCorridor(corridor);
+  const niv = resume;
   const pl = lp(niv.niveau);
   if (titreEl) titreEl.childNodes[0].nodeValue = 'Corridor de référence — ' + corridor.nom + ' ';
   if (badgeEl) badgeEl.innerHTML = '<span class="rpill ' + pl[0] + '">' + pl[1] + '</span>';
   if (sousTitreEl) sousTitreEl.textContent = (ZONES_GEO[fCorZone] || {}).nom + ' · ' + corridor.villes.map(v => v.nom).join(' → ') +
     ' · ' + (niv.count > 0 ? niv.count + ' fait(s) sécuritaire(s) recoupé(s) (attaques, coupeurs de route, vols, agressions) sur 7 jours' : 'aucun fait sécuritaire recoupé sur 7 jours');
+
+  if (faitsEl) {
+    const lignes = apercuFaitsMarquants(resume, 4);
+    faitsEl.innerHTML = !lignes.length ? '' :
+      '<div class="acard" style="padding:10px 12px;margin-bottom:10px;border-left:3px solid ' + (NIVEAU_CORRIDOR_COULEUR[niv.niveau] || 'var(--b)') + '">' +
+        '<div style="font-size:10px;font-weight:700;color:var(--lg);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Faits marquants &amp; actualités récentes</div>' +
+        '<div style="display:flex;flex-direction:column;gap:4px">' + lignes.map(item =>
+          '<div style="font-size:11px;color:var(--t);cursor:pointer" onclick="showDet(\'' + item.a.id + '\')" title="Voir le détail">' +
+            (item.marquant ? '⚠ ' : '• ') + escHtml(extraitLoyal(L(item.a.title), 90)) +
+            ' <span style="color:var(--lg);font-size:10px">· ' + fmtAge(item.a.pubDate || 0) + '</span>' +
+          '</div>'
+        ).join('') + '</div>' +
+      '</div>';
+  }
 
   const seuil = Date.now() - fCorFenetre * 3600000;
   const paysCorridor = new Set(corridor.villes.map(v => v.cy));
