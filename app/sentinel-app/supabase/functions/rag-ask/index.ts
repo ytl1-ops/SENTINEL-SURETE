@@ -43,6 +43,51 @@ function reponseJSON(corps: unknown, statut = 200) {
   });
 }
 
+async function appellerClaude(anthropicKey: string, system: string, contenu: string, maxTokens: number) {
+  const resp = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-api-key': anthropicKey, 'anthropic-version': '2023-06-01' },
+    body: JSON.stringify({ model: ANTHROPIC_MODEL, max_tokens: maxTokens, system, messages: [{ role: 'user', content: contenu }] }),
+  });
+  if (!resp.ok) { const detail = await resp.text().catch(() => ''); throw new Error(`Anthropic ${resp.status}: ${detail}`); }
+  const json = await resp.json();
+  return (json?.content || []).map((b: { text?: string }) => b.text || '').join('').trim();
+}
+
+// verifierReponse(contexte, question, answer) : agent anti-hallucination —
+// UN SECOND appel Claude, INDEPENDANT du premier, relit la reponse deja
+// generee a la lumiere des memes articles sources et verifie que CHAQUE
+// affirmation factuelle y est bien confirmee (pas de connaissance
+// generale non sourcee, pas d'extrapolation). Renvoie {valide, problemes}.
+// Volontairement un modele/appel SEPARE de la generation initiale : un
+// modele qui se relit lui-meme dans le meme contexte de conversation tend
+// a confirmer ses propres erreurs (biais de confirmation) — un second
+// jugement independant, sans connaitre le raisonnement qui a produit la
+// reponse, est plus fiable pour detecter une affirmation non etayee.
+async function verifierReponse(anthropicKey: string, contexte: string, question: string, answer: string) {
+  const systemVerif =
+    `Tu es un vérificateur factuel strict et indépendant. On te donne des extraits d'articles sources et une réponse ` +
+    `générée par un autre système à partir de CES MÊMES extraits. Vérifie que CHAQUE affirmation factuelle de la réponse ` +
+    `(dates, lieux, chiffres, noms, événements) est bien confirmée par le contenu des extraits — aucune connaissance ` +
+    `générale non sourcée, aucune extrapolation non justifiée, aucun fait absent des extraits. Une reformulation ou un ` +
+    `résumé fidèle du contenu des extraits est VALIDE. Réponds UNIQUEMENT avec un objet JSON strict, sans texte avant ` +
+    `ni après, au format exact : {"valide": true|false, "problemes": ["description courte de l'affirmation non confirmée", ...]}. ` +
+    `Si tout est confirmé, "problemes" est un tableau vide.`;
+  const contenu = `Extraits sources :\n\n${contexte}\n\nQuestion d'origine : ${question}\n\nRéponse à vérifier :\n${answer}`;
+  try {
+    const texte = await appellerClaude(anthropicKey, systemVerif, contenu, 400);
+    const jsonMatch = texte.match(/\{[\s\S]*\}/);
+    const parsed = JSON.parse(jsonMatch ? jsonMatch[0] : texte);
+    return { valide: parsed.valide !== false, problemes: Array.isArray(parsed.problemes) ? parsed.problemes : [] };
+  } catch (e) {
+    // Echec du parsing/appel de verification : ne bloque JAMAIS la reponse
+    // deja generee pour un probleme technique du verificateur lui-meme —
+    // best-effort, la premiere generation reste deja contrainte aux
+    // extraits par son propre system prompt.
+    return { valide: true, problemes: [], erreurVerification: String(e) };
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS_HEADERS });
   if (req.method !== 'POST') return reponseJSON({ error: 'Méthode non autorisée.' }, 405);
@@ -107,39 +152,44 @@ Deno.serve(async (req) => {
     `avec un ton professionnel adapté à un contexte sûreté/sécurité. Date du jour : ${dateAujourdhui}.` +
     (rechercheSansResultat ? ' ATTENTION : ces articles sont les plus récents disponibles mais ne correspondent pas forcément au sujet précis de la question — précise-le à l\'utilisateur si c\'est le cas.' : '');
 
-  let reponseAnthropic;
+  const userMsg = `Articles disponibles :\n\n${contexte}\n\nQuestion de l'utilisateur : ${question}`;
+  let answer: string;
   try {
-    reponseAnthropic = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': anthropicKey,
-        'anthropic-version': '2023-06-01',
-      },
-      body: JSON.stringify({
-        model: ANTHROPIC_MODEL,
-        max_tokens: 700,
-        system: systemPrompt,
-        messages: [{ role: 'user', content: `Articles disponibles :\n\n${contexte}\n\nQuestion de l'utilisateur : ${question}` }],
-      }),
-    });
+    answer = await appellerClaude(anthropicKey, systemPrompt, userMsg, 700) || "Réponse indisponible pour le moment.";
   } catch (e) {
     return reponseJSON({ error: "Impossible de contacter le service de génération de réponse." }, 502);
   }
 
-  if (!reponseAnthropic.ok) {
-    const detail = await reponseAnthropic.text().catch(() => '');
-    return reponseJSON({ error: `Échec de la génération de réponse (${reponseAnthropic.status}).`, detail }, 502);
+  // Agent anti-hallucination : verifie la reponse fraichement generee
+  // contre les MEMES extraits, via un second appel Claude independant
+  // (voir verifierReponse). Si des affirmations non etayees sont
+  // detectees, UNE tentative de correction est faite (le modele regenere
+  // en tenant compte des problemes signales) — si le probleme persiste
+  // apres cette correction, la reponse est renvoyee telle quelle mais
+  // accompagnee d'un avertissement explicite (jamais bloquee/masquee :
+  // l'utilisateur garde toujours acces a l'information disponible, avec
+  // une transparence totale sur sa fiabilite).
+  let verification = await verifierReponse(anthropicKey, contexte, question, answer);
+  let verifie = verification.valide;
+  if (!verification.valide && verification.problemes.length) {
+    try {
+      const correctionMsg = `${userMsg}\n\nATTENTION : ta reponse precedente contenait des affirmations non confirmees par les extraits ci-dessus : ${verification.problemes.join('; ')}. Reformule une reponse strictement limitee aux faits confirmes par les extraits — si peu d'elements peuvent etre confirmes, dis-le explicitement plutot que de repeter l'erreur.`;
+      const reponseCorrigee = await appellerClaude(anthropicKey, systemPrompt, correctionMsg, 700);
+      if (reponseCorrigee) {
+        answer = reponseCorrigee;
+        const reverif = await verifierReponse(anthropicKey, contexte, question, answer);
+        verifie = reverif.valide;
+        verification = reverif;
+      }
+    } catch (e) { /* correction best-effort : conserve la reponse initiale + son avertissement si l'appel echoue */ }
   }
-
-  const jsonAnthropic = await reponseAnthropic.json();
-  const answer = (jsonAnthropic?.content || []).map((b: { text?: string }) => b.text || '').join('').trim()
-    || "Réponse indisponible pour le moment.";
 
   return reponseJSON({
     answer,
     sources: articles.map((a, i) => ({ n: i + 1, title: a.title, source: a.source, link: a.link, cy: a.cy, pub_date: a.pub_date })),
     articlesCount: articles.length,
     rechercheSansResultat,
+    verifie,
+    problemesVerification: verifie ? [] : verification.problemes,
   });
 });

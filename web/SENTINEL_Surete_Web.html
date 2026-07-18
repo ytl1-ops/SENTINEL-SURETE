@@ -5141,7 +5141,7 @@ function calcNiveauCorridor(corridor) {
   const seuil = Date.now() - NIVEAU_CORRIDOR_FENETRE_MS;
   const paysCorridor = new Set(corridor.villes.map(v => v.cy));
   const faits = (typeof ALL !== 'undefined' ? ALL : []).filter(a =>
-    a && paysCorridor.has(a.cy) && (a.pubDate || 0) >= seuil && articleEstSecuriteCorridor(a, corridor)
+    a && paysCorridor.has(a.cy) && a._cyConfiance !== 'repli_source' && (a.pubDate || 0) >= seuil && articleEstSecuriteCorridor(a, corridor)
   ).sort((a, b) => (b.pubDate || 0) - (a.pubDate || 0)); // plus recent en premier — "faits marquants"
   const nbCrit = faits.filter(a => a.level === 'crit').length;
   const nbHigh = faits.filter(a => a.level === 'high').length;
@@ -5159,13 +5159,21 @@ function calcNiveauCorridor(corridor) {
 // sur un corridor STABLE (aucun fait securitaire recoupe) plutot qu'une
 // carte vide.
 const CORRIDOR_ACTU_RECENTE_FENETRE_MS = 72 * 60 * 60 * 1000;
+// resumeCorridor : les "actualites recentes" (contrairement aux "faits
+// marquants" ci-dessus, deja filtres par mots-cles securite) affichent
+// N'IMPORTE QUEL sujet du pays concerne — sans le garde-fou _cyConfiance,
+// un article totalement hors-sujet (aucun pays africain cite, simplement
+// retombe par defaut sur le pays de la source, ex. une tribune generique
+// republiee sur la page Ghana d'un agregateur mais parlant en realite
+// d'un autre pays/continent) s'afficherait comme "actualite du Ghana" a
+// tort. Voir _detecterPaysCoeur/_cyConfiance.
 function resumeCorridor(corridor) {
   const niv = calcNiveauCorridor(corridor);
   const paysCorridor = new Set(corridor.villes.map(v => v.cy));
   const seuilRecent = Date.now() - CORRIDOR_ACTU_RECENTE_FENETRE_MS;
   const idsFaits = new Set(niv.faits.map(a => a.id));
   const actuRecentes = (typeof ALL !== 'undefined' ? ALL : [])
-    .filter(a => a && paysCorridor.has(a.cy) && (a.pubDate || 0) >= seuilRecent && !idsFaits.has(a.id))
+    .filter(a => a && paysCorridor.has(a.cy) && a._cyConfiance !== 'repli_source' && (a.pubDate || 0) >= seuilRecent && !idsFaits.has(a.id))
     .sort((a, b) => (b.pubDate || 0) - (a.pubDate || 0));
   return Object.assign({}, niv, { actuRecentes });
 }
@@ -5674,7 +5682,7 @@ function parseJSON(d, src) {
     // Applique a TOUTES les sources (plus seulement regionales/INT) : un
     // journal national peut couvrir un fait survenu dans un autre pays ; on
     // veut relier l'article au pays reellement concerne, dans tous les modules.
-    const cyReel = detectPaysFromText(title, desc, src.cy);
+    const { cy: cyReel, confiant: cyConfiant } = _detecterPaysCoeur(title, desc, src.cy);
 
     return {
       id, title,
@@ -5691,6 +5699,7 @@ function parseJSON(d, src) {
       _srcRssMethod: src.rss_method || null, _srcRssUrl: src.rss || '',
       _media: _mediaJSON,
       _estAgenda: agendaType !== null, _agendaType: agendaType,
+      _cyConfiance: cyConfiant ? 'detecte' : 'repli_source',
     };
   }).filter(Boolean);
 }
@@ -6075,11 +6084,25 @@ function estContenuCulturel(t) {
 }
 
 // Retourne le code pays ou null si rien de fiable trouve.
-function detectPaysFromText(titre, contenu, srcCy) {
+// _detecterPaysCoeur(titre, contenu, srcCy) : coeur de la detection,
+// renvoie {cy, confiant}. confiant=false UNIQUEMENT dans le cas ou AUCUN
+// indice textuel (ni pays africain nomme, ni signal hors-perimetre) ne
+// permet de confirmer le pays retenu — l'article retombe alors sur le
+// pays de la source par simple absence d'alternative, pas par confirmation
+// reelle. Cas signale : un article sans rapport (ex. "Loi 101", legislation
+// quebecoise) relaye sur la page Ghana d'un agregateur (AllAfrica) —
+// aucun pays africain cite, aucun mot-cle hors-perimetre non plus (le
+// texte ne nomme pas explicitement "Canada"/"Québec"), le pays de la
+// source (GH) etait donc retenu par defaut, a tort. confiant=false permet
+// aux vues "actualites recentes PAR PAYS" (ex. module Corridor, voir
+// resumeCorridor) d'exclure ce genre de faux rattachement, sans toucher
+// aux autres usages (Flux general, ou tout de meme afficher l'article
+// reste legitime) — voir _cyConfiance sur l'article.
+function _detecterPaysCoeur(titre, contenu, srcCy) {
   const titreL = (titre || '').toLowerCase();
   const contenuL = (contenu || '').toLowerCase();
   const t = (titreL + ' ' + contenuL);
-  if (!t.trim()) return srcCy;
+  if (!t.trim()) return { cy: srcCy, confiant: false };
 
   // PRIORITE 1 — Hors perimetre national : si le TITRE (le vrai sujet de
   // l'article, contrairement au contenu qui repete souvent le bandeau de la
@@ -6098,7 +6121,7 @@ function detectPaysFromText(titre, contenu, srcCy) {
     return false;
   })();
   if (!paysAfricainDansTitre && estHorsPerimetreNational(titreL)) {
-    return 'INT';
+    return { cy: 'INT', confiant: true };
   }
 
   // PRIORITE 2 — Score par pays. Le titre pese DOUBLE (sujet reel de
@@ -6154,15 +6177,15 @@ function detectPaysFromText(titre, contenu, srcCy) {
     //   (foot portugais relaye par un media malien != actu du Mali).
     // - Sinon (sujet national plausible sans nom de pays explicite, cas le
     //   plus courant d'une depeche locale) : conserver le pays de la source.
-    if (estHorsPerimetreNational(t)) return 'INT';
-    return srcCy;
+    if (estHorsPerimetreNational(t)) return { cy: 'INT', confiant: true };
+    return { cy: srcCy, confiant: false };
   }
   const meilleur = classe[0];      // [code, score] du pays le mieux detecte
   const meilleurCode = meilleur[0];
   const meilleurScore = meilleur[1];
 
   // Si le pays le mieux detecte EST celui de la source : rien a changer.
-  if (meilleurCode === srcCy) return srcCy;
+  if (meilleurCode === srcCy) return { cy: srcCy, confiant: true };
 
   // Le texte pointe vers un pays DIFFERENT de la source.
   // - Si la source n'a pas de pays propre (regionale/INT/panafricaine), on
@@ -6173,7 +6196,7 @@ function detectPaysFromText(titre, contenu, srcCy) {
   //   de prendre systematiquement les donnees publiees PAR un media d'un
   //   pays pour des donnees CONCERNANT ce pays.
   const sansPaysPropre = !srcCy || srcCy === 'INT';
-  if (sansPaysPropre) return meilleurCode;
+  if (sansPaysPropre) return { cy: meilleurCode, confiant: true };
 
   const scoreSource = scores[srcCy] || 0;
   // Regle assouplie (demande explicite) : ne pas prendre systematiquement
@@ -6184,10 +6207,19 @@ function detectPaysFromText(titre, contenu, srcCy) {
   // (2x le score) protegeait trop systematiquement le pays de la source,
   // meme quand le texte pointait clairement ailleurs.
   if (meilleurScore > scoreSource) {
-    return meilleurCode; // le texte concerne davantage un autre pays que la source elle-meme
+    return { cy: meilleurCode, confiant: true }; // le texte concerne davantage un autre pays que la source elle-meme
   }
-  // Egalite ou pays de la source dominant : on garde la source.
-  return srcCy;
+  // Egalite ou pays de la source dominant : un score existe malgre tout
+  // (le pays de la source EST mentionne explicitement dans le texte) -> confiant.
+  return { cy: srcCy, confiant: true };
+}
+
+// detectPaysFromText(titre, contenu, srcCy) : interface historique
+// INCHANGEE (chaine simple) — 3+ points d'appel existants a travers
+// l'application continuent de l'utiliser telle quelle. Voir
+// _detecterPaysCoeur ci-dessus pour la version avec confiance.
+function detectPaysFromText(titre, contenu, srcCy) {
+  return _detecterPaysCoeur(titre, contenu, srcCy).cy;
 }
 
 // EVENT_PLANIFIE_KW : mots-cles indiquant un evenement PLANIFIE/PROGRAMME
@@ -7329,7 +7361,7 @@ function parseRSS(xml, src) {
     // Applique a TOUTES les sources (plus seulement regionales/INT) : un
     // journal national peut couvrir un fait survenu dans un autre pays ; on
     // veut relier l'article au pays reellement concerne, dans tous les modules.
-    const cyReel = detectPaysFromText(title, desc, src.cy);
+    const { cy: cyReel, confiant: cyConfiant } = _detecterPaysCoeur(title, desc, src.cy);
 
     res.push({
       id, title,
@@ -7346,6 +7378,7 @@ function parseRSS(xml, src) {
       _srcRssMethod: src.rss_method || null, _srcRssUrl: src.rss || '',
       _media,
       _estAgenda: agendaType !== null, _agendaType: agendaType,
+      _cyConfiance: cyConfiant ? 'detecte' : 'repli_source',
     });
   }
   return res;
@@ -12524,8 +12557,17 @@ async function poserQuestionAssistant() {
           : '<div style="font-size:10.5px;color:var(--lg)"><span style="color:var(--b);font-weight:700">[' + s.n + ']</span> ' + escHtml(s.title) + '</div>'
         ).join('') + '</div>'
       : '';
+    // verifie===false : l'agent anti-hallucination (voir verifierReponse
+    // cote fonction Edge) a detecte, meme apres une tentative de
+    // correction automatique, des affirmations non confirmees par les
+    // articles sources — la reponse reste affichee (transparence totale,
+    // jamais masquee) mais avec un avertissement explicite plutot que de
+    // laisser croire a une fiabilite non garantie.
+    const avertissementHtml = (data.verifie === false)
+      ? '<div style="margin-top:8px;padding:6px 9px;border-radius:6px;background:#FFFBEB;border:1px solid #FDE68A;font-size:10.5px;color:#92400E;display:flex;gap:5px;align-items:flex-start"><i class="ti ti-alert-triangle" style="margin-top:1px"></i><span>Vérification automatique : certains éléments de cette réponse n\'ont pas pu être confirmés par les articles sources' + ((data.problemesVerification || []).length ? (' (' + escHtml(data.problemesVerification.join('; ')) + ')') : '') + ' — à recouper avant toute décision.</span></div>'
+      : '';
     if (bloc) bloc.querySelector('.rep').outerHTML =
-      '<div class="rep" style="font-size:12.5px;color:var(--t);line-height:1.6;white-space:pre-wrap">' + escHtml(data.answer || '') + '</div>' + sourcesHtml;
+      '<div class="rep" style="font-size:12.5px;color:var(--t);line-height:1.6;white-space:pre-wrap">' + escHtml(data.answer || '') + '</div>' + avertissementHtml + sourcesHtml;
   } catch (e) {
     const bloc = document.getElementById(idBloc);
     if (bloc) bloc.querySelector('.rep').innerHTML = '<span style="color:var(--r,#dc2626)"><i class="ti ti-alert-triangle"></i> Erreur réseau — réessayez.</span>';
