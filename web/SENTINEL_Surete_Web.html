@@ -12634,25 +12634,37 @@ function genAccessCode() {
 // jeton statique reste techniquement lisible par quelqu'un de determine a
 // lire le code source, mais retire l'exposition automatique et garantie a
 // tout visiteur, qui etait le vrai probleme. Lien de configuration initiale
-// (a n'utiliser que sur un nouvel appareil du proprietaire, jamais partage) :
-// SENTINEL_Surete_Web.html#setup-j156RYJc085bNcHIles62bGND1qV4OOE
+// / recuperation d'acces (a n'utiliser que par le proprietaire, jamais
+// partage) : SENTINEL_Surete_Web.html#setup-j156RYJc085bNcHIles62bGND1qV4OOE
 const SETUP_ADMIN_TOKEN = 'j156RYJc085bNcHIles62bGND1qV4OOE';
 function initUsers() {
   let users=getUsers();
-  if(!users.find(u=>u.email===ADMIN_EMAIL)){
-    // Ne cree le compte admin que si la page a ete chargee via le lien de
-    // configuration initiale ci-dessus — jamais au chargement normal.
-    if (location.hash !== '#setup-'+SETUP_ADMIN_TOKEN) return;
-    const code=genAccessCode();
+  // N'agit que si la page a ete chargee via le lien de configuration/
+  // recuperation ci-dessus — jamais au chargement normal.
+  if (location.hash !== '#setup-'+SETUP_ADMIN_TOKEN) return;
+  const admin = users.find(u=>u.email===ADMIN_EMAIL);
+  const code = genAccessCode();
+  if (!admin) {
     users.push({email:ADMIN_EMAIL,name:'Administrateur SENTINEL',role:'admin',
       status:'active',createdAt:new Date().toISOString(),lastLogin:null,code});
     saveUsers(users);
     // Premiere creation du compte admin sur cet appareil : seul moment ou ce
     // code est affichable, il ne sera plus jamais recalculable ensuite.
     alert('Compte administrateur cree.\n\nVotre code d\'acces (a conserver, il ne sera plus jamais affiche automatiquement) :\n\n'+code);
-    // Efface le jeton de l'URL/historique une fois utilise.
-    history.replaceState(null, '', location.pathname + location.search);
+  } else {
+    // RECUPERATION D'ACCES : le compte admin existe deja sur cet appareil
+    // mais le code a ete perdu/oublie — regenere un nouveau code plutot que
+    // de laisser le proprietaire hors de son propre compte (auparavant,
+    // seule option : trafiquer le localStorage a la main via la console).
+    // Reactive aussi le compte au passage (au cas ou il aurait ete suspendu
+    // par erreur), sans jamais toucher aux autres comptes de l'appareil.
+    admin.code = code;
+    admin.status = 'active';
+    saveUsers(users);
+    alert('Code d\'acces regenere pour ' + ADMIN_EMAIL + '.\n\nVotre nouveau code d\'acces :\n\n'+code);
   }
+  // Efface le jeton de l'URL/historique une fois utilise.
+  history.replaceState(null, '', location.pathname + location.search);
 }
 
 function doLogin() {
