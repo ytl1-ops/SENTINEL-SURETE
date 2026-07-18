@@ -1750,8 +1750,8 @@ body.sentinel-protected img{ -webkit-user-drag:none; user-drag:none; pointer-eve
         <input type="email" id="loginEmail" placeholder="votre@email.com" autocomplete="email">
       </div>
       <div class="auth-field">
-        <label data-i18n="login_code_label">Code d'accès</label>
-        <input type="text" id="loginPass" placeholder="Votre code d&#39;accès (ex: SJPNI2T)" data-i18n-ph="ph_login_code" autocomplete="off" style="letter-spacing:.1em;font-weight:700;text-transform:uppercase" oninput="this.value=this.value.toUpperCase()" onkeydown="if(event.key===&#39;Enter&#39;)doLogin()">
+        <label data-i18n="login_code_label">Mot de passe</label>
+        <input type="password" id="loginPass" placeholder="Votre mot de passe" data-i18n-ph="ph_login_code" autocomplete="current-password" onkeydown="if(event.key===&#39;Enter&#39;)doLogin()">
       </div>
       <div class="auth-field">
         <label data-i18n="login_zone_prio_label">Zone prioritaire (optionnel)</label>
@@ -1766,18 +1766,34 @@ body.sentinel-protected img{ -webkit-user-drag:none; user-drag:none; pointer-eve
       <div class="auth-err" id="loginErr"></div>
       <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
         <div class="auth-link" style="flex:1"><span data-i18n="login_first_time">Premiere connexion ?</span> <span onclick="showRegisterForm()" data-i18n="login_request_access">Demander un acces</span></div>
-        <div class="auth-link"><span onclick="showForgotPasswordForm()" data-i18n="login_reset">Code d'accès oublié ?</span></div>
+        <div class="auth-link"><span onclick="showForgotPasswordForm()" data-i18n="login_reset">Mot de passe oublié ?</span></div>
       </div>
     </div>
+    <div id="setPasswordForm" style="display:none">
+      <div class="auth-title">Définissez votre mot de passe</div>
+      <div class="auth-sub">Choisissez un mot de passe personnel — 8 caractères minimum.</div>
+      <div class="auth-field">
+        <label>Nouveau mot de passe</label>
+        <input type="password" id="spNewPass" placeholder="8 caractères minimum" autocomplete="new-password">
+      </div>
+      <div class="auth-field">
+        <label>Confirmer le mot de passe</label>
+        <input type="password" id="spConfirmPass" placeholder="Retapez le mot de passe" autocomplete="new-password" onkeydown="if(event.key===&#39;Enter&#39;)soumettreNouveauMotDePasse()">
+      </div>
+      <button class="auth-btn" onclick="soumettreNouveauMotDePasse()" id="setPasswordBtn">
+        <i class="ti ti-lock"></i> Valider mon mot de passe
+      </button>
+      <div class="auth-err" id="setPasswordErr"></div>
+    </div>
     <div id="forgotPasswordForm" style="display:none">
-      <div class="auth-title">Code d'accès oublié</div>
-      <div class="auth-sub">Recevez un nouveau code d'accès par e-mail.</div>
+      <div class="auth-title">Mot de passe oublié</div>
+      <div class="auth-sub">Recevez un lien de réinitialisation par e-mail.</div>
       <div class="auth-field">
         <label>Adresse e-mail</label>
         <input type="email" id="fpEmail" placeholder="votre@email.com" autocomplete="email" onkeydown="if(event.key===&#39;Enter&#39;)demanderReinitialisationMdp()">
       </div>
       <button class="auth-btn" onclick="demanderReinitialisationMdp()" id="forgotPasswordBtn">
-        <i class="ti ti-mail"></i> Envoyer un nouveau code
+        <i class="ti ti-mail"></i> Envoyer le lien de réinitialisation
       </button>
       <div class="auth-err" id="forgotPasswordErr"></div>
       <div class="auth-sub" id="forgotPasswordMsg" style="margin-top:10px;color:var(--t2)"></div>
@@ -1804,6 +1820,14 @@ body.sentinel-protected img{ -webkit-user-drag:none; user-drag:none; pointer-eve
       <div class="auth-field">
         <label data-i18n="register_org_label">Organisation / Fonction</label>
         <input type="text" id="regOrg" placeholder="Ex : DSI - Entreprise XYZ" data-i18n-ph="ph_reg_org">
+      </div>
+      <div class="auth-field">
+        <label>Mot de passe</label>
+        <input type="password" id="regPass" placeholder="8 caractères minimum" autocomplete="new-password">
+      </div>
+      <div class="auth-field">
+        <label>Confirmer le mot de passe</label>
+        <input type="password" id="regPassConfirm" placeholder="Retapez le mot de passe" autocomplete="new-password">
       </div>
       <button class="auth-btn" onclick="doRegister()" id="registerBtn">
         <i class="ti ti-send"></i> <span data-i18n="register_btn">Envoyer la demande</span>
@@ -2902,7 +2926,7 @@ body.sentinel-protected img{ -webkit-user-drag:none; user-drag:none; pointer-eve
             <div class="pm-sec-hd">
               <div class="pm-sec-hd-l"><i class="ti ti-user-circle"></i>
                 <div><div class="pm-sec-title">Votre profil administrateur</div>
-                <div class="pm-sec-sub">Informations de connexion et code d'acces</div></div>
+                <div class="pm-sec-sub">Informations de connexion et mot de passe</div></div>
               </div>
             </div>
             <div class="pm-sec-body">
@@ -2915,14 +2939,13 @@ body.sentinel-protected img{ -webkit-user-drag:none; user-drag:none; pointer-eve
                 <span class="badge-role br-admin" style="font-size:10px">Admin</span>
               </div>
               <div style="margin-top:12px">
-                <div class="profile-code-lbl">Votre code d'acces personnel</div>
-                <div class="profile-code-box">
-                  <div>
-                    <div class="profile-code-val" id="pmCode">SJPNI2T</div>
-                    <div style="font-size:10px;color:var(--lg);margin-top:3px">A communiquer uniquement a vous-meme · Ne pas partager</div>
-                  </div>
-                  <button class="copy-btn" onclick="copyAdminCode()"><i class="ti ti-copy"></i>Copier</button>
+                <div class="profile-code-lbl">Changer votre mot de passe</div>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+                  <input type="password" id="pmNewPassSelf" placeholder="Nouveau mot de passe (8 caractères min.)" autocomplete="new-password" style="flex:1;min-width:200px;padding:8px 10px;border:1px solid var(--bd);border-radius:6px;font-size:12px">
+                  <input type="password" id="pmNewPassSelfConfirm" placeholder="Confirmer" autocomplete="new-password" style="flex:1;min-width:160px;padding:8px 10px;border:1px solid var(--bd);border-radius:6px;font-size:12px">
+                  <button class="copy-btn" onclick="pmChangerMotDePassePersonnel()"><i class="ti ti-lock"></i>Mettre à jour</button>
                 </div>
+                <div class="pmu-msg" id="pmChangePassMsg" style="margin-top:6px"></div>
               </div>
             </div>
           </div>
@@ -3021,9 +3044,9 @@ body.sentinel-protected img{ -webkit-user-drag:none; user-drag:none; pointer-eve
               <table class="pm-users-table">
                 <thead><tr>
                   <th>Email</th><th>Nom</th><th>Role</th>
-                  <th>Statut</th><th>Code d'acces</th><th>Derniere connexion</th><th>Actions</th>
+                  <th>Statut</th><th>Mot de passe</th><th>Derniere connexion</th><th>Actions</th>
                 </tr></thead>
-                <tbody id="pmUsersBody"><tr><td>yo•••••@gmail.com</td><td>Administrateur SENTINEL</td><td><span class="badge-role br-admin">Admin</span></td><td><span class="badge-status bs-active">Actif</span></td><td><span style="font-family:monospace;font-size:12px;font-weight:700;color:var(--b)">SJPNI2T</span><button class="copy-btn" style="margin-left:6px;padding:3px 8px" onclick="copyText(&#39;SJPNI2T&#39;)" title="Copier le code"><i class="ti ti-copy"></i></button></td><td style="color:rgba(0,0,0,.4)">29/06/2026</td><td style="display:flex;gap:5px;flex-wrap:wrap;align-items:center"><span style="font-size:10px;color:var(--lg)">Compte principal</span></td></tr><tr><td>stephanekouame221@gmail.com</td><td>KOUAME YAO STEPHANE</td><td><span class="badge-role br-user">Utilisateur</span></td><td><span class="badge-status bs-active">Actif</span></td><td><span style="font-family:monospace;font-size:12px;font-weight:700;color:var(--b)">S7XN9EM</span><button class="copy-btn" style="margin-left:6px;padding:3px 8px" onclick="copyText(&#39;S7XN9EM&#39;)" title="Copier le code"><i class="ti ti-copy"></i></button></td><td style="color:rgba(0,0,0,.4)">Jamais</td><td style="display:flex;gap:5px;flex-wrap:wrap;align-items:center"><button class="btn-action btn-rev" onclick="pmToggleStatus(&#39;stephanekouame221@gmail.com&#39;)">Suspendre</button><button class="btn-action btn-del" onclick="pmDeleteUser(&#39;stephanekouame221@gmail.com&#39;)">Supprimer</button></td></tr></tbody>
+                <tbody id="pmUsersBody"><tr><td>yo•••••@gmail.com</td><td>Administrateur SENTINEL</td><td><span class="badge-role br-admin">Admin</span></td><td><span class="badge-status bs-active">Actif</span></td><td><span style="font-size:11px;color:var(--lg)">Personnel</span></td><td style="color:rgba(0,0,0,.4)">29/06/2026</td><td style="display:flex;gap:5px;flex-wrap:wrap;align-items:center"><span style="font-size:10px;color:var(--lg)">Compte principal</span></td></tr><tr><td>stephanekouame221@gmail.com</td><td>KOUAME YAO STEPHANE</td><td><span class="badge-role br-user">Utilisateur</span></td><td><span class="badge-status bs-active">Actif</span></td><td><span style="font-size:11px;color:var(--lg)">Personnel</span></td><td style="color:rgba(0,0,0,.4)">Jamais</td><td style="display:flex;gap:5px;flex-wrap:wrap;align-items:center"><button class="btn-action btn-rev" onclick="pmToggleStatus(&#39;stephanekouame221@gmail.com&#39;)">Suspendre</button><button class="btn-action btn-del" onclick="pmDeleteUser(&#39;stephanekouame221@gmail.com&#39;)">Supprimer</button></td></tr></tbody>
               </table>
             </div>
           </div>
@@ -3224,24 +3247,23 @@ body.sentinel-protected img{ -webkit-user-drag:none; user-drag:none; pointer-eve
             </div>
           </div>
 
-          <!-- Envoi automatique du code d'activation (EmailJS) -->
+          <!-- EmailJS : utilitaire d'envoi email generique (notifications futures) -->
           <div class="pm-section">
             <div class="pm-sec-hd">
               <div class="pm-sec-hd-l"><i class="ti ti-mail"></i>
-                <div><div class="pm-sec-title">Code d'activation par email</div>
-                <div class="pm-sec-sub">Envoi automatique via EmailJS des qu'un paiement est confirmé</div></div>
+                <div><div class="pm-sec-title">Envoi d'e-mail (EmailJS)</div>
+                <div class="pm-sec-sub">Utilitaire générique — l'inscription et la réinitialisation de mot de passe utilisent désormais les e-mails réels envoyés par Supabase Auth</div></div>
               </div>
             </div>
             <div class="pm-sec-body" style="padding:14px 16px">
               <div style="font-size:10px;color:var(--lg);margin-bottom:12px;line-height:1.6">
-                Envoi automatique (activation de compte, code d'accès oublié) via
+                Configuration conservée pour d'éventuelles notifications futures (ex. confirmation de paiement) via
                 <a href="https://www.emailjs.com/" target="_blank" rel="noopener">EmailJS</a> — un service gratuit conçu
-                pour l'envoi d'emails depuis une page statique, sans serveur. Créez un compte, un service email et un
-                modèle avec les variables <code>{{to_email}}</code>, <code>{{to_name}}</code>, <code>{{code}}</code>,
-                <code>{{app_name}}</code>, puis renseignez les identifiants ci-dessous. Sans configuration, le code
-                reste affiché à l'administrateur pour transmission manuelle — rien ne bloque.
-                <b>Cette configuration est désormais partagée</b> (enregistrée une seule fois ici, elle active l'envoi
-                automatique pour tous les visiteurs de l'application, pas seulement ce poste).
+                pour l'envoi d'emails depuis une page statique, sans serveur. L'inscription, l'activation de compte et
+                la réinitialisation de mot de passe n'en dépendent plus : ces e-mails sont désormais envoyés
+                directement par Supabase Auth (Authentication &gt; Email Templates sur le projet Supabase).
+                <b>Cette configuration est partagée</b> (enregistrée une seule fois ici, elle vaut pour tous les
+                visiteurs de l'application, pas seulement ce poste).
               </div>
               <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-bottom:12px">
                 <div>
@@ -4222,9 +4244,9 @@ const I18N = {
     auth_logo_sub:"Veille sûreté · 54 pays d'Afrique",
     auth_stat_pays:'Pays sous veille', auth_stat_actus:'Actus /24h', auth_stat_alertes:'Pays en alerte',
     login_title:'Connexion', login_sub:'Accès restreint aux responsables sûreté autorisés',
-    login_email_label:'Adresse e-mail', login_code_label:"Code d'accès", login_btn:'Se connecter',
-    login_first_time:'Première connexion ?', login_request_access:'Demander un accès', login_reset:"Code d'accès oublié ?",
-    ph_login_code:"Votre code d'accès (ex: SJPNI2T)",
+    login_email_label:'Adresse e-mail', login_code_label:"Mot de passe", login_btn:'Se connecter',
+    login_first_time:'Première connexion ?', login_request_access:'Demander un accès', login_reset:"Mot de passe oublié ?",
+    ph_login_code:"Votre mot de passe",
     login_zone_prio_label:'Zone prioritaire (optionnel)',
     login_zone_prio_help:'La collecte démarre par les pays de cette zone (ex. Golfe de Guinée) et les couvre plus en profondeur, pour renseigner en priorité tous leurs modules (Alertes, Tableau de bord, Agenda...).',
     register_title:"Demande d'accès", register_sub:'Accès immédiat, aucune validation requise.',
@@ -4236,7 +4258,7 @@ const I18N = {
     public_bulletin:'Bulletin public gratuit', public_methodo:'Méthodologie & sources',
     err_fields_required:'Veuillez remplir tous les champs.', err_invalid_email:'Adresse e-mail invalide.',
     err_email_unknown:"Adresse e-mail non reconnue. Demandez un accès à l'administrateur.",
-    err_suspended:'Accès suspendu. Contactez : ', err_wrong_code:"Code d'accès incorrect.",
+    err_suspended:'Accès suspendu. Contactez : ', err_wrong_code:"Mot de passe incorrect.",
     err_trial_expired:'Compte gratuit expiré (validité 72h). Demandez un nouveau code gratuit ci-dessous, ou passez à un plan payant — contactez ',
     err_acces_expire:'Accès expiré (durée fixée par l\'administrateur). Contactez : ',
     err_already_registered:'Cette adresse est déjà enregistrée.',
@@ -4282,9 +4304,9 @@ const I18N = {
     auth_logo_sub:'Security monitoring · 54 African countries',
     auth_stat_pays:'Countries monitored', auth_stat_actus:'News /24h', auth_stat_alertes:'Countries on alert',
     login_title:'Log in', login_sub:'Access restricted to authorized security officers',
-    login_email_label:'Email address', login_code_label:'Access code', login_btn:'Log in',
-    login_first_time:'First time here?', login_request_access:'Request access', login_reset:'Forgot access code?',
-    ph_login_code:'Your access code (e.g. SJPNI2T)',
+    login_email_label:'Email address', login_code_label:'Password', login_btn:'Log in',
+    login_first_time:'First time here?', login_request_access:'Request access', login_reset:'Forgot password?',
+    ph_login_code:'Your password',
     login_zone_prio_label:'Priority zone (optional)',
     login_zone_prio_help:'Collection starts with the countries in this zone (e.g. Gulf of Guinea) and covers them more thoroughly, to populate all their modules first (Alerts, Dashboard, Agenda...).',
     register_title:'Access request', register_sub:'Immediate access, no approval required.',
@@ -4296,7 +4318,7 @@ const I18N = {
     public_bulletin:'Free public bulletin', public_methodo:'Methodology & sources',
     err_fields_required:'Please fill in all fields.', err_invalid_email:'Invalid email address.',
     err_email_unknown:'Email address not recognized. Request access from the administrator.',
-    err_suspended:'Access suspended. Contact: ', err_wrong_code:'Incorrect access code.',
+    err_suspended:'Access suspended. Contact: ', err_wrong_code:'Incorrect password.',
     err_trial_expired:'Free account expired (72h validity). Request a new free code below, or switch to a paid plan — contact ',
     err_acces_expire:'Access expired (duration set by the administrator). Contact: ',
     err_already_registered:'This address is already registered.',
@@ -12224,18 +12246,18 @@ const STORE_KEY   = 'sentinel_auth_v1';
 const USERS_KEY   = 'sentinel_users_v1';
 const PENDING_KEY = 'sentinel_pending_v1';
 
-// ── Journal de connexions Supabase (visibilité admin, tous appareils) ─────
-// L'authentification de cette app web reste volontairement locale
-// (localStorage, voir genAccessCode/doLogin — aucune migration vers un vrai
-// compte Supabase). Mais SANS backend partagé, le panneau Administration ne
-// peut jamais voir qu'un AUTRE utilisateur s'est connecté depuis son propre
-// appareil (chaque localStorage est isolé) — d'où la table connexions_log
-// (voir app/sentinel-app/supabase/migrations/20260712010000_connexions_log.sql,
-// partagée avec l'app mobile qui y écrit aussi). Renseignez ces deux valeurs
-// avec le projet Supabase déjà utilisé par l'app mobile (Paramètres du
-// projet > API sur supabase.com/dashboard) : tant qu'elles restent vides,
-// aucun appel réseau n'est fait et le panneau retombe sur l'affichage local
-// (comme avant).
+// ── Authentification RÉELLE (Supabase Auth) + journal de connexions ──────
+// L'application utilise desormais Supabase Auth comme source d'identite
+// reelle (email+mot de passe, sessions JWT, reinitialisation par e-mail
+// envoyee par Supabase lui-meme) — voir la table `profiles` (migration
+// app/sentinel-app/supabase/migrations/20260718020000_profiles_auth.sql)
+// pour les donnees applicatives (role/statut/plan/organisation...) jointes
+// a chaque compte auth.users. Corrige au passage le fait que les comptes
+// n'etaient auparavant JAMAIS partages entre appareils (localStorage
+// isole par navigateur, y compris pour l'administrateur lui-meme).
+// connexions_log (voir app/sentinel-app/supabase/migrations/20260712010000)
+// reste utilisee pour le journal "Derniere connexion" du panneau
+// Administration, partagee avec l'app mobile qui y ecrit aussi.
 const SENTINEL_SUPABASE_URL      = 'https://zpdwqmliogxbuwirziny.supabase.co';
 const SENTINEL_SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpwZHdxbWxpb2d4YnV3aXJ6aW55Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM4NzUyOTYsImV4cCI6MjA5OTQ1MTI5Nn0.fQsTrrV5CIB77l0hxTHHN7oVICVzZdhwa9-d0WsCYI0';
 let _sentinelSupabaseClient = null;
@@ -12247,6 +12269,36 @@ function getSentinelSupabase() {
     catch (_) { return null; }
   }
   return _sentinelSupabaseClient;
+}
+// _clientSupabaseEphemere() : instance SEPAREE de getSentinelSupabase(),
+// avec persistSession/autoRefreshToken desactives — indispensable pour
+// qu'un administrateur puisse creer un compte au nom d'un tiers (signUp())
+// SANS que cet appel remplace sa PROPRE session active. supabase-js
+// persiste automatiquement la session retournee par signUp()/
+// signInWithPassword() sur le client qui les appelle ; une instance
+// jetable isole entierement cet effet de bord du client "principal"
+// (getSentinelSupabase) utilise pour la session de l'utilisateur courant.
+function _clientSupabaseEphemere() {
+  if (!SENTINEL_SUPABASE_URL || !SENTINEL_SUPABASE_ANON_KEY) return null;
+  if (typeof window.supabase === 'undefined' || typeof window.supabase.createClient !== 'function') return null;
+  try {
+    return window.supabase.createClient(SENTINEL_SUPABASE_URL, SENTINEL_SUPABASE_ANON_KEY, {
+      auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+    });
+  } catch (_) { return null; }
+}
+// _profilVersUtilisateur(row) : convertit une ligne de la table `profiles`
+// (id/email/role/status/data JSONB) dans la forme d'objet "user" que le
+// reste de l'application attend deja (name/plan/organisation/... a plat) —
+// point de conversion UNIQUE, reutilise partout ou une ligne profiles est lue.
+function _profilVersUtilisateur(row) {
+  return Object.assign({ id: row.id, email: row.email, role: row.role, status: row.status }, row.data || {});
+}
+// _utilisateurVersProfil(u) : inverse — separe les colonnes dediees
+// (id/email/role/status) du reste (name/plan/organisation/...), pour l'ecriture.
+function _utilisateurVersProfil(u) {
+  const { id, email, role, status, ...data } = u;
+  return { id, email, role, status, data };
 }
 // Ecrit un horodatage de connexion — best-effort, jamais bloquant (une
 // connexion doit toujours reussir meme hors-ligne ou si Supabase n'est pas
@@ -12490,8 +12542,75 @@ initAdBanner();
 
 let _MEM_USERS=[], _MEM_SESSION=null;
 function _ls(fn,fb){try{return fn();}catch(e){return fb;}}
+// getUsers() : interface SYNCHRONE historique, INCHANGEE — 30+ points
+// d'appel a travers l'application continuent de lire ce cache immediatement,
+// sans jamais devenir async. Alimente par refreshUsersDepuisSupabase()
+// (apres connexion, ouverture du panneau Administration...) plutot que par
+// localStorage seul comme avant — localStorage ne sert plus ici que de
+// cache de repli/rendu instantane avant la premiere synchronisation reseau.
 function getUsers()    { return _MEM_USERS.length?_MEM_USERS:_ls(()=>JSON.parse(localStorage.getItem(USERS_KEY)||'[]'),[]); }
-function saveUsers(u)  { _MEM_USERS=u; _ls(()=>localStorage.setItem(USERS_KEY,JSON.stringify(u))); }
+// saveUsers(users) : conserve la meme interface synchrone (tableau complet,
+// comme avant) — met a jour le cache local immediatement (rendu instantane),
+// puis synchronise en arriere-plan avec la table `profiles` (best-effort,
+// jamais bloquant, meme principe que publierCollectePartagee/
+// publierConfigEmailjsPartagee plus haut). Detecte les suppressions (entree
+// presente avant, absente du nouveau tableau) et les modifications (diff
+// par id, l'UUID Supabase Auth) ; une entree SANS id (compte tout juste
+// cree localement, avant que l'appelant n'attache l'id retourne par
+// _clientSupabaseEphemere().auth.signUp() — voir pmAddUser/addUser) est
+// ignoree ici, sans consequence puisque ces appelants attachent l'id AVANT
+// de rappeler saveUsers().
+function saveUsers(users) {
+  const ancien = _MEM_USERS;
+  _MEM_USERS = users;
+  _ls(() => localStorage.setItem(USERS_KEY, JSON.stringify(users)));
+  const client = getSentinelSupabase();
+  if (!client) return;
+  try {
+    const idsNouveaux = new Set(users.filter(u => u.id).map(u => u.id));
+    (ancien || []).filter(u => u.id && !idsNouveaux.has(u.id)).forEach(u => {
+      client.from('profiles').delete().eq('id', u.id)
+        .then(({error}) => { if (error) console.warn('SENTINEL — suppression du profil a echoue :', error.message); });
+    });
+    users.filter(u => u.id).forEach(_majUnProfil);
+  } catch (e) { console.warn('SENTINEL — synchronisation des profils a echoue :', e && e.message ? e.message : e); }
+}
+// _majUnProfil(u) : upsert best-effort d'UN SEUL profil — utilise par
+// saveUsers() (diff sur tout le tableau) et directement par finaliserConnexion/
+// soumettreNouveauMotDePasse (mise a jour ponctuelle, pas besoin du tableau
+// complet).
+function _majUnProfil(u) {
+  const client = getSentinelSupabase();
+  if (!client || !u || !u.id) return;
+  const profil = _utilisateurVersProfil(u);
+  // try/catch synchrone indispensable ici : appelee directement (hors
+  // saveUsers, deja protegee) par finaliserConnexion() sur le CHEMIN DE
+  // CONNEXION — une exception non interceptee a cet endroit interromprait
+  // toute la connexion (session jamais ouverte a l'ecran) pour un incident
+  // reseau qui ne devrait jamais empecher un utilisateur deja authentifie
+  // d'entrer dans l'application.
+  try {
+    client.from('profiles').update({ role: profil.role, status: profil.status, data: profil.data }).eq('id', profil.id)
+      .then(({error}) => { if (error) console.warn('SENTINEL — mise a jour du profil a echoue :', error.message); });
+  } catch (e) { console.warn('SENTINEL — mise a jour du profil a echoue :', e && e.message ? e.message : e); }
+}
+// refreshUsersDepuisSupabase() : recharge le cache local depuis la table
+// `profiles` — un admin voit tous les profils (RLS
+// profiles_select_own_or_admin), un compte normal ne voit que le sien.
+// Appelee apres connexion (finaliserConnexion) et a l'ouverture du panneau
+// Administration/Parametres (voir loadParamsModule) pour un admin.
+async function refreshUsersDepuisSupabase() {
+  const client = getSentinelSupabase();
+  if (!client) return getUsers();
+  try {
+    const { data, error } = await client.from('profiles').select('*');
+    if (error) { console.warn('SENTINEL — chargement des profils a echoue :', error.message); return getUsers(); }
+    const users = (data || []).map(_profilVersUtilisateur);
+    _MEM_USERS = users;
+    _ls(() => localStorage.setItem(USERS_KEY, JSON.stringify(users)));
+    return users;
+  } catch (e) { console.warn('SENTINEL — chargement des profils a echoue :', e && e.message ? e.message : e); return getUsers(); }
+}
 function getPending()  { return _ls(()=>JSON.parse(localStorage.getItem(PENDING_KEY)||'[]'),[]); }
 function savePending(p){ _ls(()=>localStorage.setItem(PENDING_KEY,JSON.stringify(p))); }
 function getSession()  { return _MEM_SESSION || {email:ADMIN_EMAIL, name:'Administrateur SENTINEL', role:'admin'}; }
@@ -12564,25 +12683,17 @@ function compteGratuitExpire(user) {
   return (Date.now() - new Date(user.createdAt).getTime()) > COMPTE_GRATUIT_VALIDITE_MS;
 }
 
-// restoreSession() : recharge la session sauvegardee par saveSession() (persistee
-// dans localStorage sous STORE_KEY) au demarrage, pour eviter de redemander une
-// connexion a chaque ouverture/rafraichissement de la page tant que la session
-// reste valide. Revalide contre la liste des utilisateurs actuelle : un compte
-// desactive ou supprime entre-temps par l'admin ne peut pas rester connecte,
-// de meme qu'un compte gratuit dont les 24h de validite se sont ecoulees.
-function restoreSession() {
+// _sessionLocaleDuJour() : verifie que la trace locale de connexion
+// (sauvegardee par saveSession(), STORE_KEY) date bien d'aujourd'hui —
+// reconnexion quotidienne obligatoire (demande explicite) : une session
+// Supabase Auth peut techniquement rester valide bien plus longtemps
+// (rafraichissement automatique du jeton), mais l'application force ici une
+// nouvelle saisie du mot de passe a chaque premiere ouverture de la journee,
+// sur cet appareil.
+function _sessionLocaleDuJour() {
   const saved = _ls(()=>JSON.parse(localStorage.getItem(STORE_KEY)||'null'), null);
-  if (!saved || !saved.email) return null;
-  // Reconnexion quotidienne obligatoire (demande explicite) : une session
-  // sauvegardee un jour calendaire different d'aujourd'hui est consideree
-  // expiree, meme si elle est valide par ailleurs — force une nouvelle saisie
-  // du code d'acces a la premiere ouverture de chaque jour, sur cet appareil.
-  const memeJour = saved.loginAt && new Date(saved.loginAt).toDateString() === new Date().toDateString();
-  if (!memeJour) { clearSession(); return null; }
-  const user = getUsers().find(u=>u.email===saved.email);
-  if (!user || user.status!=='active' || compteGratuitExpire(user)) { clearSession(); return null; }
-  _MEM_SESSION = {email:user.email, name:user.name, role:user.role, loginAt:saved.loginAt};
-  return user;
+  if (!saved || !saved.loginAt) return false;
+  return new Date(saved.loginAt).toDateString() === new Date().toDateString();
 }
 
 // applyRoleMenus(role) : affiche/masque les entrees reservees aux administrateurs
@@ -12627,60 +12738,25 @@ function applyRoleMenus(role) {
   if (seScopeSources) seScopeSources.style.display = isAdmin ? '' : 'none';
 }
 
-// genAccessCode() : code d'acces reellement aleatoire (crypto.getRandomValues),
-// jamais recalculable a partir de l'email — a la difference de l'ancien
-// makeCode(email), un simple hash deterministe et public qui permettait a
-// quiconque de generer/deviner le code d'un compte (y compris admin) sans
-// jamais passer par l'administrateur. Le code doit desormais toujours etre
-// lu depuis user.code (stocke a la creation), jamais recalcule a la volee.
+// genAccessCode() : chaine aleatoire (crypto.getRandomValues) utilisee comme
+// mot de passe TEMPORAIRE lors de la creation d'un compte par l'admin (voir
+// pmAddUser/addUser) — le nouvel utilisateur le remplace par son propre mot
+// de passe des sa premiere connexion (voir profil.doitDefinirMdp). Jamais
+// recalculable a partir de l'email.
 function genAccessCode() {
-  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // sans 0/O/1/I ambigus
-  const bytes = new Uint8Array(6);
+  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+  const bytes = new Uint8Array(12);
   crypto.getRandomValues(bytes);
-  return 'S' + Array.from(bytes, b => alphabet[b % alphabet.length]).join('');
+  return Array.from(bytes, b => alphabet[b % alphabet.length]).join('');
 }
-
-// SETUP_ADMIN_TOKEN — audit de securite : initUsers() tournait auparavant
-// SANS CONDITION a chaque chargement de page (via checkAuth()), donc TOUT
-// nouveau visiteur/appareil/navigateur recevait automatiquement un compte
-// admin actif avec son code affiche en clair dans une alerte — n'importe qui
-// pouvait ainsi devenir administrateur en ouvrant simplement la page une
-// premiere fois. Sans backend pour emettre un vrai jeton a usage unique, ce
-// jeton statique reste techniquement lisible par quelqu'un de determine a
-// lire le code source, mais retire l'exposition automatique et garantie a
-// tout visiteur, qui etait le vrai probleme. Lien de configuration initiale
-// / recuperation d'acces (a n'utiliser que par le proprietaire, jamais
-// partage) : SENTINEL_Surete_Web.html#setup-j156RYJc085bNcHIles62bGND1qV4OOE
-const SETUP_ADMIN_TOKEN = 'j156RYJc085bNcHIles62bGND1qV4OOE';
-function initUsers() {
-  let users=getUsers();
-  // N'agit que si la page a ete chargee via le lien de configuration/
-  // recuperation ci-dessus — jamais au chargement normal.
-  if (location.hash !== '#setup-'+SETUP_ADMIN_TOKEN) return;
-  const admin = users.find(u=>u.email===ADMIN_EMAIL);
-  const code = genAccessCode();
-  if (!admin) {
-    users.push({email:ADMIN_EMAIL,name:'Administrateur SENTINEL',role:'admin',
-      status:'active',createdAt:new Date().toISOString(),lastLogin:null,code});
-    saveUsers(users);
-    // Premiere creation du compte admin sur cet appareil : seul moment ou ce
-    // code est affichable, il ne sera plus jamais recalculable ensuite.
-    alert('Compte administrateur cree.\n\nVotre code d\'acces (a conserver, il ne sera plus jamais affiche automatiquement) :\n\n'+code);
-  } else {
-    // RECUPERATION D'ACCES : le compte admin existe deja sur cet appareil
-    // mais le code a ete perdu/oublie — regenere un nouveau code plutot que
-    // de laisser le proprietaire hors de son propre compte (auparavant,
-    // seule option : trafiquer le localStorage a la main via la console).
-    // Reactive aussi le compte au passage (au cas ou il aurait ete suspendu
-    // par erreur), sans jamais toucher aux autres comptes de l'appareil.
-    admin.code = code;
-    admin.status = 'active';
-    saveUsers(users);
-    alert('Code d\'acces regenere pour ' + ADMIN_EMAIL + '.\n\nVotre nouveau code d\'acces :\n\n'+code);
-  }
-  // Efface le jeton de l'URL/historique une fois utilise.
-  history.replaceState(null, '', location.pathname + location.search);
-}
+// NOTE : l'ancien lien de configuration/recuperation admin
+// (#setup-<jeton>, SETUP_ADMIN_TOKEN) est retire — devenu inutile avec
+// Supabase Auth : l'administrateur cree son compte via "Demander un accès"
+// comme tout le monde (le trigger before insert de la table `profiles` lui
+// attribue automatiquement le role admin des lors que son adresse correspond
+// a ADMIN_EMAIL, cote serveur — voir la migration profiles_auth), et
+// recupere l'acces via "Mot de passe oublié ?" (vrai e-mail envoye par
+// Supabase) en cas d'oubli, comme n'importe quel utilisateur.
 
 // ── COLLECTEUR PLANIFIE (job GitHub Actions) ──────────────────────────────
 // COLLECTOR_TOKEN : jeton distinct de SETUP_ADMIN_TOKEN, reserve au job
@@ -12717,39 +12793,100 @@ function checkCollectorSession() {
   return true;
 }
 
-function doLogin() {
+// _validerMotDePasse(pass, confirm) : regle commune a tous les points de
+// creation/definition de mot de passe (inscription, definition forcee a la
+// premiere connexion d'un compte cree par l'admin, reinitialisation) — un
+// seul endroit a ajuster si la politique change. Longueur minimale alignee
+// sur celle imposee cote serveur par Supabase Auth par defaut (6) mais
+// relevee ici pour une meilleure hygiene de mots de passe.
+const MDP_LONGUEUR_MIN = 8;
+function _validerMotDePasse(pass, confirm) {
+  if (!pass || pass.length < MDP_LONGUEUR_MIN) return { ok:false, err:'Le mot de passe doit contenir au moins '+MDP_LONGUEUR_MIN+' caracteres.' };
+  if (pass !== confirm) return { ok:false, err:'Les deux mots de passe ne correspondent pas.' };
+  return { ok:true };
+}
+
+async function doLogin() {
   const email=document.getElementById('loginEmail').value.trim().toLowerCase();
-  const pass =document.getElementById('loginPass').value.trim().toUpperCase();
+  const pass =document.getElementById('loginPass').value;
   const errEl=document.getElementById('loginErr');
   errEl.classList.remove('show');
   if(!email||!pass){errEl.textContent=t('err_fields_required');errEl.classList.add('show');return;}
-  const users=getUsers();
-  let user=users.find(u=>u.email.toLowerCase()===email);
-
-  // Aucune auto-activation : un email inconnu doit passer par "Demander un
-  // acces" puis validation de l'administrateur (voir doRegister/addUser).
-  // Avant, un email inconnu + son code recalculable via makeCode(email)
-  // (un simple hash public, sans secret) suffisait a creer un compte actif
-  // instantanement — n'importe qui pouvait donc se donner acces sans jamais
-  // passer par l'administrateur.
-  if(!user){
-    errEl.textContent=t('err_email_unknown');errEl.classList.add('show');return;
+  const client = getSentinelSupabase();
+  if (!client) { errEl.textContent = 'Service d\'authentification indisponible pour le moment. Réessayez dans un instant.'; errEl.classList.add('show'); return; }
+  const btn = document.getElementById('loginBtn');
+  if (btn) btn.disabled = true;
+  try {
+    const { data, error } = await client.auth.signInWithPassword({ email, password: pass });
+    if (error) {
+      errEl.textContent = /invalid/i.test(error.message || '') ? t('err_wrong_code') : (error.message || t('err_wrong_code'));
+      errEl.classList.add('show');
+      return;
+    }
+    await _ouvrirSessionDepuisSupabase(data.user);
+  } finally {
+    if (btn) btn.disabled = false;
   }
-
-  if(user.status!=='active'){errEl.textContent=t('err_suspended')+ADMIN_EMAIL;errEl.classList.add('show');return;}
-  if(compteGratuitExpire(user)){
-    // Message adapte a la cause reelle du blocage : coupure manuelle (accesJusquau,
-    // voir Gestion clientele) vs regle automatique des 72h d'essai gratuit.
-    const causeManuelle = !!user.accesJusquau;
-    errEl.textContent=t(causeManuelle ? 'err_acces_expire' : 'err_trial_expired')+ADMIN_EMAIL+'.';
-    errEl.classList.add('show');return;}
-  if(pass!==user.code){
-    errEl.textContent=t('err_wrong_code');errEl.classList.add('show');return;}
-
-  finaliserConnexion(user, users);
 }
 
-function finaliserConnexion(user, users) {
+// _ouvrirSessionDepuisSupabase(authUser) : a partir d'un utilisateur
+// Supabase Auth deja authentifie (session valide), charge/cree son profil
+// applicatif (table `profiles`) puis ouvre reellement la session — ou
+// affiche l'ecran "Definissez votre mot de passe" si ce compte a ete cree
+// par l'administrateur (doitDefinirMdp) et n'a pas encore choisi son propre
+// mot de passe. Deconnecte immediatement (et retourne false) si le compte
+// est suspendu ou si l'essai gratuit a expire.
+async function _ouvrirSessionDepuisSupabase(authUser) {
+  const client = getSentinelSupabase();
+  if (!client || !authUser) return false;
+  const errEl = document.getElementById('loginErr');
+  let { data: row, error } = await client.from('profiles').select('*').eq('id', authUser.id).maybeSingle();
+  if (error) {
+    if (errEl) { errEl.textContent = 'Erreur de chargement du profil : ' + error.message; errEl.classList.add('show'); }
+    return false;
+  }
+  if (!row) {
+    // Premiere connexion apres un signUp() reussi (le profil n'a pas encore
+    // ete cree, ex. inscription interrompue) : le cree maintenant. role/
+    // status sont de toute facon toujours redetermines cote serveur
+    // (trigger before insert, voir migration profiles_auth).
+    const { data: cree, error: errCreation } = await client.from('profiles')
+      .insert({ id: authUser.id, email: authUser.email, data: {} })
+      .select('*').maybeSingle();
+    if (errCreation) {
+      if (errEl) { errEl.textContent = 'Erreur de creation du profil : ' + errCreation.message; errEl.classList.add('show'); }
+      return false;
+    }
+    row = cree;
+  }
+  const user = _profilVersUtilisateur(row);
+  if (user.status !== 'active') {
+    await client.auth.signOut();
+    if (errEl) { errEl.textContent = t('err_suspended')+ADMIN_EMAIL; errEl.classList.add('show'); }
+    return false;
+  }
+  if (compteGratuitExpire(user)) {
+    await client.auth.signOut();
+    const causeManuelle = !!user.accesJusquau;
+    if (errEl) { errEl.textContent = t(causeManuelle ? 'err_acces_expire' : 'err_trial_expired')+ADMIN_EMAIL+'.'; errEl.classList.add('show'); }
+    return false;
+  }
+  if (user.doitDefinirMdp) {
+    _pendingSetPasswordUser = user;
+    _modeDefinitionMdp = 'admin';
+    document.getElementById('loginForm').style.display='none';
+    document.getElementById('registerForm').style.display='none';
+    document.getElementById('forgotPasswordForm').style.display='none';
+    document.getElementById('setPasswordForm').style.display='block';
+    document.getElementById('spNewPass').value=''; document.getElementById('spConfirmPass').value='';
+    document.getElementById('setPasswordErr').classList.remove('show');
+    return true;
+  }
+  finaliserConnexion(user);
+  return true;
+}
+
+function finaliserConnexion(user) {
   user.lastLogin=new Date().toISOString();
   // Zone prioritaire choisie a l'ecran de connexion (voir doCollect) — suit le
   // compte, et memorisee aussi comme defaut de l'appareil pour pre-remplir le
@@ -12759,8 +12896,9 @@ function finaliserConnexion(user, users) {
     user.zonePrioritaire = zoneSel.value || '';
     _ls(() => localStorage.setItem(ZONE_PRIO_DEFAUT_KEY, user.zonePrioritaire));
   }
-  saveUsers(users);
+  _majUnProfil(user);
   saveSession({email:user.email,name:user.name,role:user.role,loginAt:new Date().toISOString()});
+  refreshUsersDepuisSupabase();
   if (typeof logConnexionSupabase === 'function') logConnexionSupabase(user);
   document.getElementById('authOverlay').classList.add('hidden');
   document.getElementById('userWrap').style.display='block';
@@ -12779,55 +12917,83 @@ function finaliserConnexion(user, users) {
   }
 }
 
+// _pendingSetPasswordUser/_modeDefinitionMdp : etat du panneau
+// "Definissez votre mot de passe" (setPasswordForm), reutilise pour DEUX
+// scenarios reels — 'admin' (compte cree par l'administrateur, mot de passe
+// temporaire a remplacer) et 'recuperation' (lien de reinitialisation
+// Supabase, voir l'evenement PASSWORD_RECOVERY dans checkAuth).
+let _pendingSetPasswordUser = null;
+let _modeDefinitionMdp = null;
+
 function showForgotPasswordForm() {
   document.getElementById('loginForm').style.display='none';
   document.getElementById('registerForm').style.display='none';
+  document.getElementById('setPasswordForm').style.display='none';
   document.getElementById('forgotPasswordForm').style.display='block';
   document.getElementById('fpEmail').value='';
   document.getElementById('forgotPasswordErr').classList.remove('show');
   document.getElementById('forgotPasswordMsg').textContent='';
 }
 
-// demanderReinitialisationMdp() : "code d'acces oublie", par e-mail — genere
-// un nouveau code et l'envoie via EmailJS (envoyerCodeActivation, deja
-// utilise pour l'activation des comptes). Le compte n'est modifie QUE si
-// l'envoi reussit reellement : si EmailJS echoue/n'est pas configure,
-// l'ancien code de l'utilisateur reste valide plutot que de le verrouiller
-// hors de son compte sans jamais lui transmettre le nouveau code. Message
-// final volontairement identique que le compte existe ou non (n'expose pas
-// quelles adresses sont enregistrees).
+// demanderReinitialisationMdp() : "mot de passe oublie", par e-mail — envoie
+// un VRAI lien de reinitialisation via Supabase Auth
+// (resetPasswordForEmail). Supabase gere lui-meme l'envoi de l'email (SMTP/
+// modele configures cote projet Supabase, Authentication > Email Templates)
+// et ne revele jamais si l'adresse existe (anti-enumeration natif, message
+// generique dans tous les cas). Le lien recu ramene l'utilisateur ici avec
+// un evenement PASSWORD_RECOVERY (voir checkAuth) qui affiche directement
+// setPasswordForm.
 async function demanderReinitialisationMdp() {
   const email = document.getElementById('fpEmail').value.trim().toLowerCase();
   const errEl = document.getElementById('forgotPasswordErr');
   const msgEl = document.getElementById('forgotPasswordMsg');
   errEl.classList.remove('show'); msgEl.textContent = '';
   if (!email || !/^[^@]+@[^@]+\.[^@]+$/.test(email)) { errEl.textContent = 'Adresse e-mail invalide.'; errEl.classList.add('show'); return; }
-
+  const client = getSentinelSupabase();
+  if (!client) { errEl.textContent = 'Service d\'authentification indisponible pour le moment.'; errEl.classList.add('show'); return; }
   const btn = document.getElementById('forgotPasswordBtn');
   if (btn) btn.disabled = true;
-  const messageGenerique = 'Si un compte existe avec cette adresse, un e-mail avec un nouveau code d\'accès vient de vous être envoyé.';
-
-  const users = getUsers();
-  const user = users.find(u => u.email.toLowerCase() === email);
-  if (!user) {
-    msgEl.textContent = messageGenerique;
-    if (btn) btn.disabled = false;
-    return;
-  }
-
-  const nouveauCode = genAccessCode();
-  const res = await envoyerCodeActivation({ email: user.email, name: user.name, code: nouveauCode });
+  try {
+    await client.auth.resetPasswordForEmail(email, { redirectTo: location.origin + location.pathname });
+  } catch (e) { console.warn('SENTINEL — resetPasswordForEmail a echoue :', e && e.message ? e.message : e); }
   if (btn) btn.disabled = false;
-  if (!res.ok) {
-    msgEl.textContent = 'Envoi automatique indisponible pour le moment. Contactez l\'administrateur (' + ADMIN_EMAIL + ') pour réinitialiser votre accès.';
-    return;
-  }
-  user.code = nouveauCode;
-  saveUsers(users);
-  msgEl.textContent = messageGenerique;
+  msgEl.textContent = 'Si un compte existe avec cette adresse, un e-mail avec un lien de réinitialisation vient de vous être envoyé.';
 }
 
-function doLogout() {
+// soumettreNouveauMotDePasse() : soumission de setPasswordForm — couvre les
+// deux scenarios (_modeDefinitionMdp), dans les deux cas via le VRAI
+// updateUser({password}) de Supabase Auth (jamais un champ local).
+async function soumettreNouveauMotDePasse() {
+  const errEl = document.getElementById('setPasswordErr');
+  errEl.classList.remove('show');
+  const pass = document.getElementById('spNewPass').value;
+  const confirm = document.getElementById('spConfirmPass').value;
+  const validation = _validerMotDePasse(pass, confirm);
+  if (!validation.ok) { errEl.textContent = validation.err; errEl.classList.add('show'); return; }
+  const client = getSentinelSupabase();
+  if (!client) { errEl.textContent = 'Service d\'authentification indisponible pour le moment.'; errEl.classList.add('show'); return; }
+  const btn = document.getElementById('setPasswordBtn');
+  if (btn) btn.disabled = true;
+  try {
+    const { data, error } = await client.auth.updateUser({ password: pass });
+    if (error) { errEl.textContent = error.message; errEl.classList.add('show'); return; }
+    document.getElementById('setPasswordForm').style.display='none';
+    if (_modeDefinitionMdp === 'admin' && _pendingSetPasswordUser) {
+      _pendingSetPasswordUser.doitDefinirMdp = false;
+      _majUnProfil(_pendingSetPasswordUser);
+      finaliserConnexion(_pendingSetPasswordUser);
+    } else {
+      await _ouvrirSessionDepuisSupabase(data.user);
+    }
+  } finally {
+    if (btn) btn.disabled = false;
+    _pendingSetPasswordUser = null; _modeDefinitionMdp = null;
+  }
+}
+
+async function doLogout() {
+  const client = getSentinelSupabase();
+  if (client) { try { await client.auth.signOut(); } catch (_) {} }
   clearSession();
   document.getElementById('authOverlay').classList.remove('hidden');
   document.getElementById('userWrap').style.display='none';
@@ -12854,84 +13020,110 @@ function showUserChip(user) {
 function toggleUserMenu(e){if(e)e.stopPropagation();document.getElementById('userMenu').classList.toggle('open');}
 document.addEventListener('click',()=>{const m=document.getElementById('userMenu');if(m)m.classList.remove('open');});
 
-function showRegisterForm(){document.getElementById('loginForm').style.display='none';document.getElementById('registerForm').style.display='block';document.getElementById('forgotPasswordForm').style.display='none';}
-function showLoginForm(){document.getElementById('loginForm').style.display='block';document.getElementById('registerForm').style.display='none';document.getElementById('forgotPasswordForm').style.display='none';if(typeof remplirSelectZonePrioritaireLogin==='function')remplirSelectZonePrioritaireLogin();}
+function showRegisterForm(){document.getElementById('loginForm').style.display='none';document.getElementById('registerForm').style.display='block';document.getElementById('setPasswordForm').style.display='none';document.getElementById('forgotPasswordForm').style.display='none';}
+function showLoginForm(){document.getElementById('loginForm').style.display='block';document.getElementById('registerForm').style.display='none';document.getElementById('setPasswordForm').style.display='none';document.getElementById('forgotPasswordForm').style.display='none';if(typeof remplirSelectZonePrioritaireLogin==='function')remplirSelectZonePrioritaireLogin();}
 
-// doRegister() : essai gratuit en libre-service, active immediatement, sans
-// validation manuelle de l'administrateur. Reste borne : role 'user' fixe
-// (jamais admin), 72h de validite (COMPTE_GRATUIT_VALIDITE_MS,
-// compteGratuitExpire), code d'acces reellement aleatoire (genAccessCode,
-// jamais recalculable depuis l'email) envoye automatiquement par email si
-// EmailJS est configure (envoyerCodeActivation), sinon affiche a l'ecran en
-// repli. Le compte reste visible dans le tableau Utilisateurs de l'admin
-// pour audit, meme si aucune action de sa part n'est requise pour l'activer.
-function doRegister() {
+// doRegister() : essai gratuit en libre-service, active immediatement (sauf
+// si le projet Supabase impose la confirmation par e-mail — voir plus bas),
+// sans validation manuelle de l'administrateur. Reste borne : role 'user'
+// fixe cote client MAIS de toute facon toujours redetermine cote serveur
+// (trigger before insert de la table profiles, voir migration
+// profiles_auth — seul ADMIN_EMAIL peut recevoir 'admin', jamais decide par
+// le client). Le compte reste visible dans le tableau Utilisateurs de
+// l'admin pour audit.
+async function doRegister() {
   const name =document.getElementById('regName').value.trim();
   const email=document.getElementById('regEmail').value.trim().toLowerCase();
   const org  =document.getElementById('regOrg').value.trim();
+  const pass = document.getElementById('regPass').value;
+  const passConfirm = document.getElementById('regPassConfirm').value;
   const errEl=document.getElementById('registerErr');
   errEl.classList.remove('show');
-  if(!name||!email||!org){errEl.textContent=t('err_fields_required');errEl.classList.add('show');return;}
+  if(!name||!email||!org||!pass||!passConfirm){errEl.textContent=t('err_fields_required');errEl.classList.add('show');return;}
   if(!/^[^@]+@[^@]+\.[^@]+$/.test(email)){errEl.textContent=t('err_invalid_email');errEl.classList.add('show');return;}
+  const validation = _validerMotDePasse(pass, passConfirm);
+  if (!validation.ok) { errEl.textContent = validation.err; errEl.classList.add('show'); return; }
+  const client = getSentinelSupabase();
+  if (!client) { errEl.textContent = 'Service d\'authentification indisponible pour le moment.'; errEl.classList.add('show'); return; }
 
-  const users=getUsers();
-  const existing=users.find(u=>u.email===email);
-  // Une adresse deja enregistree ne peut redemander un nouveau code gratuit
-  // qu'une fois son essai precedent expire (compteGratuitExpire) — un compte
-  // encore actif, suspendu avant expiration, ou passe sur un plan payant/admin
-  // reste bloque ici.
-  if(existing && !compteGratuitExpire(existing)){
-    errEl.textContent=t('err_already_registered');errEl.classList.add('show');return;}
+  const btn = document.getElementById('registerBtn');
+  if (btn) btn.disabled = true;
+  try {
+    const { data, error } = await client.auth.signUp({ email, password: pass });
+    if (error) {
+      errEl.textContent = /already registered|already exists|User already/i.test(error.message || '') ? t('err_already_registered') : (error.message || t('err_fields_required'));
+      errEl.classList.add('show');
+      return;
+    }
+    if (!data.user) { errEl.textContent = 'Inscription indisponible pour le moment.'; errEl.classList.add('show'); return; }
 
-  const code=genAccessCode();
-  let user;
-  if(existing){
-    existing.name=name; existing.organisation=org; existing.role='user';
-    existing.status='active'; existing.plan='gratuit';
-    existing.createdAt=new Date().toISOString(); existing.code=code;
-    user=existing;
-  } else {
-    user={email,name,role:'user',status:'active',plan:'gratuit',organisation:org,
-      createdAt:new Date().toISOString(),lastLogin:null,code};
-    users.push(user);
-  }
-  saveUsers(users);
+    const { error: errProfil } = await client.from('profiles').insert({
+      id: data.user.id, email,
+      data: { name, organisation: org, plan: 'gratuit', createdAt: new Date().toISOString() },
+    });
+    if (errProfil) console.warn('SENTINEL — creation du profil a l\'inscription a echoue :', errProfil.message);
 
-  document.getElementById('registerForm').innerHTML=
-    '<div style="text-align:center;padding:20px 0">'+
-    '<i class="ti ti-loader-2" style="font-size:32px;color:var(--lg);display:block;margin-bottom:14px"></i>'+
-    '<div style="font-size:13px;color:var(--t2)">'+t('register_activating')+'</div></div>';
+    if (!data.session) {
+      // "Confirm email" active sur le projet Supabase (Authentication >
+      // Providers > Email) : pas de session immediate, l'utilisateur doit
+      // cliquer le lien recu par email avant de pouvoir se connecter.
+      document.getElementById('registerForm').innerHTML=
+        '<div style="text-align:center;padding:20px 0">'+
+        '<i class="ti ti-mail" style="font-size:48px;color:var(--b);display:block;margin-bottom:14px"></i>'+
+        '<div style="font-size:14px;font-weight:700;color:var(--t);margin-bottom:8px">Confirmez votre adresse e-mail</div>'+
+        '<div style="font-size:12px;color:var(--lg);line-height:1.6">Un e-mail de confirmation vient d\'être envoyé à <b>'+escHtml(email)+'</b>. Cliquez sur le lien qu\'il contient pour activer votre compte.</div>'+
+        '<div style="margin-top:16px"><span style="color:var(--b);cursor:pointer" onclick="showLoginForm()">'+t('register_go_login')+'</span></div></div>';
+      return;
+    }
 
-  envoyerCodeActivation(user).then(res => {
-    const detail = res.ok
-      ? t('register_code_sent')+'<br><b style="color:var(--t2)">'+escHtml(email)+'</b>'
-      : t('register_code_manual')+'<br>'
-        +'<b style="color:var(--t);font-family:monospace;font-size:15px;letter-spacing:.08em">'+escHtml(code)+'</b>';
     document.getElementById('registerForm').innerHTML=
       '<div style="text-align:center;padding:20px 0">'+
       '<i class="ti ti-circle-check" style="font-size:48px;color:#15803D;display:block;margin-bottom:14px"></i>'+
       '<div style="font-size:14px;font-weight:700;color:var(--t);margin-bottom:8px">'+t('register_activated')+'</div>'+
-      '<div style="font-size:12px;color:var(--lg);line-height:1.6">'+detail+'</div>'+
+      '<div style="font-size:12px;color:var(--lg);line-height:1.6">Connectez-vous avec l\'adresse et le mot de passe que vous venez de définir.</div>'+
       '<div style="margin-top:16px"><span style="color:var(--b);cursor:pointer" onclick="showLoginForm()">'+t('register_go_login')+'</span></div></div>';
-  });
+  } finally {
+    if (btn) btn.disabled = false;
+  }
 }
 
-function addUser() {
+// addUser() : formulaire admin "Octroyer un acces" — cree un compte pour un
+// tiers via un client Supabase EPHEMERE (voir _clientSupabaseEphemere) pour
+// ne jamais deconnecter l'admin de sa propre session, avec un mot de passe
+// TEMPORAIRE (genAccessCode) que le nouvel utilisateur devra remplacer par
+// le sien des sa premiere connexion (profil.doitDefinirMdp, voir
+// _ouvrirSessionDepuisSupabase).
+async function addUser() {
   const email=document.getElementById('newUserEmail').value.trim().toLowerCase();
   const name =document.getElementById('newUserName').value.trim();
   const role =document.getElementById('newUserRole').value;
   const msg  =document.getElementById('adminMsg');
   msg.className='admin-msg';
   if(!email||!name){msg.textContent='Email et nom sont requis.';msg.className='admin-msg err';return;}
-  const users=getUsers();
-  if(users.find(u=>u.email===email)){msg.textContent='Cet utilisateur existe deja.';msg.className='admin-msg err';return;}
-  const code=genAccessCode();
-  users.push({email,name,role,status:'active',createdAt:new Date().toISOString(),lastLogin:null,code});
-  saveUsers(users);
+  if(getUsers().find(u=>u.email===email)){msg.textContent='Cet utilisateur existe deja.';msg.className='admin-msg err';return;}
+  const clientEphemere = _clientSupabaseEphemere();
+  if (!clientEphemere) { msg.textContent='Service d\'authentification indisponible pour le moment.'; msg.className='admin-msg err'; return; }
+  const motDePasseTemp = genAccessCode();
+  const { data, error } = await clientEphemere.auth.signUp({ email, password: motDePasseTemp });
+  if (error) { msg.textContent='Échec de la création du compte : '+error.message; msg.className='admin-msg err'; return; }
+  if (!data.user) { msg.textContent='Échec de la création du compte (réponse inattendue).'; msg.className='admin-msg err'; return; }
+  const { error: errProfil } = await clientEphemere.from('profiles').insert({
+    id: data.user.id, email, data: { name, doitDefinirMdp: true, createdAt: new Date().toISOString() },
+  });
+  if (errProfil) { msg.textContent='Compte créé mais profil incomplet : '+errProfil.message; msg.className='admin-msg err'; return; }
+  if (role && role !== 'user') {
+    const clientPrincipal = getSentinelSupabase();
+    if (clientPrincipal) {
+      const { error: errRole } = await clientPrincipal.from('profiles').update({ role }).eq('id', data.user.id);
+      if (errRole) console.warn('SENTINEL — application du role a echoue :', errRole.message);
+    }
+  }
   savePending(getPending().filter(p=>p.email!==email));
   document.getElementById('newUserEmail').value='';
   document.getElementById('newUserName').value='';
-  msg.innerHTML='<b>Acces accorde.</b> Code d\'acces pour '+escHtml(email)+' : <b>'+escHtml(code)+'</b> — A communiquer par e-mail a l\'utilisateur.';
+  const code = motDePasseTemp;
+  msg.innerHTML='<b>Acces accorde.</b> Mot de passe temporaire pour '+escHtml(email)+' : <b>'+escHtml(code)+'</b> — A communiquer par e-mail a l\'utilisateur, qui devra le remplacer par son propre mot de passe a sa premiere connexion.';
+  await refreshUsersDepuisSupabase();
   msg.className='admin-msg ok';
   renderUsersTable(); renderPendingTable(); renderAdminStats();
 }
@@ -12982,7 +13174,7 @@ function renderUsersTable() {
         (isA?'<span style="font-size:10px;color:var(--lg)">Compte principal</span>':
           '<button class="btn-action '+(u.status==='active'?'btn-rev':'btn-rest')+'" onclick="toggleUserStatus(\''+u.email+'\')">'+(u.status==='active'?'Suspendre':'Reactiver')+'</button>'+
           '<button class="btn-action btn-del" onclick="deleteUser(\''+u.email+'\')">Supprimer</button>')+
-        '<span style="font-size:9px;color:var(--lg);margin-left:4px">'+escHtml(u.code)+'</span>'+
+        (u.doitDefinirMdp?'<span style="font-size:9px;color:var(--a);margin-left:4px" title="Mot de passe temporaire, pas encore remplace">Mdp temporaire</span>':'')+
       '</td></tr>';
   }).join('');
 }
@@ -13008,17 +13200,17 @@ function openAdmin() {
 }
 function closeAdmin() { document.getElementById('adminPanel').classList.add('hidden'); }
 
-function checkAuth() {
+async function checkAuth() {
   // Applique au DOM la langue chargee au demarrage (voir LANG plus haut) —
   // necessaire meme si LANG!=='fr' par defaut, car le HTML statique est
   // ecrit en francais : sans cet appel, LANG suivrait le bon choix en
   // interne mais l'ecran de connexion resterait affiche en francais.
   setLang(LANG);
   // Job de collecte planifie (voir checkCollectorSession) : contourne
-  // entierement l'ecran de connexion et le compte admin, retourne avant
-  // toute autre logique si le jeton correspond.
+  // entierement l'ecran de connexion, retourne avant toute autre logique si
+  // le jeton correspond. Session synthetique en lecture seule, jamais liee
+  // a Supabase Auth.
   if (typeof checkCollectorSession === 'function' && checkCollectorSession()) return;
-  initUsers();
   // Instantane public (compteur + bulletin) : lu independamment de l'etat de
   // connexion, voir sauvegarderInstantanePublic/renderAuthStats.
   if (typeof renderAuthStats === 'function') renderAuthStats();
@@ -13027,24 +13219,53 @@ function checkAuth() {
   // — un bulletin qui n'ouvre pas tout seul en un clic n'est pas "citable").
   if (location.hash === '#bulletin' && typeof ouvrirBulletinPublic === 'function') ouvrirBulletinPublic();
   else if (location.hash === '#methodologie' && typeof ouvrirMethodologiePublique === 'function') ouvrirMethodologiePublique();
-  const user = restoreSession();
-  if (user) {
-    // Session valide deja en cours (reconnexion automatique tant que le
-    // compte reste actif) : on entre directement, sans repasser par le
-    // formulaire de connexion.
-    document.getElementById('authOverlay').classList.add('hidden');
-    document.getElementById('userWrap').style.display='block';
-    showUserChip(user);
-    applyRoleMenus(user.role);
-    if (typeof logConnexionSupabase === 'function') logConnexionSupabase(user);
-    if (!window._appInitialized) { window._appInitialized = true; init(); }
-  } else {
-    // Aucune session valide : ecran de connexion reel, l'application ne
-    // demarre (init()) qu'apres une authentification reussie via doLogin().
+
+  const client = getSentinelSupabase();
+  if (!client) {
+    // Supabase indisponible (SDK non charge, hors ligne au tout premier
+    // chargement...) : aucune authentification reelle possible sans le
+    // serveur d'identite — ecran de connexion avec message explicite,
+    // jamais de mode degrade qui ferait croire a une session valide.
     document.getElementById('authOverlay').classList.remove('hidden');
     document.getElementById('userWrap').style.display='none';
     showLoginForm();
+    const errEl = document.getElementById('loginErr');
+    if (errEl) { errEl.textContent = 'Service d\'authentification indisponible pour le moment. Réessayez dans un instant.'; errEl.classList.add('show'); }
+    return;
   }
+
+  // Capte l'evenement PASSWORD_RECOVERY declenche par le lien de
+  // reinitialisation envoye par Supabase (email, voir
+  // demanderReinitialisationMdp) — peut survenir a tout moment apres le
+  // chargement initial, pas seulement ici.
+  client.auth.onAuthStateChange((event) => {
+    if (event === 'PASSWORD_RECOVERY') {
+      _pendingSetPasswordUser = null;
+      _modeDefinitionMdp = 'recuperation';
+      document.getElementById('loginForm').style.display='none';
+      document.getElementById('registerForm').style.display='none';
+      document.getElementById('forgotPasswordForm').style.display='none';
+      document.getElementById('setPasswordForm').style.display='block';
+      document.getElementById('spNewPass').value=''; document.getElementById('spConfirmPass').value='';
+    }
+  });
+
+  const { data: { session } } = await client.auth.getSession();
+  // Reconnexion quotidienne obligatoire (voir _sessionLocaleDuJour) : une
+  // session Supabase techniquement valide plus longtemps (rafraichissement
+  // automatique du jeton) est neanmoins ignoree si la trace locale de
+  // connexion ne date pas d'aujourd'hui — force une nouvelle saisie du mot
+  // de passe a la premiere ouverture de chaque jour, sur cet appareil.
+  if (session && session.user && _sessionLocaleDuJour()) {
+    const ok = await _ouvrirSessionDepuisSupabase(session.user);
+    if (ok) return;
+  } else if (session && session.user) {
+    try { await client.auth.signOut(); } catch (_) {}
+    clearSession();
+  }
+  document.getElementById('authOverlay').classList.remove('hidden');
+  document.getElementById('userWrap').style.display='none';
+  showLoginForm();
 }
 
 
@@ -13292,8 +13513,7 @@ async function pmRenderUsers() {
       '<td><span class="badge-role ' + rc + '">' + rl + '</span></td>' +
       '<td><span class="badge-status ' + (u.status==='active'?'bs-active':'bs-suspend') + '">' +
         (u.status==='active'?'Actif':'Suspendu') + '</span></td>' +
-      '<td><span style="font-family:monospace;font-size:12px;font-weight:700;color:var(--b)">' + escHtml(u.code) + '</span>' +
-        '<button class="copy-btn" style="margin-left:6px;padding:3px 8px" data-email="' + escHtml(u.email) + '" onclick="copierCodeUtilisateur(this.dataset.email)" title="Copier le code"><i class="ti ti-copy"></i></button></td>' +
+      '<td>' + (u.doitDefinirMdp ? '<span style="font-size:11px;color:var(--a);font-weight:700" title="L\'utilisateur doit encore le remplacer par le sien">Temporaire</span>' : '<span style="font-size:11px;color:var(--lg)">Personnel</span>') + '</td>' +
       '<td>' + _clienteleStatutHTML(dernierTs, source) + '</td>' +
       '<td style="display:flex;gap:5px;flex-wrap:wrap;align-items:center">' +
         (isA ? '<span style="font-size:10px;color:var(--lg)">Compte principal</span>' :
@@ -13303,21 +13523,37 @@ async function pmRenderUsers() {
   }).join('');
 }
 
-function pmAddUser() {
+// pmAddUser() : meme principe que addUser() (voir plus haut) — client
+// Supabase EPHEMERE pour ne jamais deconnecter l'admin de sa propre
+// session, mot de passe TEMPORAIRE a remplacer des la premiere connexion.
+async function pmAddUser() {
   const email = document.getElementById('pmNewEmail').value.trim().toLowerCase();
   const name  = document.getElementById('pmNewName').value.trim();
   const role  = document.getElementById('pmNewRole').value;
   if (!email || !name) { pmMsg('Email et nom sont requis.', 'err', 'pmMsg'); return; }
-  const users = getUsers();
-  if (users.find(u => u.email === email)) { pmMsg('Cet utilisateur existe deja.', 'err', 'pmMsg'); return; }
-  const code = genAccessCode();
-  users.push({email, name, role, status:'active',
-    createdAt: new Date().toISOString(), lastLogin: null, code});
-  saveUsers(users);
+  if (getUsers().find(u => u.email === email)) { pmMsg('Cet utilisateur existe deja.', 'err', 'pmMsg'); return; }
+  const clientEphemere = _clientSupabaseEphemere();
+  if (!clientEphemere) { pmMsg('Service d\'authentification indisponible pour le moment.', 'err', 'pmMsg'); return; }
+  const motDePasseTemp = genAccessCode();
+  const { data, error } = await clientEphemere.auth.signUp({ email, password: motDePasseTemp });
+  if (error) { pmMsg('Échec de la création du compte : ' + escHtml(error.message), 'err', 'pmMsg'); return; }
+  if (!data.user) { pmMsg('Échec de la création du compte (réponse inattendue).', 'err', 'pmMsg'); return; }
+  const { error: errProfil } = await clientEphemere.from('profiles').insert({
+    id: data.user.id, email, data: { name, doitDefinirMdp: true, createdAt: new Date().toISOString() },
+  });
+  if (errProfil) { pmMsg('Compte créé mais profil incomplet : ' + escHtml(errProfil.message), 'err', 'pmMsg'); return; }
+  if (role && role !== 'user') {
+    const clientPrincipal = getSentinelSupabase();
+    if (clientPrincipal) {
+      const { error: errRole } = await clientPrincipal.from('profiles').update({ role }).eq('id', data.user.id);
+      if (errRole) console.warn('SENTINEL — application du role a echoue :', errRole.message);
+    }
+  }
   savePending(getPending().filter(p => p.email !== email));
   document.getElementById('pmNewEmail').value = '';
   document.getElementById('pmNewName').value  = '';
-  pmMsg('<b>Acces accorde.</b> Code d\'acces pour ' + escHtml(email) + ' : <b>' + escHtml(code) + '</b>', 'ok', 'pmMsg');
+  pmMsg('<b>Accès accordé.</b> Mot de passe temporaire pour ' + escHtml(email) + ' : <b>' + escHtml(motDePasseTemp) + '</b> — à remplacer par l\'utilisateur à sa première connexion.', 'ok', 'pmMsg');
+  await refreshUsersDepuisSupabase();
   pmRenderUsers(); pmRenderPending(); renderClientele();
 }
 
@@ -13371,35 +13607,27 @@ function pmRejectPending(email) {
 function renderAdminProfile() {
   const session = getSession();
   if (!session) return;
-  const u = getUsers().find(x => x.email === session.email);
-  const code = u ? u.code : '';
   document.getElementById('pmAvatar').textContent = (session.name||session.email).charAt(0).toUpperCase();
   document.getElementById('pmName').textContent   = session.name || 'Administrateur';
   document.getElementById('pmEmail').textContent  = session.email === ADMIN_EMAIL ? _maskEmail(session.email) : session.email;
-  document.getElementById('pmCode').textContent   = code;
 }
 
-function copyAdminCode() {
-  const code = document.getElementById('pmCode').textContent;
-  copyText(code);
-}
-function copyText(txt) {
-  navigator.clipboard.writeText(txt).then(() => {
-    // escHtml : defense en profondeur — pmMsg() ecrit en innerHTML.
-    pmMsg('Code copie dans le presse-papier : ' + escHtml(txt), 'ok', 'pmMsg');
-  }).catch(() => {
-    prompt('Copiez ce code :', txt);
-  });
-}
-// copierCodeUtilisateur(email) : indirection utilisee par les boutons
-// "Copier" des tableaux d'administration — evite d'interpoler directement
-// le code dans un attribut onclick="copyText('...')" (defense en
-// profondeur). Le bouton ne porte que l'email (attribut data-email,
-// echappe normalement) ; la valeur reelle est relue depuis le stockage au
-// moment du clic.
-function copierCodeUtilisateur(email) {
-  const u = getUsers().find(x => x.email === email);
-  if (u) copyText(u.code);
+// pmChangerMotDePassePersonnel() : changement de mot de passe VOLONTAIRE
+// (l'utilisateur est deja authentifie — pas besoin de re-saisir l'ancien,
+// meme principe que soumettreNouveauMotDePasse) — via le VRAI
+// updateUser({password}) de Supabase Auth.
+async function pmChangerMotDePassePersonnel() {
+  const pass = document.getElementById('pmNewPassSelf').value;
+  const confirm = document.getElementById('pmNewPassSelfConfirm').value;
+  const validation = _validerMotDePasse(pass, confirm);
+  if (!validation.ok) { pmMsg(validation.err, 'err', 'pmChangePassMsg'); return; }
+  const client = getSentinelSupabase();
+  if (!client) { pmMsg('Service d\'authentification indisponible pour le moment.', 'err', 'pmChangePassMsg'); return; }
+  const { error } = await client.auth.updateUser({ password: pass });
+  if (error) { pmMsg(error.message, 'err', 'pmChangePassMsg'); return; }
+  document.getElementById('pmNewPassSelf').value = '';
+  document.getElementById('pmNewPassSelfConfirm').value = '';
+  pmMsg('Mot de passe mis à jour.', 'ok', 'pmChangePassMsg');
 }
 
 // ── SAUVEGARDE & RESTAURATION DES DONNEES ADMIN ───────────────────────
@@ -13511,6 +13739,11 @@ function loadParamsModule() {
   renderDLRights();
   renderFeatureRights();
   if (typeof renderMasquageSources === 'function') renderMasquageSources();
+  // Recharge le cache depuis `profiles` (table partagee, voir
+  // refreshUsersDepuisSupabase) avant de peindre les tableaux — un admin
+  // doit toujours voir les comptes crees depuis N'IMPORTE QUEL appareil,
+  // pas seulement le cache local de CE navigateur.
+  refreshUsersDepuisSupabase().then(() => { pmRenderUsers(); renderClientele(); });
   pmRenderUsers();
   pmRenderPending();
   if (typeof initCorridorsPerso === 'function') initCorridorsPerso();
@@ -14278,45 +14511,13 @@ function _chargerSdkEmailjs() {
   });
   return _emailjsSdkPromise;
 }
-// envoyerCodeActivation(u) : tente l'envoi automatique du code d'acces deja
-// stocke (u.code, voir genAccessCode) par email au client. Renvoie {ok:true}
-// en cas de succes,
-// {ok:false, raison} sinon (config manquante, echec reseau...) — l'appelant
-// affiche alors le code a l'administrateur pour transmission manuelle,
-// aucune activation ne depend de la reussite de cet envoi.
-async function envoyerCodeActivation(u) {
-  let cfg = getEmailjsCfg();
-  // Rien en local sur CE navigateur : tente la configuration PARTAGEE
-  // (voir lireConfigEmailjsPartagee plus haut) avant d'abandonner — sans ce
-  // repli, seul le poste ayant explicitement enregistre la configuration
-  // pouvait jamais envoyer un email reel. Mise en cache local au passage,
-  // pour eviter un aller-retour reseau a chaque envoi depuis ce navigateur.
-  if (!cfg.serviceId || !cfg.templateId || !cfg.publicKey) {
-    const partagee = await lireConfigEmailjsPartagee();
-    if (partagee) { cfg = partagee; saveEmailjsCfg(cfg); }
-  }
-  if (!cfg.serviceId || !cfg.templateId || !cfg.publicKey) {
-    return { ok: false, raison: 'EmailJS non configuré' };
-  }
-  try {
-    await _chargerSdkEmailjs();
-    await emailjs.send(cfg.serviceId, cfg.templateId, {
-      to_email: u.email,
-      to_name: u.name || u.email,
-      code: u.code,
-      app_name: 'SENTINEL SÛRETÉ',
-    }, cfg.publicKey);
-    return { ok: true };
-  } catch (e) {
-    return { ok: false, raison: (e && e.message) || 'échec de l\'envoi' };
-  }
-}
 
 // activerAbonnementEtEnvoyerCode(email, planKey, msgElId) : appelee apres
-// confirmation manuelle d'un paiement declare — active le forfait, marque
-// le paiement a jour, et tente l'envoi automatique du code d'acces par
-// email (voir envoyerCodeActivation). Jamais d'activation sans confirmation
-// explicite de l'administrateur.
+// confirmation manuelle d'un paiement declare — active le forfait et marque
+// le paiement a jour. Le client garde son propre mot de passe (Supabase
+// Auth, jamais visible/regenerable par l'admin) : plus besoin d'envoyer un
+// code, il lui suffit de se reconnecter normalement une fois son abonnement
+// actif.
 function activerAbonnementEtEnvoyerCode(email, planKey, msgElId) {
   const users = getUsers();
   const u = users.find(x => x.email === email);
@@ -14326,14 +14527,7 @@ function activerAbonnementEtEnvoyerCode(email, planKey, msgElId) {
   const echeance = new Date(); echeance.setMonth(echeance.getMonth() + 1);
   u.echeance = echeance.toLocaleDateString('fr-FR');
   saveUsers(users);
-  const code = u.code;
-  envoyerCodeActivation(u).then(res => {
-    if (res.ok) {
-      pmMsg('Abonnement activé pour ' + u.email + ' — code d\'activation envoyé par email automatiquement.', 'ok', msgElId);
-    } else {
-      pmMsg('Abonnement activé pour ' + u.email + '. Envoi automatique indisponible (' + res.raison + ') — code à transmettre manuellement : <b>' + code + '</b>', 'ok', msgElId);
-    }
-  });
+  pmMsg('Abonnement activé pour ' + escHtml(u.email) + '.', 'ok', msgElId);
   renderClientele();
 }
 
@@ -14629,24 +14823,6 @@ getFiltered = function() {
 };
 
 
-
-
-function resetLocalStorage() {
-  const nouveauCode = genAccessCode();
-  if(!confirm('Réinitialiser tous les accès et sessions ?\n\nCette action supprime toutes les sessions et recrée le compte admin.\n\nVotre nouveau code admin sera : ' + nouveauCode)) return;
-  localStorage.removeItem('sentinel_auth_v1');
-  localStorage.removeItem('sentinel_users_v1');
-  localStorage.removeItem('sentinel_pending_v1');
-  localStorage.removeItem('sentinel_dl_rights_v1');
-  localStorage.removeItem('sentinel_ft_rights_v1');
-  // Recréer le compte admin immédiatement avec le code déjà annoncé ci-dessus
-  // (ne pas rappeler initUsers() ici : il générerait un second code aléatoire
-  // différent de celui qu'on vient de montrer).
-  saveUsers([{email:ADMIN_EMAIL,name:'Administrateur SENTINEL',role:'admin',
-    status:'active',createdAt:new Date().toISOString(),lastLogin:null,code:nouveauCode}]);
-  // Recharger la page
-  window.location.reload();
-}
 
 
 // ═══════════════════════════════════════════════════════════════════════════

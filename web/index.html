@@ -14,9 +14,11 @@ aucune pub).
 <meta name="google-adsense-account" content="ca-pub-5506503144248267">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <!-- Content-Security-Policy — voir SENTINEL_Surete_Web.html pour le detail
-     du raisonnement. Page plus simple : ne charge que ses propres assets
-     (assets/hero.mp4, poster) et Google Fonts. -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; media-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self';">
+     du raisonnement. script-src/connect-src etendus a cdn.jsdelivr.net/
+     *.supabase.co : le formulaire d'inscription public utilise desormais
+     Supabase Auth (authentification reelle, voir submitSignup()) au lieu
+     d'un code d'acces local genere cote client. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; media-src 'self'; connect-src 'self' https://*.supabase.co https://cdn.jsdelivr.net; object-src 'none'; base-uri 'self';">
 <title>SENTINEL SÛRETÉ — Renseignement sûreté pour l'Afrique, en temps réel</title>
 <meta name="description" content="SENTINEL SÛRETÉ croise en continu des centaines de sources africaines (médias et réseaux sociaux) pour transformer le bruit médiatique en décisions de sûreté exploitables. 54 pays, filtre anti-hallucination &lt;12h, rapports Word/PDF/PowerPoint.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -566,6 +568,14 @@ footer{padding:60px 0 36px;border-top:1px solid var(--line2);margin-top:60px}
           <option value="all">Toutes zones — Afrique</option>
         </select>
       </div>
+      <div class="field">
+        <label>Mot de passe</label>
+        <input type="password" id="suPass" placeholder="8 caractères minimum" autocomplete="new-password">
+      </div>
+      <div class="field">
+        <label>Confirmer le mot de passe</label>
+        <input type="password" id="suPassConfirm" placeholder="Retapez le mot de passe" autocomplete="new-password">
+      </div>
       <div class="check-row">
         <input type="checkbox" id="suTerms">
         <label for="suTerms">J'utilise SENTINEL SÛRETÉ dans un cadre professionnel de sûreté/gestion des risques et j'accepte l'usage restreint de la plateforme.</label>
@@ -576,6 +586,9 @@ footer{padding:60px 0 36px;border-top:1px solid var(--line2);margin-top:60px}
   </div>
 </div>
 
+<!-- Supabase JS : authentification reelle (voir submitSignup()) — meme
+     projet que l'application (SENTINEL_Surete_Web.html). -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js" defer></script>
 <script>
 // ── Nav shrink/blur on scroll ────────────────────────────────────────
 const navEl = document.getElementById('nav');
@@ -696,86 +709,110 @@ function closeSignup() {
 }
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeSignup(); });
 
-// ── Account creation — writes to the SAME localStorage store as the main
-// app (sentinel_users_v1), so a freshly-created account logs straight into
-// SENTINEL_Surete_Web.html with the generated code, no admin approval step.
-// Kept intentionally separate from the app's existing "Demander un accès"
-// flow (which still requires admin validation for users who prefer/need
-// manual review).
-const USERS_KEY = 'sentinel_users_v1';
-// makeCode() — audit de securite : generait auparavant un hash deterministe
-// de l'email (aucun secret, aucun alea) — n'importe qui connaissant l'adresse
-// email d'un client pouvait recalculer son code d'acces et se connecter a sa
-// place, sans jamais voir l'ecran de succes. Remplace par un vrai code
-// aleatoire (meme generateur que genAccessCode() cote application), montre
-// une seule fois a la creation du compte, comme prevu a l'origine.
-function makeCode() {
-  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // sans 0/O/1/I ambigus
-  const bytes = new Uint8Array(6);
-  crypto.getRandomValues(bytes);
-  return 'S' + Array.from(bytes, b => alphabet[b % alphabet.length]).join('');
+// ── Account creation — authentification REELLE via Supabase Auth (meme
+// projet que l'application, voir SENTINEL_Surete_Web.html), pour qu'un
+// compte cree ici se connecte directement dans SENTINEL_Surete_Web.html —
+// aucun compte local, aucun code genere cote client. Kept intentionally
+// separate from the app's existing "Demander un accès" flow (which still
+// requires admin validation for users who prefer/need manual review).
+const SENTINEL_SUPABASE_URL      = 'https://zpdwqmliogxbuwirziny.supabase.co';
+const SENTINEL_SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpwZHdxbWxpb2d4YnV3aXJ6aW55Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM4NzUyOTYsImV4cCI6MjA5OTQ1MTI5Nn0.fQsTrrV5CIB77l0hxTHHN7oVICVzZdhwa9-d0WsCYI0';
+let _sentinelSupabaseClient = null;
+function getSentinelSupabase() {
+  if (typeof window.supabase === 'undefined' || typeof window.supabase.createClient !== 'function') return null;
+  if (!_sentinelSupabaseClient) {
+    try { _sentinelSupabaseClient = window.supabase.createClient(SENTINEL_SUPABASE_URL, SENTINEL_SUPABASE_ANON_KEY); }
+    catch (_) { return null; }
+  }
+  return _sentinelSupabaseClient;
 }
-function getUsers() { try { return JSON.parse(localStorage.getItem(USERS_KEY) || '[]'); } catch (e) { return []; } }
-function saveUsers(u) { try { localStorage.setItem(USERS_KEY, JSON.stringify(u)); } catch (e) {} }
+const MDP_LONGUEUR_MIN = 8;
 
-function submitSignup() {
+async function submitSignup() {
   const name = document.getElementById('suName').value.trim();
   const email = document.getElementById('suEmail').value.trim().toLowerCase();
   const org = document.getElementById('suOrg').value.trim();
   const zone = document.getElementById('suZone').value;
+  const pass = document.getElementById('suPass').value;
+  const passConfirm = document.getElementById('suPassConfirm').value;
   const terms = document.getElementById('suTerms').checked;
   const errEl = document.getElementById('suErr');
   errEl.classList.remove('show');
 
-  if (!name || !email || !org) { errEl.textContent = 'Merci de renseigner tous les champs.'; errEl.classList.add('show'); return; }
+  if (!name || !email || !org || !pass || !passConfirm) { errEl.textContent = 'Merci de renseigner tous les champs.'; errEl.classList.add('show'); return; }
   if (!/^[^@]+@[^@]+\.[^@]+$/.test(email)) { errEl.textContent = 'Adresse e-mail invalide.'; errEl.classList.add('show'); return; }
+  if (pass.length < MDP_LONGUEUR_MIN) { errEl.textContent = 'Le mot de passe doit contenir au moins ' + MDP_LONGUEUR_MIN + ' caractères.'; errEl.classList.add('show'); return; }
+  if (pass !== passConfirm) { errEl.textContent = 'Les deux mots de passe ne correspondent pas.'; errEl.classList.add('show'); return; }
   if (!terms) { errEl.textContent = "Merci de confirmer l'usage professionnel de la plateforme."; errEl.classList.add('show'); return; }
 
-  const users = getUsers();
-  const existing = users.find(u => u.email === email);
-  if (existing) {
-    document.getElementById('signupBody').innerHTML =
-      '<div class="modal-success"><div class="ico">i</div>' +
-      '<div class="modal-title" style="font-size:17px">Compte déjà existant</div>' +
-      '<div class="modal-sub">Cette adresse dispose déjà d\'un compte. Connectez-vous directement, ou récupérez votre code depuis l\'écran de connexion.</div>' +
-      '<a class="btn btn-primary" style="width:100%;margin-top:6px" href="SENTINEL_Surete_Web.html">Aller à la connexion</a></div>';
-    return;
+  const client = getSentinelSupabase();
+  if (!client) { errEl.textContent = "Service d'inscription indisponible pour le moment. Réessayez dans un instant."; errEl.classList.add('show'); return; }
+
+  const btn = document.getElementById('suSubmitBtn');
+  if (btn) btn.disabled = true;
+  try {
+    const { data, error } = await client.auth.signUp({ email, password: pass });
+    if (error) {
+      if (/already registered|already exists|User already/i.test(error.message || '')) {
+        document.getElementById('signupBody').innerHTML =
+          '<div class="modal-success"><div class="ico">i</div>' +
+          '<div class="modal-title" style="font-size:17px">Compte déjà existant</div>' +
+          '<div class="modal-sub">Cette adresse dispose déjà d\'un compte. Connectez-vous directement, ou réinitialisez votre mot de passe depuis l\'écran de connexion.</div>' +
+          '<a class="btn btn-primary" style="width:100%;margin-top:6px" href="SENTINEL_Surete_Web.html">Aller à la connexion</a></div>';
+        return;
+      }
+      errEl.textContent = error.message || 'Inscription indisponible pour le moment.';
+      errEl.classList.add('show');
+      return;
+    }
+    if (!data.user) { errEl.textContent = 'Inscription indisponible pour le moment.'; errEl.classList.add('show'); return; }
+
+    // planSouhaite : le forfait choisi sur cette page — n'active PAS le
+    // forfait payant lui-meme (plan reste 'gratuit' tant qu'un admin n'a
+    // pas verifie le paiement, voir fonctionnalitePayante() cote
+    // application), il sert uniquement a pre-selectionner le forfait dans
+    // "Déclarer un paiement" une fois le client connecte.
+    const { error: errProfil } = await client.from('profiles').insert({
+      id: data.user.id, email,
+      data: { name, organisation: org, zonePrioritaire: zone === 'all' ? '' : zone, plan: 'gratuit', planSouhaite: signupPlanKey, createdAt: new Date().toISOString() },
+    });
+    if (errProfil) console.warn('SENTINEL — creation du profil a l\'inscription a echoue :', errProfil.message);
+
+    const plan = getPlans().find(p => p.key === signupPlanKey);
+    const estPayant = plan && plan.prix;
+
+    if (!data.session) {
+      // "Confirm email" active sur le projet Supabase : pas de session
+      // immediate, il faut cliquer le lien recu par email avant de pouvoir
+      // se connecter.
+      document.getElementById('signupBody').innerHTML =
+        '<div class="modal-success"><div class="ico">✓</div>' +
+        '<div class="modal-title" style="font-size:18px">Confirmez votre adresse e-mail</div>' +
+        '<div class="modal-sub">Un e-mail de confirmation vient d\'être envoyé à <b style="color:#e7ecf2">' + email + '</b>. Cliquez sur le lien qu\'il contient pour activer votre compte.</div>' +
+        '<a class="btn btn-primary" style="width:100%;margin-top:14px" href="SENTINEL_Surete_Web.html">Aller à la connexion</a></div>';
+      return;
+    }
+
+    document.getElementById('signupBody').innerHTML = estPayant
+      ? '<div class="modal-success"><div class="ico">✓</div>' +
+        '<div class="modal-title" style="font-size:18px">Compte créé</div>' +
+        '<div class="modal-sub">Connectez-vous avec l\'adresse et le mot de passe que vous venez de définir.</div>' +
+        '<div class="modal-sub" style="margin-top:0">Adresse : <b style="color:#e7ecf2">' + email + '</b></div>' +
+        '<div class="modal-sub" style="margin-top:14px;text-align:left;background:rgba(58,160,255,.08);border:1px solid rgba(58,160,255,.2);border-radius:8px;padding:12px 14px">' +
+          '<b style="color:#fff">Pour activer le forfait ' + plan.nom + ' (' + plan.prix.toLocaleString('fr-FR') + ' FCFA' + plan.periode + ') :</b><br>' +
+          '1. Connectez-vous.<br>' +
+          '2. Menu profil → « Déclarer un paiement ».<br>' +
+          '3. Transférez le montant par Mobile Money et indiquez la référence — votre forfait est activé sous 24h.' +
+        '</div>' +
+        '<a class="btn btn-primary" style="width:100%;margin-top:14px" href="SENTINEL_Surete_Web.html">Accéder à l\'application</a></div>'
+      : '<div class="modal-success"><div class="ico">✓</div>' +
+        '<div class="modal-title" style="font-size:18px">Compte créé</div>' +
+        '<div class="modal-sub">Votre accès gratuit est actif immédiatement. Connectez-vous avec l\'adresse et le mot de passe que vous venez de définir.</div>' +
+        '<div class="modal-sub" style="margin-top:0">Adresse : <b style="color:#e7ecf2">' + email + '</b></div>' +
+        '<a class="btn btn-primary" style="width:100%;margin-top:10px" href="SENTINEL_Surete_Web.html">Accéder à l\'application</a></div>';
+  } finally {
+    if (btn) btn.disabled = false;
   }
-
-  const code = makeCode();
-  // planSouhaite : le forfait choisi sur cette page — n'active PAS le forfait
-  // payant lui-meme (u.plan reste 'gratuit' tant qu'un admin n'a pas verifie
-  // le paiement, voir fonctionnalitePayante() cote application), il sert
-  // uniquement a pre-selectionner le forfait dans "Déclarer un paiement"
-  // une fois le client connecte (voir openPaiementDeclare()).
-  users.push({
-    email, name, role: 'user', status: 'active',
-    org, zone, planSouhaite: signupPlanKey,
-    createdAt: new Date().toISOString(), lastLogin: null, code,
-  });
-  saveUsers(users);
-
-  const plan = getPlans().find(p => p.key === signupPlanKey);
-  const estPayant = plan && plan.prix;
-  document.getElementById('signupBody').innerHTML = estPayant
-    ? '<div class="modal-success"><div class="ico">✓</div>' +
-      '<div class="modal-title" style="font-size:18px">Compte créé</div>' +
-      '<div class="modal-sub">Conservez ce code de connexion :</div>' +
-      '<div class="code-box">' + code + '</div>' +
-      '<div class="modal-sub" style="margin-top:0">Adresse : <b style="color:#e7ecf2">' + email + '</b></div>' +
-      '<div class="modal-sub" style="margin-top:14px;text-align:left;background:rgba(58,160,255,.08);border:1px solid rgba(58,160,255,.2);border-radius:8px;padding:12px 14px">' +
-        '<b style="color:#fff">Pour activer le forfait ' + plan.nom + ' (' + plan.prix.toLocaleString('fr-FR') + ' FCFA' + plan.periode + ') :</b><br>' +
-        '1. Connectez-vous avec ce code.<br>' +
-        '2. Menu profil → « Déclarer un paiement ».<br>' +
-        '3. Transférez le montant par Mobile Money et indiquez la référence — votre forfait est activé sous 24h.' +
-      '</div>' +
-      '<a class="btn btn-primary" style="width:100%;margin-top:14px" href="SENTINEL_Surete_Web.html">Accéder à l\'application</a></div>'
-    : '<div class="modal-success"><div class="ico">✓</div>' +
-      '<div class="modal-title" style="font-size:18px">Compte créé</div>' +
-      '<div class="modal-sub">Votre accès gratuit est actif immédiatement. Conservez ce code de connexion :</div>' +
-      '<div class="code-box">' + code + '</div>' +
-      '<div class="modal-sub" style="margin-top:0">Adresse : <b style="color:#e7ecf2">' + email + '</b></div>' +
-      '<a class="btn btn-primary" style="width:100%;margin-top:10px" href="SENTINEL_Surete_Web.html">Accéder à l\'application</a></div>';
 }
 </script>
 </body>
