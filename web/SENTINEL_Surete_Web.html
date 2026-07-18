@@ -2361,6 +2361,7 @@ body.sentinel-protected img{ -webkit-user-drag:none; user-drag:none; pointer-eve
             </div>
             <div id="corStepper" class="cor-stepper"></div>
             <div id="corFaitsMarquants"></div>
+            <div id="corMesures"></div>
             <div id="corList"></div>
           </div>
         </div>
@@ -5137,20 +5138,32 @@ function articleEstSecuriteCorridor(a, corridor) {
 // detaillee, elle, reste pilotee par le filtre fCorFenetre choisi par
 // l'utilisateur.
 const NIVEAU_CORRIDOR_FENETRE_MS = 7 * 24 * 60 * 60 * 1000;
+// calcNiveauCorridor(corridor) : niveau d'alerte du corridor UNIFIE sur le
+// meme referentiel a 5 niveaux que les fiches pays (NIV/getNivKey/MESURES,
+// voir calcAlertScore) plutot qu'une echelle separee a 4 niveaux propre au
+// corridor — coherence totale entre "score du Ghana" et "score du corridor
+// Tema-Ouagadougou" qui traverse le Ghana. Score du corridor = MOYENNE des
+// scores bruts (avant mise a l'echelle /100) des pays qu'il traverse,
+// reutilisant integralement calcAlertScore (incidents verifies + signaux
+// live + facteurs aggravants deja calibres et testes par pays) plutot que
+// de reinventer un calcul specifique au corridor. `faits`/`count` (articles
+// recoupes sur les mots-cles securite du corridor, fenetre 7 jours) restent
+// calcules a part : signal complementaire de couverture recente propre au
+// trajet, affiche a cote du niveau desormais unifie.
 function calcNiveauCorridor(corridor) {
   const seuil = Date.now() - NIVEAU_CORRIDOR_FENETRE_MS;
   const paysCorridor = new Set(corridor.villes.map(v => v.cy));
   const faits = (typeof ALL !== 'undefined' ? ALL : []).filter(a =>
     a && paysCorridor.has(a.cy) && a._cyConfiance !== 'repli_source' && (a.pubDate || 0) >= seuil && articleEstSecuriteCorridor(a, corridor)
   ).sort((a, b) => (b.pubDate || 0) - (a.pubDate || 0)); // plus recent en premier — "faits marquants"
-  const nbCrit = faits.filter(a => a.level === 'crit').length;
-  const nbHigh = faits.filter(a => a.level === 'high').length;
-  let niveau;
-  if (nbCrit >= 1) niveau = 'crit';
-  else if (nbHigh >= 2 || faits.length >= 4) niveau = 'high';
-  else if (faits.length >= 1) niveau = 'mod';
-  else niveau = 'ok';
-  return { niveau, count: faits.length, faits };
+
+  const scoresPays = Array.from(paysCorridor).filter(Boolean).map(cy => calcAlertScore(cy));
+  const totalMoyen = scoresPays.length ? scoresPays.reduce((s, sc) => s + sc.total, 0) / scoresPays.length : 0;
+  const total100 = Math.min(99.9, Math.round(1000 * (1 - Math.exp(-totalMoyen / ASYMPTOTE_K))) / 10);
+  const key = getNivKey(totalMoyen);
+  const niv = NIV[key];
+
+  return { key, niv, total: totalMoyen, total100, scoresPays, count: faits.length, faits };
 }
 
 // resumeCorridor(corridor) : calcNiveauCorridor() + actualites recentes
@@ -11164,9 +11177,9 @@ function ligneFaitApercu(item) {
 // actualites recentes — trie du VERT (stable) au ROUGE (critique) pour une
 // lecture de risque immediate avant meme d'avoir choisi un corridor precis.
 function carteCorridorApercu(resume) {
-  const { c, niveau, count } = resume;
-  const pl = lp(niveau);
-  const col = NIVEAU_CORRIDOR_COULEUR[niveau] || 'var(--b)';
+  const { c, key, count, total100 } = resume;
+  const n = NIV[key];
+  const col = n.col;
   const zoneNom = (ZONES_GEO[c.zc] || {}).nom || c.zc;
   const lignes = apercuFaitsMarquants(resume, 2);
   const estMaritime = c.type === 'maritime';
@@ -11176,12 +11189,12 @@ function carteCorridorApercu(resume) {
         '<span style="font-size:9px;font-weight:700;color:var(--lg);text-transform:uppercase;letter-spacing:.05em;display:flex;align-items:center;gap:4px">' +
           (estMaritime ? '<i class="ti ti-anchor" title="Zone maritime"></i>' : '') + escHtml(zoneNom) +
         '</span>' +
-        '<span class="rpill ' + pl[0] + '">' + pl[1] + '</span>' +
+        mkBadge(key) +
       '</div>' +
       '<div style="font-size:13px;font-weight:700;color:var(--t)">' + escHtml(c.nom) + '</div>' +
       '<div style="font-size:10px;color:var(--lg);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + escHtml(c.villes.map(v => v.nom).join(' → ')) + '</div>' +
       '<div style="font-size:10px;color:' + col + ';font-weight:700;margin-top:2px">' +
-        (count > 0 ? count + ' fait(s) sécuritaire(s) recoupé(s) · 7 jours' : 'Aucun fait sécuritaire recoupé · 7 jours') +
+        'Score : ' + total100 + '/100 · ' + (count > 0 ? count + ' fait(s) sécuritaire(s) recoupé(s) · 7 jours' : 'aucun fait sécuritaire recoupé · 7 jours') +
       '</div>' +
       (lignes.length ? '<div style="display:flex;flex-direction:column;gap:2px;margin-top:2px;padding-top:6px;border-top:1px dashed var(--bd)">' + lignes.map(ligneFaitApercu).join('') + '</div>' : '') +
     '</div>';
@@ -11223,10 +11236,13 @@ function renderCorridorsApercu() {
   for (const zc in effectifs) {
     (effectifs[zc] || []).forEach(c => tousCorridors.push(Object.assign({ zc }, c)));
   }
+  // Rang du referentiel unifie NIV (vert=stable en premier, rouge=critique
+  // en dernier) — coherent avec le meme ordre utilise pour les fiches pays.
+  const rangCorridorVertRouge = { vert: 0, jaune: 1, orange: 2, marron: 3, rouge: 4 };
   const trieVertRouge = (liste) => liste
     .map(c => Object.assign({ c }, resumeCorridor(c)))
     .sort((a, b) => {
-      const r = NIVEAU_CORRIDOR_RANG[a.niveau] - NIVEAU_CORRIDOR_RANG[b.niveau];
+      const r = rangCorridorVertRouge[a.key] - rangCorridorVertRouge[b.key];
       return r !== 0 ? r : a.count - b.count;
     });
 
@@ -11267,10 +11283,10 @@ function renderCorridorsDetail() {
   }
   const resume = resumeCorridor(corridor);
   const niv = resume;
-  const pl = lp(niv.niveau);
+  const n = NIV[niv.key];
   const estMaritimeEnTete = corridor.type === 'maritime';
   if (titreEl) titreEl.childNodes[0].nodeValue = 'Corridor de référence — ' + (estMaritimeEnTete ? '⚓ ' : '') + corridor.nom + ' ';
-  if (badgeEl) badgeEl.innerHTML = '<span class="rpill ' + pl[0] + '">' + pl[1] + '</span>';
+  if (badgeEl) badgeEl.innerHTML = mkBadge(niv.key) + ' <span style="font-size:10px;font-weight:700;color:' + n.col + ';margin-left:4px">Score : ' + niv.total100 + '/100</span>';
   const motsRecoupes = estMaritimeEnTete ? 'piraterie, attaques de navires, détournements, enlèvements de marins' : 'attaques, coupeurs de route, vols, agressions';
   if (sousTitreEl) sousTitreEl.textContent = (ZONES_GEO[fCorZone] || {}).nom + ' · ' + corridor.villes.map(v => v.nom).join(' → ') +
     ' · ' + (niv.count > 0 ? niv.count + ' fait(s) sécuritaire(s) recoupé(s) (' + motsRecoupes + ') sur 7 jours' : 'aucun fait sécuritaire recoupé sur 7 jours');
@@ -11278,7 +11294,7 @@ function renderCorridorsDetail() {
   if (faitsEl) {
     const lignes = apercuFaitsMarquants(resume, 4);
     faitsEl.innerHTML = !lignes.length ? '' :
-      '<div class="acard" style="padding:10px 12px;margin-bottom:10px;border-left:3px solid ' + (NIVEAU_CORRIDOR_COULEUR[niv.niveau] || 'var(--b)') + '">' +
+      '<div class="acard" style="padding:10px 12px;margin-bottom:10px;border-left:3px solid ' + n.col + '">' +
         '<div style="font-size:10px;font-weight:700;color:var(--lg);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Faits marquants &amp; actualités récentes</div>' +
         '<div style="display:flex;flex-direction:column;gap:4px">' + lignes.map(item =>
           '<div style="font-size:11px;color:var(--t);cursor:pointer" onclick="showDet(\'' + item.a.id + '\')" title="Voir le détail">' +
@@ -11286,6 +11302,32 @@ function renderCorridorsDetail() {
             ' <span style="color:var(--lg);font-size:10px">· ' + fmtAge(item.a.pubDate || 0) + '</span>' +
           '</div>'
         ).join('') + '</div>' +
+      '</div>';
+  }
+
+  // Mesures de protection : memes recommandations que les fiches pays
+  // (MESURES, voir renderAlertCard), selectionnees par le niveau UNIFIE du
+  // corridor (niv.key) — coherence totale : un corridor ROUGE affiche les
+  // memes mesures qu'un pays ROUGE, pas un jeu de regles distinct.
+  const mesuresEl = document.getElementById('corMesures');
+  if (mesuresEl) {
+    const m = MESURES[niv.key];
+    const catMesure = (titre, icone, items) =>
+      '<div style="margin-bottom:8px">' +
+        '<div style="font-size:9px;font-weight:700;color:' + n.col + ';text-transform:uppercase;letter-spacing:.07em;display:flex;align-items:center;gap:5px;margin-bottom:4px">' +
+          '<i class="ti ' + icone + '" style="font-size:11px"></i>' + titre +
+        '</div>' +
+        items.map(it => '<div style="display:flex;gap:6px;padding:2px 0"><i class="ti ti-check" style="font-size:10px;color:' + n.col + ';flex-shrink:0;margin-top:2px"></i><span style="font-size:10px;color:var(--t2);line-height:1.4">' + escHtml(L(it)) + '</span></div>').join('') +
+      '</div>';
+    mesuresEl.innerHTML =
+      '<div class="acard" style="padding:10px 12px;margin-bottom:10px;border-left:3px solid ' + n.col + '">' +
+        '<div style="font-size:10px;font-weight:700;color:var(--lg);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">Mesures de protection — niveau ' + n.label + '</div>' +
+        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">' +
+          catMesure(t('mes_expat'), 'ti-user-shield', m.expatries) +
+          catMesure(t('mes_locaux'), 'ti-users', m.locaux) +
+          catMesure(t('mes_install'), 'ti-building', m.installations) +
+          catMesure(t('mes_vehic'), 'ti-car', m.vehicules) +
+        '</div>' +
       '</div>';
   }
 
@@ -11571,20 +11613,20 @@ function renderCorPersoListe() {
   const effectifs = corridorsEffectifs();
   const tous = [];
   for (const zc in effectifs) (effectifs[zc] || []).forEach(c => tous.push(Object.assign({ zc }, c)));
+  const rangCorridorAdmin = { rouge: 0, marron: 1, orange: 2, jaune: 3, vert: 4 };
   const lignes = tous
     .map(c => Object.assign({ c }, calcNiveauCorridor(c)))
-    .sort((a, b) => NIVEAU_CORRIDOR_RANG[b.niveau] - NIVEAU_CORRIDOR_RANG[a.niveau]);
+    .sort((a, b) => rangCorridorAdmin[a.key] - rangCorridorAdmin[b.key]);
 
   if (countEl) countEl.textContent = tous.length + ' corridor(s) au total · ' + perso.length + ' personnalisé(s)';
   body.innerHTML = !lignes.length
     ? '<tr><td colspan="6" style="text-align:center;color:var(--lg);padding:14px">Aucun corridor.</td></tr>'
-    : lignes.map(({ c, niveau }) => {
-        const pl = lp(niveau);
+    : lignes.map(({ c, key, total100 }) => {
         return '<tr>' +
           '<td>' + escHtml(c.nom) + '</td>' +
           '<td>' + escHtml((ZONES_GEO[c.zc] || {}).nom || c.zc) + '</td>' +
           '<td>' + (c.type === 'maritime' ? '⚓ Maritime' : 'Terrestre') + '</td>' +
-          '<td><span class="rpill ' + pl[0] + '">' + pl[1] + '</span></td>' +
+          '<td>' + mkBadge(key) + ' <span style="font-size:9px;color:var(--lg)">' + total100 + '/100</span></td>' +
           '<td>' + escHtml(c.villes.map(v => v.nom).join(' → ')) + '</td>' +
           '<td>' + (c.perso
             ? '<button class="btn-action btn-del" onclick="corPersoSupprimerCorridor(\'' + c.id + '\')">Supprimer</button>'
