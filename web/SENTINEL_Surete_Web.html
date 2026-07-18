@@ -11695,7 +11695,7 @@ function _demarrerAutoRefresh() {
   // min : reste proche du planning annonce a l'utilisateur (~15 min) tout
   // en desynchronisant l'agregat de millions de sessions.
   const jitterMin = (Math.random() * 5) - 2;
-  window._sentinelAutoRefresh = setInterval(() => {
+  window._sentinelAutoRefresh = setInterval(async () => {
     if (typeof doCollect !== 'function') return;
     // Verifie la preference en temps reel : si l'utilisateur la desactive, on s'arrete
     if (localStorage.getItem('sentinel_pref_autorefresh') === '0') {
@@ -11707,8 +11707,20 @@ function _demarrerAutoRefresh() {
     const lastTs = parseInt(localStorage.getItem('sentinel_lastCollectTs') || '0');
     const elapsed = (Date.now() - lastTs) / 60000;
     if (elapsed >= INTERVAL_MIN) {
-      localStorage.setItem('sentinel_lastCollectTs', Date.now().toString());
-      doCollect().catch(() => {});
+      // Meme principe qu'au chargement initial (voir init()) : le cache
+      // partage evite a CE navigateur de relancer sa propre collecte reseau
+      // si un autre appareil a deja collecte tres recemment — reduit la
+      // charge globale sur les cycles RECURRENTS (~15 min), pas seulement
+      // la toute premiere collecte.
+      const partagee = (typeof lireCollectePartagee === 'function') ? await lireCollectePartagee() : null;
+      if (partagee) {
+        _appliquerArticlesPartages(partagee);
+      } else {
+        localStorage.setItem('sentinel_lastCollectTs', Date.now().toString());
+        doCollect().then(() => {
+          if (typeof publierCollectePartagee === 'function') publierCollectePartagee(ALL);
+        }).catch(() => {});
+      }
     }
   }, 5 * 60 * 1000);
 }
@@ -11797,6 +11809,19 @@ async function init() {
       document.getElementById('stbarLeft').textContent = 'À jour (collecte récente, moins de '+Math.ceil(COLLECTE_RECENTE_MS/60000)+' min) · Prochaine actualisation automatique en cours de planification';
       document.getElementById('liveTxt').textContent = 'En direct';
     } else {
+      // ── Cache PARTAGE (Supabase) avant de collecter soi-meme ────────────────
+      // La verification "collecte recente" ci-dessus ne protege que CE
+      // navigateur contre SES PROPRES reconnexions repetees — un visiteur
+      // DIFFERENT (nouvel appareil, cache navigateur vide) passait quand meme
+      // par une collecte reseau complete. Si un autre navigateur a collecte
+      // recemment et publie son resultat (voir publierCollectePartagee),
+      // on le reutilise directement — aucun trafic reseau necessaire ici.
+      const _partagee = (typeof lireCollectePartagee === 'function') ? await lireCollectePartagee() : null;
+      if (_partagee) {
+        _appliquerArticlesPartages(_partagee);
+        document.getElementById('stbarLeft').textContent = 'À jour (cache partagé — collecte récente d\'un autre appareil) · Prochaine actualisation automatique en cours de planification';
+        document.getElementById('liveTxt').textContent = 'En direct';
+      } else {
       // ── Delai aleatoire avant la PREMIERE collecte reseau ────────────────────
       // Sans lui, des millions d'utilisateurs ouvrant l'appli au meme moment
       // (heure de pointe, lien partage, rentree...) lanceraient TOUS, a
@@ -11816,10 +11841,13 @@ async function init() {
       // Collecte RSS automatique sans clic, des l'ouverture de l'application
       try {
         await doCollect();
+        // Publie le resultat pour les prochains visiteurs (best-effort).
+        if (typeof publierCollectePartagee === 'function') publierCollectePartagee(ALL);
       } catch(e){
         // Si la collecte echoue totalement, le filet pre-charge reste affiche
         document.getElementById('stbarLeft').textContent='Veille en direct indisponible · Donnees de reference affichees · Reessayez avec Actualiser';
         document.getElementById('liveTxt').textContent='Hors ligne';
+      }
       }
     }
     // ── Auto-refresh : respecte la préférence utilisateur ────────────────────
@@ -11944,6 +11972,81 @@ async function fetchConnexionsRecentes(limit) {
     return data || [];
   } catch (e) { console.warn('SENTINEL — fetchConnexionsRecentes a echoue :', e && e.message ? e.message : e); return null; }
 }
+
+// ── Cache PARTAGE de la collecte RSS (Supabase, table collecte_partagee) ──
+// sentinel_lastCollectTs (voir init()) n'empeche QUE ce navigateur de se
+// re-collecter lui-meme trop souvent — il ne peut rien pour un visiteur
+// DIFFERENT (nouvel appareil, cache navigateur vide) : sans ce cache
+// partage, chaque nouvel appareil relance quand meme sa propre collecte
+// complete (~500 sources) des sa premiere visite, a l'echelle de milliers/
+// millions de connexions distinctes. Necessite la migration
+// app/sentinel-app/supabase/migrations/20260718000000_collecte_partagee.sql
+// (a appliquer manuellement sur le projet Supabase — tant qu'elle ne l'est
+// pas, ces fonctions echouent silencieusement et l'app retombe sur son
+// comportement actuel, inchange).
+const COLLECTE_PARTAGEE_ID = 'global';
+// Fenetre volontairement un peu plus large que COLLECTE_RECENTE_MS (4 min,
+// par navigateur) : ce cache sert TOUS les visiteurs a la fois, pas un
+// seul — une fraicheur legerement moins stricte reste largement
+// suffisante pour un flux "< 12h" et reduit davantage la charge globale.
+const COLLECTE_PARTAGEE_FRAICHEUR_MS = 5 * 60 * 1000;
+// Lit le cache partage le plus recent. Retourne null si Supabase n'est
+// pas configure/joignable, si la table n'existe pas encore (migration non
+// appliquee), si aucune ligne n'existe, OU si la ligne existante est trop
+// vieille (perimee) — dans tous ces cas l'appelant retombe sur une
+// collecte reseau locale normale, sans jamais bloquer ni faire echouer le
+// chargement de l'app.
+async function lireCollectePartagee() {
+  const client = getSentinelSupabase();
+  if (!client) return null;
+  try {
+    const { data, error } = await client.from('collecte_partagee')
+      .select('articles,updated_at')
+      .eq('id', COLLECTE_PARTAGEE_ID)
+      .maybeSingle();
+    if (error) { console.warn('SENTINEL — lireCollectePartagee a echoue :', error.message || error); return null; }
+    if (!data || !Array.isArray(data.articles) || !data.articles.length) return null;
+    const age = Date.now() - new Date(data.updated_at).getTime();
+    if (age > COLLECTE_PARTAGEE_FRAICHEUR_MS) return null; // perime — mieux vaut collecter soi-meme
+    return data.articles;
+  } catch (e) { console.warn('SENTINEL — lireCollectePartagee a echoue :', e && e.message ? e.message : e); return null; }
+}
+// Publie le resultat d'une collecte reseau reussie pour les prochains
+// visiteurs — best-effort, jamais bloquant (appele apres doCollect(), sans
+// jamais retarder l'affichage local). Verifie d'abord qu'une publication
+// recente n'existe pas deja, pour eviter une rafale d'ecritures identiques
+// si plusieurs navigateurs terminent leur collecte au meme moment.
+async function publierCollectePartagee(articles) {
+  const client = getSentinelSupabase();
+  if (!client || !Array.isArray(articles) || !articles.length) return;
+  try {
+    const { data } = await client.from('collecte_partagee').select('updated_at').eq('id', COLLECTE_PARTAGEE_ID).maybeSingle();
+    if (data && data.updated_at && (Date.now() - new Date(data.updated_at).getTime()) < COLLECTE_PARTAGEE_FRAICHEUR_MS) return;
+    const { error } = await client.from('collecte_partagee').upsert({
+      id: COLLECTE_PARTAGEE_ID, articles, updated_at: new Date().toISOString(),
+    });
+    if (error) console.warn('SENTINEL — publierCollectePartagee a echoue :', error.message || error);
+  } catch (e) { console.warn('SENTINEL — publierCollectePartagee a echoue :', e && e.message ? e.message : e); }
+}
+// _appliquerArticlesPartages(articles) : applique un jeu d'articles deja
+// collectes AILLEURS (cache partage Supabase) a l'etat de cette session —
+// factorise entre init() et le cycle d'auto-refresh (_demarrerAutoRefresh),
+// qui partagent tous deux le meme besoin quand ils reutilisent le cache
+// partage au lieu de relancer leur propre collecte reseau.
+function _appliquerArticlesPartages(articles) {
+  ALL = articles.filter(a => estRecentReel(a));
+  ALL.forEach(a => { a.time = fmtAge(a.pubDate || 0); });
+  if (typeof rehydrateArticles === 'function') rehydrateArticles(ALL);
+  if (typeof agentCorrigerTextesArticles === 'function') agentCorrigerTextesArticles();
+  dbPut(ALL);
+  dbMeta('lastCollect', Date.now());
+  localStorage.setItem('sentinel_lastCollectTs', Date.now().toString());
+  renderFeed(); updStats(); updSynthese();
+  if (typeof majFlashInfo === 'function') majFlashInfo();
+  if (typeof recalcAlertes === 'function') recalcAlertes({ silencieux: true });
+  if (typeof renderDashboard === 'function' && document.getElementById('dashContent')) renderDashboard();
+}
+
 // dernieresConnexionsParEmail() : point d'entree UNIQUE et PARTAGE pour la
 // fraicheur de connexion par compte — utilise a la fois par "Gestion
 // clientele" (statut En ligne / vu le...) et "Gestion des utilisateurs"
