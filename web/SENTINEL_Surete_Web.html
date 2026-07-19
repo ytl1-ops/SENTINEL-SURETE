@@ -2360,6 +2360,7 @@ body.sentinel-protected img{ -webkit-user-drag:none; user-drag:none; pointer-eve
               <span class="chip" onclick="setCorCat(this,'economique')">Economique</span>
             </div>
             <div id="corStepper" class="cor-stepper"></div>
+            <div id="corDetailLegende" style="margin-bottom:10px"></div>
             <div id="corFaitsMarquants"></div>
             <div id="corMesures"></div>
             <div id="corList"></div>
@@ -2378,6 +2379,7 @@ body.sentinel-protected img{ -webkit-user-drag:none; user-drag:none; pointer-eve
               <div class="ag-sb" id="geoSousTitre">Analyses géopolitiques par pays et leur impact sur la sûreté — fenêtre de 14 jours, du plus critique au plus stable.</div>
             </div>
           </div>
+          <div id="geoPublications" style="margin-bottom:12px"></div>
           <div id="geoApercu"></div>
           <div id="geoDetailWrap" style="display:none">
             <div class="tlbr" style="flex-shrink:0;margin-bottom:8px;flex-wrap:wrap;">
@@ -2538,14 +2540,8 @@ body.sentinel-protected img{ -webkit-user-drag:none; user-drag:none; pointer-eve
           </div>
         </div>
         <div id="alerteVueGrille">
-        <!-- Légende niveaux -->
-        <div style="display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap;">
-          <span style="padding:3px 10px;border-radius:4px;background:#CC0000;border:1px solid #FF3333;color:#fff;font-size:9px;font-weight:700;letter-spacing:.05em;">ROUGE — Situation grave</span>
-          <span style="padding:3px 10px;border-radius:4px;background:#8B3A0A;border:1px solid #C0622A;color:#fff;font-size:9px;font-weight:700;letter-spacing:.05em;">MARRON — Situation critique</span>
-          <span style="padding:3px 10px;border-radius:4px;background:#D96000;border:1px solid #FF8C00;color:#fff;font-size:9px;font-weight:700;letter-spacing:.05em;">ORANGE — Situation tendue</span>
-          <span style="padding:3px 10px;border-radius:4px;background:#B8A000;border:1px solid #FFD700;color:#fff;font-size:9px;font-weight:700;letter-spacing:.05em;">JAUNE — Situation d'alerte</span>
-          <span style="padding:3px 10px;border-radius:4px;background:#1A7A2E;border:1px solid #2ECC71;color:#fff;font-size:9px;font-weight:700;letter-spacing:.05em;">VERT — Situation normale</span>
-        </div>
+        <!-- Légende niveaux (voir renderLegendeNiveaux(), reutilisee a l'identique par le module Corridor) -->
+        <div id="alerteLegende" style="margin-bottom:14px"></div>
         <!-- Grille pays -->
         <div id="alerteGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:12px;margin-bottom:20px;"></div>
         <!-- Tableau récapitulatif -->
@@ -3184,6 +3180,8 @@ body.sentinel-protected img{ -webkit-user-drag:none; user-drag:none; pointer-eve
                 <select id="corPersoType" style="padding:6px 8px;border:1px solid var(--bd);border-radius:5px;font-size:12px">
                   <option value="terrestre">Terrestre (parcours routier)</option>
                   <option value="maritime">Maritime (zone de navigation)</option>
+                  <option value="ferroviaire">Ferroviaire (ligne de chemin de fer)</option>
+                  <option value="aerien">Aérien (axe de connexion aéroportuaire)</option>
                 </select>
               </div>
               <div style="margin-bottom:10px">
@@ -5020,6 +5018,19 @@ const CORRIDORS_PAR_ZONE = {
       {nom:'Dakar',cy:'SN'}, {nom:'Tambacounda',cy:'SN'}, {nom:'Kayes',cy:'ML'}, {nom:'Bamako',cy:'ML'} ] },
     { id:'lom-ouaga-niam', nom:'Lomé – Ouagadougou – Niamey', villes:[
       {nom:'Lomé',cy:'TG'}, {nom:'Ouagadougou',cy:'BF'}, {nom:'Niamey',cy:'NE'} ] },
+    // Sitarail : ligne ferroviaire reelle et en exploitation depuis 1994,
+    // reliant le port d'Abidjan au Burkina Faso enclave (memes villes-etapes
+    // que le corridor routier abj-ouaga ci-dessus, mode different).
+    { id:'sitarail-abj-ouaga', nom:'Sitarail — Abidjan – Ouagadougou (rail)', type:'ferroviaire', villes:[
+      {nom:'Abidjan',cy:'CI'}, {nom:'Ouangolodougou',cy:'CI'}, {nom:'Bobo-Dioulasso',cy:'BF'}, {nom:'Ouagadougou',cy:'BF'} ] },
+    // Dakar-Bamako (ex-Dakar-Niger) : ligne historique, desormais limitee
+    // (service voyageurs local Kayes-Bamako repris en 2023 ; trafic
+    // international/fret suspendu depuis 2018) — projet de modernisation en
+    // cours (DBF, Senegal-Mali). Conservee comme corridor de reference malgre
+    // son exploitation restreinte : un axe logistique historique majeur du
+    // Sahel, dont la reactivation reste suivie.
+    { id:'dkr-bko-rail', nom:'Dakar – Bamako (rail, service limité)', type:'ferroviaire', villes:[
+      {nom:'Dakar',cy:'SN'}, {nom:'Tambacounda',cy:'SN'}, {nom:'Kayes',cy:'ML'}, {nom:'Bamako',cy:'ML'} ] },
   ],
   golfe_guinee: [
     { id:'tema-ouaga', nom:'Tema – Ouagadougou', villes:[
@@ -5035,6 +5046,11 @@ const CORRIDORS_PAR_ZONE = {
     { id:'golfe-guinee-maritime', nom:'Golfe de Guinée (zone maritime)', type:'maritime', villes:[
       {nom:'Eaux du Nigeria',cy:'NG'}, {nom:'Eaux du Bénin',cy:'BJ'}, {nom:'Eaux du Togo',cy:'TG'},
       {nom:'Eaux de Côte d\'Ivoire',cy:'CI'}, {nom:'Eaux du Cameroun',cy:'CM'}, {nom:'Eaux de Guinée équatoriale',cy:'GQ'} ] },
+    // Axe aerien cotier reel, dessert par les compagnies regionales
+    // (Air Côte d'Ivoire, ASKY...) entre les principaux hubs du golfe de
+    // Guinee — relie les memes capitales que le corridor routier lag-abj.
+    { id:'golfe-guinee-aerien', nom:'Abidjan – Accra – Lomé – Cotonou – Lagos (axe aérien)', type:'aerien', villes:[
+      {nom:'Abidjan',cy:'CI'}, {nom:'Accra',cy:'GH'}, {nom:'Lomé',cy:'TG'}, {nom:'Cotonou',cy:'BJ'}, {nom:'Lagos',cy:'NG'} ] },
   ],
   ao_cotiere: [
     { id:'dkr-conakry', nom:'Dakar – Bissau – Conakry', villes:[
@@ -5043,18 +5059,45 @@ const CORRIDORS_PAR_ZONE = {
       {nom:'Conakry',cy:'GN'}, {nom:'Freetown',cy:'SL'}, {nom:'Monrovia',cy:'LR'} ] },
     { id:'ao-atlantique-maritime', nom:'Façade atlantique Sénégal – Guinée (zone maritime)', type:'maritime', villes:[
       {nom:'Eaux du Sénégal',cy:'SN'}, {nom:'Eaux de Guinée-Bissau',cy:'GW'}, {nom:'Eaux de Guinée',cy:'GN'}, {nom:'Eaux du Cap-Vert',cy:'CV'} ] },
+    // Axe aerien cotier entre les capitales de la facade atlantique —
+    // memes villes que dkr-conakry/conakry-monrovia, desservies par les
+    // compagnies regionales (Air Sénégal, ASKY...).
+    { id:'ao-cotiere-aerien', nom:'Dakar – Conakry – Freetown – Monrovia (axe aérien)', type:'aerien', villes:[
+      {nom:'Dakar',cy:'SN'}, {nom:'Conakry',cy:'GN'}, {nom:'Freetown',cy:'SL'}, {nom:'Monrovia',cy:'LR'} ] },
   ],
   afrique_centrale: [
     { id:'douala-ndj', nom:"Douala – N'Djaména", villes:[
       {nom:'Douala',cy:'CM'}, {nom:'Ngaoundéré',cy:'CM'}, {nom:"N'Djaména",cy:'TD'} ] },
     { id:'pnr-brz-bgi', nom:'Pointe-Noire – Brazzaville – Bangui', villes:[
       {nom:'Pointe-Noire',cy:'CG'}, {nom:'Brazzaville',cy:'CG'}, {nom:'Bangui',cy:'CF'} ] },
+    // Camrail : ligne ferroviaire reelle en exploitation, seule liaison
+    // ferree structurante du pays, relie le port de Douala au nord enclave
+    // (memes villes que douala-ndj, mode different — le tronçon vers
+    // N'Djamena reste routier, la ligne s'arrete a Ngaoundere).
+    { id:'camrail-douala-ngaoundere', nom:'Camrail — Douala – Yaoundé – Ngaoundéré (rail)', type:'ferroviaire', villes:[
+      {nom:'Douala',cy:'CM'}, {nom:'Yaoundé',cy:'CM'}, {nom:'Ngaoundéré',cy:'CM'} ] },
+    { id:'afrique-centrale-aerien', nom:'Douala – Brazzaville – Kinshasa – Bangui (axe aérien)', type:'aerien', villes:[
+      {nom:'Douala',cy:'CM'}, {nom:'Brazzaville',cy:'CG'}, {nom:'Kinshasa',cy:'CD'}, {nom:'Bangui',cy:'CF'} ] },
   ],
   corne_afrique: [
     { id:'dji-addis', nom:'Djibouti – Addis-Abeba', villes:[
       {nom:'Djibouti',cy:'DJ'}, {nom:'Dire Dawa',cy:'ET'}, {nom:'Addis-Abeba',cy:'ET'} ] },
     { id:'mombasa-nairobi-kampala', nom:'Corridor Nord : Mombasa – Nairobi – Kampala', villes:[
       {nom:'Mombasa',cy:'KE'}, {nom:'Nairobi',cy:'KE'}, {nom:'Kampala',cy:'UG'} ] },
+    // Addis Ababa-Djibouti Railway : premiere ligne electrifiee
+    // transfrontaliere d'Afrique, en exploitation depuis 2018 (memes
+    // villes-etapes que dji-addis, mode different) — axe logistique majeur
+    // pour l'Ethiopie enclavee.
+    { id:'aadr-dji-addis', nom:'Addis-Abeba – Djibouti (rail électrifié)', type:'ferroviaire', villes:[
+      {nom:'Addis-Abeba',cy:'ET'}, {nom:'Dire Dawa',cy:'ET'}, {nom:'Djibouti',cy:'DJ'} ] },
+    // Nairobi-Mombasa SGR : ligne a ecartement standard en exploitation
+    // depuis 2017/2018, principal axe ferroviaire du Kenya.
+    { id:'sgr-mombasa-nairobi', nom:'SGR — Mombasa – Nairobi (rail)', type:'ferroviaire', villes:[
+      {nom:'Mombasa',cy:'KE'}, {nom:'Nairobi',cy:'KE'} ] },
+    // Hub aerien Ethiopian Airlines (Addis-Abeba), principal reseau de
+    // connectivite aerienne de la region.
+    { id:'corne-afrique-aerien', nom:'Addis-Abeba – Djibouti – Nairobi (axe aérien)', type:'aerien', villes:[
+      {nom:'Addis-Abeba',cy:'ET'}, {nom:'Djibouti',cy:'DJ'}, {nom:'Nairobi',cy:'KE'} ] },
     // Zone maritime : golfe d'Aden / bassin somalien — deuxieme grand foyer
     // historique de piraterie maritime (route commerciale Suez-ocean Indien).
     { id:'golfe-aden-maritime', nom:"Golfe d'Aden — bassin somalien (zone maritime)", type:'maritime', villes:[
@@ -5065,12 +5108,40 @@ const CORRIDORS_PAR_ZONE = {
       {nom:'Kampala',cy:'UG'}, {nom:'Kigali',cy:'RW'}, {nom:'Bujumbura',cy:'BI'} ] },
     { id:'dar-kigali', nom:'Dar es-Salaam – Kigali', villes:[
       {nom:'Dar es-Salaam',cy:'TZ'}, {nom:'Kigoma',cy:'TZ'}, {nom:'Kigali',cy:'RW'} ] },
+    // SGR tanzanien (Corridor central) : premier troncon Dar es-Salaam –
+    // Dodoma en exploitation depuis 2024/2025, premiere etape d'un projet
+    // devant a terme rejoindre le Rwanda/Burundi — pas encore de liaison
+    // ferree continue jusqu'a Kigali/Bujumbura a ce stade.
+    { id:'sgr-tz-dar-dodoma', nom:'SGR Tanzanie — Dar es-Salaam – Dodoma (rail, corridor central)', type:'ferroviaire', villes:[
+      {nom:'Dar es-Salaam',cy:'TZ'}, {nom:'Dodoma',cy:'TZ'} ] },
+    // Hub aerien regional (Kenya Airways/RwandAir), meme trace que le
+    // corridor routier kampala-kigali-buja.
+    { id:'grands-lacs-aerien', nom:'Nairobi – Kampala – Kigali – Bujumbura (axe aérien)', type:'aerien', villes:[
+      {nom:'Nairobi',cy:'KE'}, {nom:'Kampala',cy:'UG'}, {nom:'Kigali',cy:'RW'}, {nom:'Bujumbura',cy:'BI'} ] },
   ],
   afrique_australe: [
     { id:'beira', nom:'Corridor de Beira', villes:[
       {nom:'Beira',cy:'MZ'}, {nom:'Harare',cy:'ZW'}, {nom:'Lusaka',cy:'ZM'} ] },
     { id:'walvis-bay', nom:'Corridor de Walvis Bay', villes:[
       {nom:'Walvis Bay',cy:'NA'}, {nom:'Gaborone',cy:'BW'}, {nom:'Johannesburg',cy:'ZA'} ] },
+    // Ligne de Machipanda (corridor de Beira) : rehabilitee en 2025
+    // (300+ ponts renforces, signalisation modernisee), relie le port de
+    // Beira a la frontiere zimbabweenne — CFM exploite desormais aussi le
+    // troncon zimbabween jusqu'a Nyazura.
+    { id:'machipanda-beira-harare', nom:'Ligne de Machipanda — Beira – Harare (rail)', type:'ferroviaire', villes:[
+      {nom:'Beira',cy:'MZ'}, {nom:'Harare',cy:'ZW'} ] },
+    // Corridor de Maputo (rail) : pleinement operationnel, ~10 millions de
+    // tonnes de fret par an (chrome, sucre, conteneurs) entre Maputo et
+    // l'Afrique du Sud.
+    { id:'maputo-corridor-rail', nom:'Corridor de Maputo (rail)', type:'ferroviaire', villes:[
+      {nom:'Maputo',cy:'MZ'}, {nom:'Johannesburg',cy:'ZA'} ] },
+    // TAZARA : ligne historique Tanzanie-Zambie, projet de revitalisation en
+    // cours — axe ferroviaire de reference reliant l'interieur zambien au
+    // port de Dar es-Salaam, alternative aux corridors sud-africains.
+    { id:'tazara', nom:'TAZARA — Dar es-Salaam – Kapiri Mposhi (rail)', type:'ferroviaire', villes:[
+      {nom:'Dar es-Salaam',cy:'TZ'}, {nom:'Kapiri Mposhi',cy:'ZM'} ] },
+    { id:'afrique-australe-aerien', nom:'Johannesburg – Harare – Lusaka – Maputo (axe aérien)', type:'aerien', villes:[
+      {nom:'Johannesburg',cy:'ZA'}, {nom:'Harare',cy:'ZW'}, {nom:'Lusaka',cy:'ZM'}, {nom:'Maputo',cy:'MZ'} ] },
     { id:'canal-mozambique-maritime', nom:'Canal du Mozambique (zone maritime)', type:'maritime', villes:[
       {nom:'Eaux du Mozambique',cy:'MZ'}, {nom:'Eaux de Madagascar',cy:'MG'}, {nom:'Eaux des Comores',cy:'KM'} ] },
   ],
@@ -5079,6 +5150,17 @@ const CORRIDORS_PAR_ZONE = {
       {nom:'Casablanca',cy:'MA'}, {nom:'Alger',cy:'DZ'}, {nom:'Tunis',cy:'TN'}, {nom:'Tripoli',cy:'LY'} ] },
     { id:'rabat-nouakchott', nom:'Rabat – Nouakchott', villes:[
       {nom:'Rabat',cy:'MA'}, {nom:'Dakhla',cy:'MA'}, {nom:'Nouakchott',cy:'MR'} ] },
+    // Ligne ferroviaire Trans-Maghrebine : reseau existant reliant deja
+    // partiellement Casablanca-Alger-Tunis, en cours de modernisation
+    // majeure (electrification, signalisation — projet ~4 Md USD,
+    // rehabilitation par pays echelonnee jusqu'en 2035) — objectif :
+    // ramener le trajet Casablanca-Tunis de 48h a moins de 25h.
+    { id:'trans-maghreb-rail', nom:'Ligne Trans-Maghrébine — Casablanca – Alger – Tunis (rail)', type:'ferroviaire', villes:[
+      {nom:'Casablanca',cy:'MA'}, {nom:'Alger',cy:'DZ'}, {nom:'Tunis',cy:'TN'} ] },
+    // Hub aerien RAM (Casablanca), principale porte d'entree aerienne du
+    // Maghreb vers l'Afrique subsaharienne et l'Europe.
+    { id:'afrique-nord-aerien', nom:'Casablanca – Alger – Tunis – Tripoli (axe aérien)', type:'aerien', villes:[
+      {nom:'Casablanca',cy:'MA'}, {nom:'Alger',cy:'DZ'}, {nom:'Tunis',cy:'TN'}, {nom:'Tripoli',cy:'LY'} ] },
     { id:'mediterranee-maritime', nom:'Façade méditerranéenne (zone maritime)', type:'maritime', villes:[
       {nom:'Eaux du Maroc',cy:'MA'}, {nom:'Eaux d\'Algérie',cy:'DZ'}, {nom:'Eaux de Tunisie',cy:'TN'}, {nom:'Eaux de Libye',cy:'LY'} ] },
   ],
@@ -5141,12 +5223,53 @@ const MARITIME_SECURITE_KW = [
 // le meme pays. Un corridor terrestre n'accepte donc un match generique que
 // si le texte n'evoque pas explicitement ce contexte maritime.
 const MARITIME_CONTEXTE_KW = ['navire','bateau','pétrolier','petrolier','cargo','tanker','marin ','marins','équipage','equipage','piraterie','en mer','au large de','vaisseau'];
+
+// FERROVIAIRE_SECURITE_KW : equivalent de CORRIDOR_SECURITE_KW pour les
+// corridors de type 'ferroviaire' — cible les incidents propres au rail
+// (sabotage de voie, attaque de train, deraillement provoque, interruption
+// du trafic) plutot que la criminalite routiere generique, qui n'a pas de
+// sens pour une ligne de chemin de fer.
+const FERROVIAIRE_SECURITE_KW = [
+  'sabotage de voie', 'sabotage de la voie ferree', 'sabotage de la voie ferrée', 'voie ferree sabotee', 'voie ferrée sabotée',
+  'attaque de train', 'attaque du train', 'train attaque', 'train attaqué', 'attentat contre un train', 'attentat contre le train',
+  'deraillement provoque', 'déraillement provoqué', 'deraillement suspect', 'déraillement suspect',
+  'interruption du trafic ferroviaire', 'trafic ferroviaire suspendu', 'ligne ferroviaire fermee', 'ligne ferroviaire fermée',
+  'vol de fret ferroviaire', 'pillage de wagon', 'pillage de wagons', 'braquage de train',
+  'prise d\'otage a bord d\'un train', 'prise d\'otage dans un train',
+];
+// AERIEN_SECURITE_KW : equivalent pour les corridors de type 'aerien' —
+// cible les incidents affectant la circulation aerienne elle-meme
+// (fermeture d'espace aerien, tir sur un avion, detournement, attaque
+// d'aeroport) plutot que la criminalite au sol.
+const AERIEN_SECURITE_KW = [
+  'espace aerien ferme', 'espace aérien fermé', 'fermeture de l\'espace aerien', 'fermeture de l\'espace aérien',
+  'interdiction de survol', 'survol interdit', 'zone aerienne a risque', 'zone aérienne à risque',
+  'detournement d\'avion', 'détournement d\'avion', 'avion detourne', 'avion détourné',
+  'tir sur un avion', 'avion vise par des tirs', 'avion visé par des tirs', 'missile sol-air', 'attaque contre un aeroport', 'attaque contre un aéroport',
+  'aeroport ferme', 'aéroport fermé', 'aeroport attaque', 'aéroport attaqué', 'piste bombardee', 'piste bombardée',
+  'vol suspendu', 'vols suspendus', 'compagnie aerienne suspend', 'compagnie aérienne suspend',
+];
+// CORRIDOR_TYPE_META : referentiel visuel unique des 4 types de corridor
+// (icone, libelle, mots-cles securite recoupes affiches a l'utilisateur) —
+// point d'entree UNIQUE reutilise par tout l'affichage du module Corridor
+// (vue d'ensemble, detail, tableau admin) pour que les 4 types restent
+// presentes de facon coherente partout, sans dupliquer cette logique a
+// chaque endroit.
+const CORRIDOR_TYPE_META = {
+  terrestre:   { icon: 'ti-truck', label: 'Terrestre', motsRecoupes: 'attaques, coupeurs de route, vols, agressions' },
+  maritime:    { icon: 'ti-anchor', label: 'Maritime', motsRecoupes: 'piraterie, attaques de navires, détournements, enlèvements de marins' },
+  ferroviaire: { icon: 'ti-train', label: 'Ferroviaire', motsRecoupes: 'sabotages de voie, attaques de train, déraillements provoqués' },
+  aerien:      { icon: 'ti-plane', label: 'Aérien', motsRecoupes: "fermetures d'espace aérien, détournements, attaques d'aéroport" },
+};
+function corridorTypeMeta(corridor) { return CORRIDOR_TYPE_META[(corridor && corridor.type) || 'terrestre']; }
+
 function articleEstSecuriteCorridor(a, corridor) {
   if (!a) return false;
   const t = (L(a.title||'') + ' ' + L(a.analysis||'')).toLowerCase();
-  if (corridor && corridor.type === 'maritime') {
-    return MARITIME_SECURITE_KW.some(k => t.includes(k));
-  }
+  const type = corridor && corridor.type;
+  if (type === 'maritime') return MARITIME_SECURITE_KW.some(k => t.includes(k));
+  if (type === 'ferroviaire') return FERROVIAIRE_SECURITE_KW.some(k => t.includes(k));
+  if (type === 'aerien') return AERIEN_SECURITE_KW.some(k => t.includes(k));
   if (MARITIME_CONTEXTE_KW.some(k => t.includes(k))) return false;
   return CORRIDOR_SECURITE_KW.some(k => t.includes(k));
 }
@@ -5260,6 +5383,46 @@ const GEOPOLITIQUE_THEMES = {
     impact: "Une décision ou une tension impliquant une organisation régionale (suspension, médiation, sommet) reconfigure les alliances et les leviers de pression disponibles — un facteur à intégrer dans l'analyse de la stabilité régionale du pays.",
   },
 };
+
+// GEOPOLITIQUE_PUBLICATIONS : liste CURATÉE de publications/organismes
+// géopolitiques réels, en accès libre et gratuit, spécialisés Afrique —
+// volontairement STATIQUE (pas de recherche web en direct par pays) :
+// chaque entrée a été vérifiée individuellement (nom, url, accès gratuit
+// confirmé) plutôt que générée automatiquement, pour ne jamais risquer
+// d'afficher un lien inventé ou un organisme qui n'existe pas — même
+// exigence anti-hallucination que pour le reste de l'application, appliquée
+// ici à des données de référence plutôt qu'à des actualités.
+const GEOPOLITIQUE_PUBLICATIONS = [
+  { nom: 'International Crisis Group — Africa', desc: 'Rapports de fond et CrisisWatch (suivi mensuel des conflits, mise à jour continue).', url: 'https://www.crisisgroup.org/africa', langue: 'FR/EN' },
+  { nom: 'ACLED — Africa', desc: 'Données ouvertes et analyses sur les événements de conflit armé, mises à jour hebdomadaires.', url: 'https://acleddata.com/region/africa/', langue: 'EN' },
+  { nom: 'ISS Africa (Institute for Security Studies)', desc: 'Notes d\'analyse et articles ISS Today sur la sécurité et la gouvernance en Afrique.', url: 'https://issafrica.org/', langue: 'FR/EN' },
+  { nom: 'IFRI — Afrique subsaharienne', desc: 'Études et notes de l\'Institut français des relations internationales sur la région.', url: 'https://www.ifri.org/fr/centres-etudes/afrique-subsaharienne', langue: 'FR' },
+  { nom: 'Africa Center for Strategic Studies', desc: 'Analyses et infographies sur la sécurité, la gouvernance et les tendances régionales.', url: 'https://africacenter.org/', langue: 'EN' },
+  { nom: 'The Continent', desc: 'Hebdomadaire panafricain indépendant, diffusion gratuite (PDF/WhatsApp), actualité politique et sécuritaire.', url: 'https://www.thecontinent.org/', langue: 'EN' },
+  { nom: 'African Arguments', desc: 'Site d\'analyse en accès libre sur la politique, les conflits et la société en Afrique.', url: 'https://africanarguments.org/', langue: 'EN' },
+];
+
+function renderGeoPublications() {
+  const el = document.getElementById('geoPublications');
+  if (!el) return;
+  el.innerHTML =
+    '<div class="acard" style="padding:10px 12px">' +
+      '<div style="font-size:10px;font-weight:700;color:var(--lg);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px;display:flex;align-items:center;gap:5px">' +
+        '<i class="ti ti-books" style="font-size:12px"></i> Publications géopolitiques — sources ouvertes &amp; gratuites' +
+      '</div>' +
+      '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:8px">' +
+        GEOPOLITIQUE_PUBLICATIONS.map(p =>
+          '<a href="' + escHtml(p.url) + '" target="_blank" rel="noopener noreferrer" style="display:block;padding:8px 10px;border:1px solid var(--bd);border-radius:6px;text-decoration:none;color:inherit">' +
+            '<div style="display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:3px">' +
+              '<span style="font-size:11px;font-weight:700;color:var(--t)">' + escHtml(p.nom) + '</span>' +
+              '<span style="font-size:8px;font-weight:700;color:var(--lg);border:1px solid var(--bd);border-radius:3px;padding:1px 4px;flex-shrink:0">' + escHtml(p.langue) + '</span>' +
+            '</div>' +
+            '<div style="font-size:10px;color:var(--t2);line-height:1.4">' + escHtml(p.desc) + '</div>' +
+          '</a>'
+        ).join('') +
+      '</div>' +
+    '</div>';
+}
 
 // GEOPOLITIQUE_FENETRE_MS : fenêtre volontairement large (14 jours, contre 7
 // jours pour les Corridors) — un développement géopolitique (sanctions,
@@ -11192,7 +11355,8 @@ function peuplerCorridorsDeLaZone() {
   const selCor = document.getElementById('corCorridorFilter');
   if (!selCor) return;
   const liste = corridorsEffectifs()[fCorZone] || [];
-  selCor.innerHTML = liste.map(c => '<option value="' + escHtml(c.id) + '">' + (c.type === 'maritime' ? '⚓ ' : '') + escHtml(c.nom) + '</option>').join('');
+  const ICONE_TEXTE_TYPE = { maritime: '⚓ ', ferroviaire: '🚆 ', aerien: '✈ ', terrestre: '' };
+  selCor.innerHTML = liste.map(c => '<option value="' + escHtml(c.id) + '">' + (ICONE_TEXTE_TYPE[c.type] || '') + escHtml(c.nom) + '</option>').join('');
   if (!liste.some(c => c.id === fCorId)) fCorId = liste[0] ? liste[0].id : null;
   selCor.value = fCorId || '';
 }
@@ -11279,12 +11443,12 @@ function carteCorridorApercu(resume) {
   const col = n.col;
   const zoneNom = (ZONES_GEO[c.zc] || {}).nom || c.zc;
   const lignes = apercuFaitsMarquants(resume, 2);
-  const estMaritime = c.type === 'maritime';
+  const meta = corridorTypeMeta(c);
   return '<div class="acard" onclick="ouvrirCorridorDepuisApercu(\'' + c.zc + '\',\'' + c.id + '\')" ' +
     'style="cursor:pointer;padding:12px;border-top:3px solid ' + col + ';display:flex;flex-direction:column;gap:6px">' +
       '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px">' +
         '<span style="font-size:9px;font-weight:700;color:var(--lg);text-transform:uppercase;letter-spacing:.05em;display:flex;align-items:center;gap:4px">' +
-          (estMaritime ? '<i class="ti ti-anchor" title="Zone maritime"></i>' : '') + escHtml(zoneNom) +
+          '<i class="ti ' + meta.icon + '" title="' + meta.label + '"></i>' + escHtml(zoneNom) +
         '</span>' +
         mkBadge(key) +
       '</div>' +
@@ -11323,7 +11487,7 @@ function renderCorridorsApercu() {
   const detailEl = document.getElementById('corDetailWrap');
   if (titreEl) titreEl.childNodes[0].nodeValue = 'Corridors de référence ';
   if (badgeEl) badgeEl.innerHTML = '';
-  if (sousTitreEl) sousTitreEl.textContent = "Vue d'ensemble des corridors terrestres et des zones maritimes ⚓, séparés · chaque section triée du plus stable au plus critique · niveau recoupé sur les actualités sécuritaires (attaques, coupeurs de route, vols, agressions — ou piraterie, attaques de navires, détournements, enlèvements de marins pour les zones maritimes) des 7 derniers jours.";
+  if (sousTitreEl) sousTitreEl.textContent = "Vue d'ensemble des corridors terrestres, ferroviaires, aériens et des zones maritimes, séparés par mode · chaque section triée du plus stable au plus critique · niveau recoupé sur les incidents propres à chaque mode (voir légende ci-dessous) des 7 derniers jours.";
   if (detailEl) detailEl.style.display = 'none';
   if (apercuEl) apercuEl.style.display = '';
   if (!apercuEl) return;
@@ -11343,12 +11507,14 @@ function renderCorridorsApercu() {
       return r !== 0 ? r : a.count - b.count;
     });
 
-  const terrestres = trieVertRouge(tousCorridors.filter(c => c.type !== 'maritime'));
-  const maritimes   = trieVertRouge(tousCorridors.filter(c => c.type === 'maritime'));
+  const parType = t => tousCorridors.filter(c => (c.type || 'terrestre') === t);
 
   apercuEl.innerHTML =
-    sectionCorridorsApercu('Corridors terrestres', 'ti-route', terrestres) +
-    sectionCorridorsApercu('Zones maritimes', 'ti-anchor', maritimes);
+    renderLegendeNiveaux() +
+    sectionCorridorsApercu('Corridors terrestres', CORRIDOR_TYPE_META.terrestre.icon, trieVertRouge(parType('terrestre'))) +
+    sectionCorridorsApercu('Corridors ferroviaires', CORRIDOR_TYPE_META.ferroviaire.icon, trieVertRouge(parType('ferroviaire'))) +
+    sectionCorridorsApercu('Corridors aériens', CORRIDOR_TYPE_META.aerien.icon, trieVertRouge(parType('aerien'))) +
+    sectionCorridorsApercu('Zones maritimes', CORRIDOR_TYPE_META.maritime.icon, trieVertRouge(parType('maritime')));
 }
 
 // renderCorridorsDetail() : detail d'UN corridor selectionne (stepper etape
@@ -11381,12 +11547,16 @@ function renderCorridorsDetail() {
   const resume = resumeCorridor(corridor);
   const niv = resume;
   const n = NIV[niv.key];
-  const estMaritimeEnTete = corridor.type === 'maritime';
-  if (titreEl) titreEl.childNodes[0].nodeValue = 'Corridor de référence — ' + (estMaritimeEnTete ? '⚓ ' : '') + corridor.nom + ' ';
-  if (badgeEl) badgeEl.innerHTML = mkBadge(niv.key) + ' <span style="font-size:10px;font-weight:700;color:' + n.col + ';margin-left:4px">Score : ' + niv.total100 + '/100</span>';
-  const motsRecoupes = estMaritimeEnTete ? 'piraterie, attaques de navires, détournements, enlèvements de marins' : 'attaques, coupeurs de route, vols, agressions';
+  const tMeta = corridorTypeMeta(corridor);
+  if (titreEl) titreEl.childNodes[0].nodeValue = 'Corridor de référence — ' + corridor.nom + ' ';
+  if (badgeEl) badgeEl.innerHTML = mkBadge(niv.key) + ' <span style="font-size:10px;font-weight:700;color:' + n.col + ';margin-left:4px">Score : ' + niv.total100 + '/100</span>' +
+    ' <span style="font-size:9px;font-weight:700;color:var(--lg);margin-left:6px;text-transform:uppercase;letter-spacing:.05em"><i class="ti ' + tMeta.icon + '"></i> ' + tMeta.label + '</span>';
+  const motsRecoupes = tMeta.motsRecoupes;
   if (sousTitreEl) sousTitreEl.textContent = (ZONES_GEO[fCorZone] || {}).nom + ' · ' + corridor.villes.map(v => v.nom).join(' → ') +
     ' · ' + (niv.count > 0 ? niv.count + ' fait(s) sécuritaire(s) recoupé(s) (' + motsRecoupes + ') sur 7 jours' : 'aucun fait sécuritaire recoupé sur 7 jours');
+
+  const legendeDetailEl = document.getElementById('corDetailLegende');
+  if (legendeDetailEl) legendeDetailEl.innerHTML = renderLegendeNiveaux();
 
   if (faitsEl) {
     const lignes = apercuFaitsMarquants(resume, 4);
@@ -11402,13 +11572,17 @@ function renderCorridorsDetail() {
       '</div>';
   }
 
-  // Mesures de protection : memes recommandations que les fiches pays
-  // (MESURES, voir renderAlertCard), selectionnees par le niveau UNIFIE du
-  // corridor (niv.key) — coherence totale : un corridor ROUGE affiche les
-  // memes mesures qu'un pays ROUGE, pas un jeu de regles distinct.
+  // Mesures de protection : SPECIFIQUES au contexte corridor/transit
+  // (MESURES_CORRIDOR, voir plus haut) plutot que les mesures generiques de
+  // fiche PAYS (MESURES) — un corridor n'est pas un pays : ce qui compte,
+  // c'est le trajet (coupeurs de route, piraterie, sabotage de voie,
+  // fermeture d'espace aerien selon le type), pas la vie quotidienne sur
+  // place. Le NIVEAU affiche (niv.key) reste le meme referentiel unifie
+  // ROUGE/MARRON/ORANGE/JAUNE/VERT que les fiches pays — seul le CONTENU
+  // des mesures change selon corridor.type.
   const mesuresEl = document.getElementById('corMesures');
   if (mesuresEl) {
-    const m = MESURES[niv.key];
+    const m = (MESURES_CORRIDOR[corridor.type] || MESURES_CORRIDOR.terrestre)[niv.key];
     const catMesure = (titre, icone, items) =>
       '<div style="margin-bottom:8px">' +
         '<div style="font-size:9px;font-weight:700;color:' + n.col + ';text-transform:uppercase;letter-spacing:.07em;display:flex;align-items:center;gap:5px;margin-bottom:4px">' +
@@ -11418,7 +11592,7 @@ function renderCorridorsDetail() {
       '</div>';
     mesuresEl.innerHTML =
       '<div class="acard" style="padding:10px 12px;margin-bottom:10px;border-left:3px solid ' + n.col + '">' +
-        '<div style="font-size:10px;font-weight:700;color:var(--lg);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">Mesures de protection — niveau ' + n.label + '</div>' +
+        '<div style="font-size:10px;font-weight:700;color:var(--lg);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">Mesures de protection — axe ' + tMeta.label.toLowerCase() + ' — niveau ' + n.label + '</div>' +
         '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">' +
           catMesure(t('mes_expat'), 'ti-user-shield', m.expatries) +
           catMesure(t('mes_locaux'), 'ti-users', m.locaux) +
@@ -11458,13 +11632,19 @@ function renderCorridorsDetail() {
       '<span style="font-size:11px;color:var(--lg);margin-top:4px">Aucun évènement sur ce corridor pour la fenêtre et les filtres sélectionnés.</span></div>';
     return;
   }
-  const estMaritime = corridor.type === 'maritime';
+  const TAG_PAR_TYPE = {
+    maritime: { titre: 'Recoupé : sécurité maritime (piraterie/attaque de navire/détournement/enlèvement)', txt: 'MER' },
+    ferroviaire: { titre: 'Recoupé : sécurité ferroviaire (sabotage/attaque de train/déraillement)', txt: 'RAIL' },
+    aerien: { titre: "Recoupé : sécurité aérienne (fermeture d'espace aérien/détournement/attaque d'aéroport)", txt: 'AIR' },
+    terrestre: { titre: 'Recoupé : sécurité routière (attaque/coupeurs de route/vol/agression)', txt: 'ROUTE' },
+  };
+  const tagCorridor = TAG_PAR_TYPE[corridor.type] || TAG_PAR_TYPE.terrestre;
   listEl.innerHTML = evenements.map(a => {
     const cc = CYS.find(x => x.code === a.cy) || { flag: '🌍', name: a.cy };
     const pl = lp(a.level);
     const estSecRecoupe = articleEstSecuriteCorridor(a, corridor);
-    const tagTitre = estMaritime ? 'Recoupé : sécurité maritime (piraterie/attaque de navire/détournement/enlèvement)' : 'Recoupé : sécurité routière (attaque/coupeurs de route/vol/agression)';
-    const tagTxt = estMaritime ? 'MER' : 'ROUTE';
+    const tagTitre = tagCorridor.titre;
+    const tagTxt = tagCorridor.txt;
     return '<div class="art l' + a.level.charAt(0) + '2" data-level="' + a.level + '" onclick="showDet(\'' + a.id + '\')">' +
       '<div class="al"><span class="rpill ' + pl[0] + '">' + pl[1] + '</span></div>' +
       '<div class="ab">' +
@@ -11490,6 +11670,7 @@ let geoVueApercu = true;
 let fGeoCy = null;
 
 function renderGeopolitique() {
+  renderGeoPublications();
   if (geoVueApercu) renderGeopolitiqueApercu();
   else renderGeopolitiqueDetail();
 }
@@ -11722,7 +11903,7 @@ function renderCorPersoListe() {
         return '<tr>' +
           '<td>' + escHtml(c.nom) + '</td>' +
           '<td>' + escHtml((ZONES_GEO[c.zc] || {}).nom || c.zc) + '</td>' +
-          '<td>' + (c.type === 'maritime' ? '⚓ Maritime' : 'Terrestre') + '</td>' +
+          '<td><i class="ti ' + corridorTypeMeta(c).icon + '"></i> ' + corridorTypeMeta(c).label + '</td>' +
           '<td>' + mkBadge(key) + ' <span style="font-size:9px;color:var(--lg)">' + total100 + '/100</span></td>' +
           '<td>' + escHtml(c.villes.map(v => v.nom).join(' → ')) + '</td>' +
           '<td>' + (c.perso
@@ -15498,12 +15679,25 @@ function getLiveAlertEvents(cy) {
 // (les cartes affichaient "Critique" sous ROUGE, en contradiction avec la
 // legende juste au-dessus qui annonce "ROUGE — Situation grave").
 const NIV = {
-  rouge:  {dot:'#8B1A1A', col:'#8B1A1A', border:'#8B1A1A', bg:'#FEF2F2', bgLight:'#FEE2E2', txt:'#7F1D1D', label:'ROUGE',  sous:'Grave'},
-  marron: {dot:'#78350F', col:'#78350F', border:'#78350F', bg:'#FDF4EC', bgLight:'#F3E1CB', txt:'#78350F', label:'MARRON', sous:'Critique'},
-  orange: {dot:'#7C4A00', col:'#7C4A00', border:'#7C4A00', bg:'#FFFBEB', bgLight:'#FEF3C7', txt:'#92400E', label:'ORANGE', sous:'Élevé'},
-  jaune:  {dot:'#CA8A04', col:'#CA8A04', border:'#CA8A04', bg:'#FEFCE8', bgLight:'#FEF9C3', txt:'#854D0E', label:'JAUNE',  sous:'Modéré'},
-  vert:   {dot:'#0F4F2A', col:'#0F4F2A', border:'#0F4F2A', bg:'#F0FDF4', bgLight:'#DCFCE7', txt:'#065F46', label:'VERT',   sous:'Stable'},
+  rouge:  {dot:'#8B1A1A', col:'#8B1A1A', border:'#8B1A1A', bg:'#FEF2F2', bgLight:'#FEE2E2', txt:'#7F1D1D', label:'ROUGE',  sous:'Grave',    descr:'Situation grave'},
+  marron: {dot:'#78350F', col:'#78350F', border:'#78350F', bg:'#FDF4EC', bgLight:'#F3E1CB', txt:'#78350F', label:'MARRON', sous:'Critique', descr:'Situation critique'},
+  orange: {dot:'#7C4A00', col:'#7C4A00', border:'#7C4A00', bg:'#FFFBEB', bgLight:'#FEF3C7', txt:'#92400E', label:'ORANGE', sous:'Élevé',    descr:'Situation tendue'},
+  jaune:  {dot:'#CA8A04', col:'#CA8A04', border:'#CA8A04', bg:'#FEFCE8', bgLight:'#FEF9C3', txt:'#854D0E', label:'JAUNE',  sous:'Modéré',   descr:"Situation d'alerte"},
+  vert:   {dot:'#0F4F2A', col:'#0F4F2A', border:'#0F4F2A', bg:'#F0FDF4', bgLight:'#DCFCE7', txt:'#065F46', label:'VERT',   sous:'Stable',   descr:'Situation normale'},
 };
+// renderLegendeNiveaux() : legende UNIQUE des 5 niveaux d'alerte (couleur +
+// libelle + signification), reutilisee A L'IDENTIQUE par le module Alertes
+// (fiches pays, #alerteLegende) et le module Corridor (#corApercu) — un seul
+// point de verite pour cette legende plutot qu'une copie HTML figee par
+// module, qui aurait fini par diverger silencieusement.
+function renderLegendeNiveaux() {
+  return '<div style="display:flex;gap:6px;flex-wrap:wrap">' +
+    Object.keys(NIV).map(k => {
+      const n = NIV[k];
+      return '<span style="padding:3px 10px;border-radius:4px;background:' + n.col + ';border:1px solid ' + n.border + ';color:#fff;font-size:9px;font-weight:700;letter-spacing:.05em" title="' + n.descr + '">' + n.label + ' — ' + n.descr + '</span>';
+    }).join('') +
+  '</div>';
+}
 
 // niveauAlertePays(cy) : niveau d'alerte SURETE du PAYS (rouge/marron/orange/
 // jaune/vert, calcAlertScore) — a ne jamais confondre avec le niveau d'une
@@ -15570,6 +15764,146 @@ const MESURES = {
     locaux:      ['Fonctionnement normal', 'Aucune mesure particulière', 'Suivi de routine'],
     installations:['Fonctionnement normal', 'Sécurité standard maintenue', 'Aucune action requise'],
     vehicules:   ['Circulation normale', 'Aucune restriction', 'Prudence routière habituelle'],
+  },
+};
+
+// MESURES_CORRIDOR : mesures de protection SPECIFIQUES au contexte
+// transit/corridor, distinctes de MESURES (fiches PAYS) — un corridor
+// n'est pas un pays : les risques et les gestes qui comptent sont ceux du
+// TRAJET lui-meme (coupeurs de route sur un axe terrestre, piraterie en
+// mer, sabotage de voie sur un axe ferroviaire, fermeture d'espace aerien
+// sur un axe aerien), pas la vie quotidienne sur place. Meme forme que
+// MESURES (4 categories x 5 niveaux) pour reutiliser le meme rendu
+// (catMesure), mais un jeu de contenu par TYPE de corridor
+// (terrestre/maritime/ferroviaire/aerien).
+const MESURES_CORRIDOR = {
+  terrestre: {
+    rouge: {
+      expatries:   ['Suspension immédiate de tout trajet sur cet axe', "Repli vers l'étape la plus proche déjà atteinte", 'Contact référent sécurité avant tout mouvement'],
+      locaux:      ['Convois immobilisés jusqu\'à nouvel ordre', 'Coordination avec les forces de sécurité locales', 'Suivi GPS temps réel obligatoire si mouvement impératif'],
+      installations:['Points de contrôle et postes-frontières sous haute vigilance', 'Repli sur le point d\'étape sécurisé le plus proche', 'Vérification renforcée avant franchissement'],
+      vehicules:   ['Aucun convoi routier sans escorte armée', 'Trajet alternatif ou report total recommandé', 'Véhicules blindés/discrets si départ impératif'],
+    },
+    marron: {
+      expatries:   ['Trajets limités aux étapes essentielles du corridor', 'Départs groupés uniquement, jamais isolés', 'Signalement du départ et de l\'arrivée à chaque étape'],
+      locaux:      ['Vigilance renforcée aux abords des coupeurs de route connus', 'Convois accompagnés recommandés', 'Point de situation avant chaque tronçon'],
+      installations:['Contrôle renforcé aux postes-frontières et péages', 'Vérification des itinéraires alternatifs de repli', 'Stock carburant/eau pour imprévu sur le trajet'],
+      vehicules:   ['Déplacement en convoi groupé exigé', 'Éviter les tronçons identifiés à risque (nuit notamment)', 'Suivi de trajet partagé avec un référent'],
+    },
+    orange: {
+      expatries:   ['Trajets de jour uniquement sur cet axe', 'Éviter les tronçons signalés en alerte récente', "Informer un référent de l'horaire de trajet"],
+      locaux:      ['Surveillance accrue des points sensibles du corridor', 'Itinéraires alternatifs anticipés en cas de blocage', 'Contact maintenu avec les autorités locales de l\'axe'],
+      installations:['Contrôles maintenus aux étapes et postes-frontières', 'Procédures d\'urgence du corridor revues', 'Communication sur l\'état de l\'axe partagée'],
+      vehicules:   ['Prudence accrue sur les tronçons secondaires', 'Véhicules peu identifiables recommandés', 'Plein de carburant avant chaque tronçon'],
+    },
+    jaune: {
+      expatries:   ['Trajets normaux, vigilance standard sur l\'axe', 'Suivi de l\'actualité sécuritaire du corridor', 'Éviter les arrêts non prévus en zone isolée'],
+      locaux:      ['Suivi de routine de la situation sur l\'axe', 'Sensibilisation maintenue sur les points sensibles connus', 'Aucune restriction particulière de trajet'],
+      installations:['Postes-frontières et étapes en fonctionnement normal', 'Contrôles d\'accès habituels', 'Veille informationnelle continue sur l\'axe'],
+      vehicules:   ['Circulation normale sur le corridor', 'Consignes de prudence routière habituelles', 'Aucune restriction d\'itinéraire'],
+    },
+    vert: {
+      expatries:   ['Aucune restriction sur cet axe', 'Trajet normal, vigilance passive', 'Veille informationnelle standard'],
+      locaux:      ['Fonctionnement normal du corridor', 'Aucune mesure particulière', 'Suivi de routine'],
+      installations:['Postes-frontières et étapes en fonctionnement normal', 'Sécurité standard maintenue', 'Aucune action requise'],
+      vehicules:   ['Circulation normale', 'Aucune restriction d\'itinéraire', 'Prudence routière habituelle'],
+    },
+  },
+  maritime: {
+    rouge: {
+      expatries:   ['Suspension immédiate de toute traversée sur cette zone', 'Report ou déroutement vers un port sûr', 'Contact armateur/agent maritime avant tout mouvement'],
+      locaux:      ['Équipages en état de vigilance piraterie maximale (BMP en vigueur)', 'Coordination avec les forces navales présentes dans la zone', 'Citadelle prête, exercice anti-piraterie effectué'],
+      installations:['Ports et zones de mouillage sous haute vigilance', 'Escale dans le port sûr le plus proche si nécessaire', 'Vérification renforcée avant chaque escale'],
+      vehicules:   ['Aucun transit sans convoi escorté/zone de transit sécurisée (ex. corridor IRTC)', 'Vitesse maximale et manœuvres anti-abordage en zone à risque', 'Déroutement recommandé si praticable'],
+    },
+    marron: {
+      expatries:   ['Traversées limitées aux liaisons essentielles', 'Transit par la route maritime recommandée (couloirs surveillés)', 'Signalement systématique de position (AIS/rapport de situation)'],
+      locaux:      ['Vigilance renforcée dans les zones à risque de piraterie/vol à main armée', 'Veille radar/visuelle 24h renforcée', 'Point de situation avant chaque segment de la traversée'],
+      installations:['Contrôle renforcé à l\'entrée des ports et rades', 'Vérification des procédures d\'urgence anti-piraterie', 'Équipements de citadelle et alarme vérifiés'],
+      vehicules:   ['Transit groupé/en convoi recommandé si disponible', 'Éviter le mouillage prolongé en zone signalée à risque', 'Suivi de position partagé avec l\'armateur'],
+    },
+    orange: {
+      expatries:   ['Traversées de jour privilégiées si le trafic le permet', 'Éviter les zones de mouillage signalées à risque', 'Informer l\'agent maritime de l\'horaire de transit'],
+      locaux:      ['Surveillance radar/visuelle accrue dans la zone', 'Itinéraire alternatif anticipé en cas d\'incident signalé', 'Contact maintenu avec les autorités portuaires locales'],
+      installations:['Contrôles d\'accès portuaires maintenus', 'Procédures anti-piraterie revues', 'Communication sur l\'état de la zone partagée à bord'],
+      vehicules:   ['Vigilance accrue en zone secondaire de navigation', 'Éclairage réduit la nuit en zone sensible si pertinent', 'Plein de soutage avant transit prolongé'],
+    },
+    jaune: {
+      expatries:   ['Traversées normales, vigilance standard', 'Suivi des bulletins sécurité maritime (BMP/MSCHOA)', 'Éviter les mouillages non prévus en zone isolée'],
+      locaux:      ['Suivi de routine de la situation dans la zone', 'Sensibilisation équipage maintenue', 'Aucune restriction particulière de route maritime'],
+      installations:['Ports en fonctionnement normal', 'Contrôles d\'accès habituels', 'Veille informationnelle maritime continue'],
+      vehicules:   ['Navigation normale sur la zone', 'Consignes de prudence maritime habituelles', 'Aucune restriction de route'],
+    },
+    vert: {
+      expatries:   ['Aucune restriction sur cette zone', 'Traversée normale, vigilance passive', 'Veille informationnelle standard'],
+      locaux:      ['Fonctionnement normal de la zone maritime', 'Aucune mesure particulière', 'Suivi de routine'],
+      installations:['Ports en fonctionnement normal', 'Sécurité standard maintenue', 'Aucune action requise'],
+      vehicules:   ['Navigation normale', 'Aucune restriction de route', 'Prudence maritime habituelle'],
+    },
+  },
+  ferroviaire: {
+    rouge: {
+      expatries:   ['Suspension immédiate des trajets sur cette ligne', 'Repli vers la gare la plus proche déjà atteinte', 'Contact référent sécurité avant tout mouvement'],
+      locaux:      ['Circulation ferroviaire suspendue ou fortement restreinte', 'Coordination avec l\'exploitant et les forces de sécurité', 'Suivi des annonces officielles de l\'exploitant ferroviaire'],
+      installations:['Gares et voies sous haute vigilance, inspection renforcée', 'Repli sur la gare sécurisée la plus proche', 'Vérification renforcée avant tout embarquement'],
+      vehicules:   ['Aucun trajet sans confirmation de sécurisation de la ligne', 'Trajet alternatif (route/aérien) recommandé si disponible', 'Éviter les trajets de nuit sur la ligne concernée'],
+    },
+    marron: {
+      expatries:   ['Trajets limités aux liaisons essentielles de la ligne', 'Privilégier les trains à horaires réguliers/surveillés', 'Signalement du départ et de l\'arrivée à chaque gare d\'étape'],
+      locaux:      ['Vigilance renforcée aux abords des tronçons isolés', 'Contrôle renforcé des accès en gare', 'Point de situation avant chaque trajet'],
+      installations:['Contrôle renforcé dans les gares principales et de correspondance', 'Vérification des plans de repli en cas d\'incident sur la voie', 'Inspection de voie renforcée sur les tronçons sensibles'],
+      vehicules:   ['Trajets groupés recommandés', 'Éviter les tronçons/horaires identifiés à risque', 'Suivi de trajet partagé avec un référent'],
+    },
+    orange: {
+      expatries:   ['Trajets de jour privilégiés sur cette ligne', 'Éviter les tronçons signalés en alerte récente', 'Informer un référent de l\'horaire de trajet'],
+      locaux:      ['Surveillance accrue des gares et tronçons sensibles', 'Itinéraire alternatif anticipé en cas de perturbation', 'Contact maintenu avec l\'exploitant ferroviaire local'],
+      installations:['Contrôles d\'accès en gare maintenus', 'Procédures d\'urgence de la ligne revues', 'Communication sur l\'état de la ligne partagée'],
+      vehicules:   ['Prudence accrue sur les tronçons peu fréquentés', 'Bagages et effets personnels sous surveillance constante', 'Vérification des horaires avant départ'],
+    },
+    jaune: {
+      expatries:   ['Trajets normaux, vigilance standard', 'Suivi de l\'actualité sécuritaire de la ligne', 'Éviter les arrêts prolongés en gare isolée'],
+      locaux:      ['Suivi de routine de la situation sur la ligne', 'Sensibilisation maintenue sur les points sensibles connus', 'Aucune restriction particulière de trajet'],
+      installations:['Gares en fonctionnement normal', 'Contrôles d\'accès habituels', 'Veille informationnelle continue sur la ligne'],
+      vehicules:   ['Circulation ferroviaire normale', 'Consignes de prudence habituelles', 'Aucune restriction de trajet'],
+    },
+    vert: {
+      expatries:   ['Aucune restriction sur cette ligne', 'Trajet normal, vigilance passive', 'Veille informationnelle standard'],
+      locaux:      ['Fonctionnement normal de la ligne', 'Aucune mesure particulière', 'Suivi de routine'],
+      installations:['Gares en fonctionnement normal', 'Sécurité standard maintenue', 'Aucune action requise'],
+      vehicules:   ['Circulation ferroviaire normale', 'Aucune restriction de trajet', 'Prudence habituelle'],
+    },
+  },
+  aerien: {
+    rouge: {
+      expatries:   ['Suspension immédiate des vols sur cet axe si espace aérien concerné', 'Report vers un aéroport alternatif hors zone', 'Contact compagnie/référent sécurité avant tout déplacement'],
+      locaux:      ['Suivi impératif des NOTAM et fermetures d\'espace aérien en vigueur', 'Coordination avec l\'autorité aéroportuaire et la compagnie', 'Plan de repli aéroportuaire activé si nécessaire'],
+      installations:['Aéroports sous haute vigilance, contrôles renforcés', 'Repli sur l\'aéroport sécurisé alternatif le plus proche', 'Vérification renforcée avant tout embarquement'],
+      vehicules:   ['Aucun vol sans confirmation de l\'ouverture de l\'espace aérien', 'Routage alternatif recommandé si disponible', 'Suivi temps réel du statut des vols (NOTAM/compagnie)'],
+    },
+    marron: {
+      expatries:   ['Vols limités aux liaisons essentielles de l\'axe', 'Privilégier les compagnies avec suivi sécurité confirmé', 'Signalement du vol (numéro, horaire) à un référent'],
+      locaux:      ['Vigilance renforcée sur les correspondances dans la zone', 'Vérification du statut de l\'aéroport avant départ', 'Point de situation avant chaque vol'],
+      installations:['Contrôle renforcé dans les aéroports de la zone', 'Vérification des procédures d\'urgence/déroutement', 'Suivi des NOTAM et restrictions d\'espace aérien'],
+      vehicules:   ['Vols directs privilégiés (éviter correspondances en zone sensible)', 'Éviter les créneaux/aéroports identifiés à risque', 'Suivi de vol partagé avec un référent'],
+    },
+    orange: {
+      expatries:   ['Vols aux horaires réguliers privilégiés', 'Éviter les aéroports secondaires signalés en alerte', 'Informer un référent de l\'horaire et du numéro de vol'],
+      locaux:      ['Surveillance accrue du statut des aéroports de la zone', 'Vol alternatif anticipé en cas de restriction d\'espace aérien', 'Contact maintenu avec la compagnie/l\'agent local'],
+      installations:['Contrôles d\'accès aéroportuaires maintenus', 'Procédures d\'urgence de l\'axe revues', 'Communication sur l\'état de l\'espace aérien partagée'],
+      vehicules:   ['Vérification des NOTAM avant chaque vol', 'Marge de temps supplémentaire prévue en correspondance', 'Bagages et effets sous surveillance constante'],
+    },
+    jaune: {
+      expatries:   ['Vols normaux, vigilance standard', 'Suivi de l\'actualité sécuritaire de l\'axe aérien', 'Éviter les escales prolongées non prévues'],
+      locaux:      ['Suivi de routine des NOTAM de la zone', 'Sensibilisation maintenue sur les aéroports sensibles connus', 'Aucune restriction particulière de vol'],
+      installations:['Aéroports en fonctionnement normal', 'Contrôles d\'accès habituels', 'Veille informationnelle continue sur l\'espace aérien'],
+      vehicules:   ['Trafic aérien normal sur l\'axe', 'Consignes de prudence habituelles', 'Aucune restriction de routage'],
+    },
+    vert: {
+      expatries:   ['Aucune restriction sur cet axe aérien', 'Vol normal, vigilance passive', 'Veille informationnelle standard'],
+      locaux:      ['Fonctionnement normal de l\'axe aérien', 'Aucune mesure particulière', 'Suivi de routine'],
+      installations:['Aéroports en fonctionnement normal', 'Sécurité standard maintenue', 'Aucune action requise'],
+      vehicules:   ['Trafic aérien normal', 'Aucune restriction de routage', 'Prudence habituelle'],
+    },
   },
 };
 
@@ -16330,6 +16664,8 @@ async function recalcAlertes(opts) {
   const table = document.getElementById('alerteTable');
   if (!grid || !table) return; // vue Alertes pas encore ouverte : le calcul reste fait, juste pas affiche
 
+  const legendeEl = document.getElementById('alerteLegende');
+  if (legendeEl) legendeEl.innerHTML = renderLegendeNiveaux();
   grid.innerHTML  = (await Promise.all(scores.map(s => renderAlertCard(s)))).join('');
   table.innerHTML = await renderAlertTable(scores);
 
