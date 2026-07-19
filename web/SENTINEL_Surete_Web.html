@@ -12246,12 +12246,37 @@ async function publierCollectePartagee(articles, force) {
   const client = getSentinelSupabase();
   if (!client || !Array.isArray(articles) || !articles.length) return;
   try {
-    if (!force) {
-      const { data } = await client.from('collecte_partagee').select('updated_at').eq('id', COLLECTE_PARTAGEE_ID).maybeSingle();
-      if (data && data.updated_at && (Date.now() - new Date(data.updated_at).getTime()) < COLLECTE_PARTAGEE_FRAICHEUR_MS) return;
-    }
+    const { data: existant } = await client.from('collecte_partagee').select('articles,updated_at').eq('id', COLLECTE_PARTAGEE_ID).maybeSingle();
+    if (!force && existant && existant.updated_at && (Date.now() - new Date(existant.updated_at).getTime()) < COLLECTE_PARTAGEE_FRAICHEUR_MS) return;
+    // FUSIONNE avec le cache existant au lieu de l'ECRASER — chaque run du
+    // job planifie (.github/workflows/collecte-planifiee.yml, ~30 min) ne
+    // couvre typiquement qu'un sous-ensemble des ~495 sources avant de buter
+    // sur le rate-limiting des proxys CORS partages (voir COLLECT_TIMEOUT_MS
+    // dans scripts/collecte-planifiee.js) — TOUJOURS le meme sous-ensemble,
+    // puisque SRCS est iteree dans le meme ordre a chaque run et que
+    // l'historique de sante des sources (SRC_HEALTH, localStorage) ne
+    // persiste jamais d'un run a l'autre pour ce job (navigateur headless
+    // frais a chaque execution). Un simple UPSERT remplaçant tout le tableau
+    // "articles" a chaque publication faisait donc perdre integralement, a
+    // CHAQUE cycle, la couverture des pays dont les sources arrivent tard
+    // dans SRCS — invisibles en permanence des lors que TOUS les visiteurs
+    // lisent ce cache partage au lieu de collecter eux-memes (bug remonte :
+    // Soudan/Burkina Faso/RD Congo systematiquement "Aucune actu suivie").
+    // La fusion accumule la couverture sur plusieurs cycles successifs (un
+    // pays couvert il y a 20 min reste visible meme si CE run ne l'a pas
+    // re-atteint) ; dedup par id (le run le plus recent l'emporte en cas de
+    // doublon) ; purge des entrees au-dela de la fenetre "recent reel" (12h,
+    // voir estRecentReel) — inutile de les garder, _appliquerArticlesPartages
+    // les filtrerait de toute facon cote client, et ca eviterait juste de
+    // faire grossir la ligne indefiniment.
+    const parId = new Map();
+    const existantsRecents = (existant && Array.isArray(existant.articles) ? existant.articles : [])
+      .filter(a => a && a.pubDate && (Date.now() - a.pubDate) < 12*60*60*1000);
+    existantsRecents.forEach(a => parId.set(a.id, a));
+    articles.forEach(a => parId.set(a.id, a));
+    const fusionnes = [...parId.values()];
     const { error } = await client.from('collecte_partagee').upsert({
-      id: COLLECTE_PARTAGEE_ID, articles, updated_at: new Date().toISOString(),
+      id: COLLECTE_PARTAGEE_ID, articles: fusionnes, updated_at: new Date().toISOString(),
     });
     if (error) console.warn('SENTINEL — publierCollectePartagee a echoue :', error.message || error);
   } catch (e) { console.warn('SENTINEL — publierCollectePartagee a echoue :', e && e.message ? e.message : e); }
