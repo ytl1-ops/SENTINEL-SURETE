@@ -102,7 +102,21 @@ function lireTokenDepuisSource() {
     const resultat = await page.evaluate(async () => {
       if (!Array.isArray(ALL) || !ALL.length) return { ok: false, raison: 'Aucun article dans ALL' };
       if (typeof publierCollectePartagee !== 'function') return { ok: false, raison: 'publierCollectePartagee indisponible (Supabase non chargé ?)' };
-      await publierCollectePartagee(ALL, true);
+      // La raison d'etre UNIQUE de ce job est de garder collecte_partagee a
+      // jour pour tous les visiteurs (voir en-tete du fichier) — publier ne
+      // suffit pas, la publication doit REELLEMENT reussir. Avant ce
+      // controle, ce job rapportait "succes" meme quand la table
+      // n'existait pas / que Supabase refusait l'ecriture (RLS, quota...) :
+      // publierCollectePartagee avalait l'erreur en interne (console.warn
+      // seul), rien ne la faisait remonter jusqu'ici. Consequence reelle
+      // constatee : la table collecte_partagee est restee absente du projet
+      // Supabase pendant des semaines sans qu'aucun run planifie ne l'ait
+      // jamais signale — dans une application de surete, une donnee perimee
+      // presentee comme a jour est un facteur de risque grave ; ce job doit
+      // echouer BRUYAMMENT (exit code non nul, run rouge dans GitHub
+      // Actions) plutot que de masquer une panne de publication.
+      const pub = await publierCollectePartagee(ALL, true);
+      if (!pub || !pub.ok) return { ok: false, raison: 'publierCollectePartagee a echoue : ' + (pub && pub.raison || 'raison inconnue') };
       // Alimente aussi l'index de recherche de l'Assistant IA (RAG) — best-
       // effort, ne doit jamais faire echouer la publication du cache
       // principal si absent/en echec (voir articles_rag, migration
@@ -116,7 +130,7 @@ function lireTokenDepuisSource() {
       // sans lui, un evenement detecte reste invisible des que l'article
       // source sort de ALL (12h), quel que soit le trafic reel de visiteurs.
       if (typeof publierAgendaPartagee === 'function') { try { await publierAgendaPartagee(ALL); } catch (_) {} }
-      return { ok: true, nbArticles: ALL.length, bestProxy: String(typeof bestProxy !== 'undefined' ? bestProxy : '?') };
+      return { ok: true, nbArticles: pub.nbArticles, bestProxy: String(typeof bestProxy !== 'undefined' ? bestProxy : '?') };
     });
 
     if (!resultat.ok) {

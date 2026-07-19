@@ -3107,6 +3107,25 @@ body.sentinel-protected img{ -webkit-user-drag:none; user-drag:none; pointer-eve
             <div class="pm-group-hd-line"></div>
           </div>
 
+          <!-- Sante du cache partage (collecte_partagee) -->
+          <div class="pm-section">
+            <div class="pm-sec-hd">
+              <div class="pm-sec-hd-l"><i class="ti ti-server-cog"></i>
+                <div><div class="pm-sec-title">Santé du cache partagé RSS</div>
+                <div class="pm-sec-sub" id="cachePartageStatutCourt">Vérification...</div></div>
+              </div>
+              <button onclick="renderDiagnosticCachePartage()" style="padding:5px 12px;background:rgba(61,100,134,.12);border:1px solid rgba(61,100,134,.4);border-radius:5px;color:var(--b);font-size:11px;font-weight:700;cursor:pointer;">
+                <i class="ti ti-refresh"></i> Vérifier maintenant
+              </button>
+            </div>
+            <div class="pm-sec-body" style="padding:14px 16px">
+              <div style="font-size:10px;color:var(--lg);margin-bottom:12px;line-height:1.6">
+                État réel — en base, pas seulement sur cet appareil — de la publication alimentée par le job planifié (~30 min, voir .github/workflows/collecte-planifiee.yml) et par les navigateurs des visiteurs. Une panne silencieuse ici (table absente, RLS mal configurée...) fait retomber tout le monde sur une collecte locale par appareil, sans alerte visible ailleurs — dans une application de sûreté, une donnée périmée affichée comme à jour est un facteur de risque grave : ce diagnostic doit être vérifié régulièrement.
+              </div>
+              <div id="cachePartageDiag">Vérification en cours…</div>
+            </div>
+          </div>
+
           <!-- Diagnostic collecte RSS par pays -->
           <div class="pm-section">
             <div class="pm-sec-hd">
@@ -11347,6 +11366,46 @@ function renderGeopolitiqueDetail() {
   }
 }
 
+// renderDiagnosticCachePartage() : affiche l'etat REEL (en base) du cache
+// partage collecte_partagee — voir diagnostiquerCachePartage(). Contrepartie
+// visible du fix "fusion au lieu d'ecrasement" et du fix "job planifie echoue
+// bruyamment" : meme corriges, ces mecanismes peuvent re-tomber en panne
+// (RLS modifiee, table supprimee, quota Supabase depasse...) sans qu'aucune
+// erreur ne remonte nulle part ailleurs — ce panneau doit rester la source de
+// verite consultable par un administrateur, pas un log qu'il faut deviner
+// d'aller chercher dans GitHub Actions.
+async function renderDiagnosticCachePartage() {
+  const zone = document.getElementById('cachePartageDiag');
+  const court = document.getElementById('cachePartageStatutCourt');
+  if (!zone) return;
+  zone.innerHTML = 'Vérification en cours…';
+  if (court) court.textContent = 'Vérification...';
+  const diag = await diagnostiquerCachePartage();
+  if (!diag.disponible) {
+    if (court) court.textContent = 'Indisponible';
+    zone.innerHTML = `<div style="font-size:11px;color:#8B1A1A;background:#FEE2E2;border:1px solid #FCA5A5;border-radius:6px;padding:8px 10px;display:flex;align-items:flex-start;gap:6px;">
+      <i class="ti ti-alert-triangle" style="flex-shrink:0;margin-top:1px;"></i>
+      <span><strong>Cache partagé indisponible</strong> — ${escHtml(diag.raison || 'raison inconnue')}. Tous les visiteurs retombent sur leur propre collecte locale (dégradé mais non bloquant) ; vérifier que la migration <code>collecte_partagee</code> est bien appliquée sur le projet Supabase.</span>
+    </div>`;
+    return;
+  }
+  const ageMin = Math.round(diag.ageMs / 60000);
+  const ageTxt = ageMin < 60 ? ageMin + ' min' : Math.round(ageMin/60*10)/10 + ' h';
+  if (diag.enPanne) {
+    if (court) court.textContent = 'En panne — dernière publication il y a ' + ageTxt;
+    zone.innerHTML = `<div style="font-size:11px;color:#8B1A1A;background:#FEE2E2;border:1px solid #FCA5A5;border-radius:6px;padding:8px 10px;display:flex;align-items:flex-start;gap:6px;">
+      <i class="ti ti-alert-triangle" style="flex-shrink:0;margin-top:1px;"></i>
+      <span><strong>Aucune publication depuis ${ageTxt}</strong> (seuil d'alerte : 1h30, soit 3× le cycle nominal de 30 min) — le job planifié semble en échec silencieux. Vérifier .github/workflows/collecte-planifiee.yml et les journaux d'exécution GitHub Actions.</span>
+    </div>`;
+    return;
+  }
+  if (court) court.textContent = 'Opérationnel — publié il y a ' + ageTxt + ', ' + diag.nbPays + ' pays couverts';
+  zone.innerHTML = `<div style="font-size:11px;color:#0F4F2A;background:#DCFCE7;border:1px solid #86EFAC;border-radius:6px;padding:8px 10px;display:flex;align-items:flex-start;gap:6px;">
+    <i class="ti ti-circle-check" style="flex-shrink:0;margin-top:1px;"></i>
+    <span><strong>Opérationnel</strong> — dernière publication il y a ${ageTxt} (${new Date(diag.updatedAt).toLocaleString('fr-FR')}), ${diag.nbArticles} articles cumulés couvrant ${diag.nbPays} pays sur 54.</span>
+  </div>`;
+}
+
 // renderDiagnosticProxyPays() : rend visible pour l'administrateur le suivi
 // PROXY_HEALTH_PAYS (voir recordProxyResultPays/meilleurProxyPourPays,
 // proxyFetchOne) — sans cette vue, ce suivi resterait un simple journal
@@ -12242,12 +12301,24 @@ async function lireCollectePartagee() {
 // une marge de securite — sans "force", sa propre publication serait
 // silencieusement ignoree a chaque cycle des le deuxieme, puisque le cache
 // qu'il vient de publier lui-meme la fois precedente serait toujours "frais".
+// Valeur de retour : {ok:true} en cas de publication reelle, {ok:true,
+// ignore:true} si sautee volontairement (garde-fou de fraicheur — pas une
+// erreur), {ok:false, raison} en cas d'echec reel. Les appelants "best-
+// effort" ordinaires (auto-refresh navigateur) ignorent cette valeur sans
+// changement de comportement — seul le job planifie (voir
+// scripts/collecte-planifiee.js) l'exploite desormais pour ne plus rapporter
+// un succes alors que la publication a silencieusement echoue (cause racine
+// du bug ou la table collecte_partagee a pu rester absente/en echec pendant
+// des semaines sans que rien ne le signale — un risque grave pour une appli
+// de surete ou une donnee perimee affichee comme a jour induit en erreur).
 async function publierCollectePartagee(articles, force) {
   const client = getSentinelSupabase();
-  if (!client || !Array.isArray(articles) || !articles.length) return;
+  if (!client) return { ok: false, raison: 'Supabase non configure/joignable' };
+  if (!Array.isArray(articles) || !articles.length) return { ok: false, raison: 'Aucun article a publier' };
   try {
-    const { data: existant } = await client.from('collecte_partagee').select('articles,updated_at').eq('id', COLLECTE_PARTAGEE_ID).maybeSingle();
-    if (!force && existant && existant.updated_at && (Date.now() - new Date(existant.updated_at).getTime()) < COLLECTE_PARTAGEE_FRAICHEUR_MS) return;
+    const { data: existant, error: erreurLecture } = await client.from('collecte_partagee').select('articles,updated_at').eq('id', COLLECTE_PARTAGEE_ID).maybeSingle();
+    if (erreurLecture) { console.warn('SENTINEL — publierCollectePartagee a echoue (lecture) :', erreurLecture.message || erreurLecture); return { ok: false, raison: erreurLecture.message || String(erreurLecture) }; }
+    if (!force && existant && existant.updated_at && (Date.now() - new Date(existant.updated_at).getTime()) < COLLECTE_PARTAGEE_FRAICHEUR_MS) return { ok: true, ignore: true };
     // FUSIONNE avec le cache existant au lieu de l'ECRASER — chaque run du
     // job planifie (.github/workflows/collecte-planifiee.yml, ~30 min) ne
     // couvre typiquement qu'un sous-ensemble des ~495 sources avant de buter
@@ -12278,8 +12349,40 @@ async function publierCollectePartagee(articles, force) {
     const { error } = await client.from('collecte_partagee').upsert({
       id: COLLECTE_PARTAGEE_ID, articles: fusionnes, updated_at: new Date().toISOString(),
     });
-    if (error) console.warn('SENTINEL — publierCollectePartagee a echoue :', error.message || error);
-  } catch (e) { console.warn('SENTINEL — publierCollectePartagee a echoue :', e && e.message ? e.message : e); }
+    if (error) { console.warn('SENTINEL — publierCollectePartagee a echoue :', error.message || error); return { ok: false, raison: error.message || String(error) }; }
+    return { ok: true, nbArticles: fusionnes.length };
+  } catch (e) {
+    console.warn('SENTINEL — publierCollectePartagee a echoue :', e && e.message ? e.message : e);
+    return { ok: false, raison: e && e.message ? e.message : String(e) };
+  }
+}
+
+// diagnostiquerCachePartage() : etat REEL du pipeline de cache partage, tel
+// qu'il est effectivement en base — pas une supposition locale a partir de
+// l'historique de CE navigateur (qui ne reflete jamais les publications
+// faites par d'autres appareils/le job planifie). Utilise par l'ecran admin
+// (Diagnostic collecte RSS) pour detecter une panne silencieuse (table
+// absente, RLS mal configuree, job planifie en echec...) au lieu de la
+// decouvrir des semaines plus tard via une donnee perimee affichee comme a
+// jour — voir la panne reelle du 2026-07 (table collecte_partagee absente du
+// projet Supabase depuis sa creation, jamais signalee nulle part).
+const CACHE_PARTAGE_PANNE_SEUIL_MS = 90 * 60 * 1000; // 3x le cycle nominal (~30 min)
+async function diagnostiquerCachePartage() {
+  const client = getSentinelSupabase();
+  if (!client) return { disponible: false, raison: 'Supabase non configure/joignable' };
+  try {
+    const { data, error } = await client.from('collecte_partagee').select('articles,updated_at').eq('id', COLLECTE_PARTAGEE_ID).maybeSingle();
+    if (error) return { disponible: false, raison: error.message || String(error) };
+    if (!data) return { disponible: false, raison: 'Aucune publication trouvee (table vide)' };
+    const ageMs = Date.now() - new Date(data.updated_at).getTime();
+    const arts = Array.isArray(data.articles) ? data.articles : [];
+    const paysUniques = new Set(arts.map(a => a && a.cy).filter(Boolean));
+    return {
+      disponible: true, ageMs, updatedAt: data.updated_at,
+      nbArticles: arts.length, nbPays: paysUniques.size,
+      enPanne: ageMs > CACHE_PARTAGE_PANNE_SEUIL_MS,
+    };
+  } catch (e) { return { disponible: false, raison: e && e.message ? e.message : String(e) }; }
 }
 
 // ── Index RAG (Supabase, table articles_rag) ─────────────────────────────
@@ -13758,6 +13861,7 @@ function loadParamsModule() {
   pmRenderUsers();
   pmRenderPending();
   if (typeof renderDiagnosticProxyPays === 'function') renderDiagnosticProxyPays();
+  if (isAdmin && typeof renderDiagnosticCachePartage === 'function') renderDiagnosticCachePartage();
   renderPricing();
   renderDLQuotas();
   renderPaymethods();
