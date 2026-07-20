@@ -502,6 +502,20 @@ input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px soli
   padding:1px 5px;font-size:8px;font-weight:700;color:var(--b);
   text-transform:uppercase}
 .atit{font-size:13px;font-weight:700;color:var(--t);line-height:1.4;margin-bottom:3px}
+/* Balises (tags) automatiques — sous le titre, avant le resume. Couleur par
+   FAMILLE (theme/geo/source) plutot que par balise individuelle : un coup
+   d'oeil suffit pour distinguer "de quel type" est chaque balise, sans la
+   confusion visuelle d'une palette a une couleur par tag. Aucune des 3
+   familles ne reprend une des 5 couleurs de gravite fixes (rouge/marron/
+   orange/jaune/vert) — la pastille de gravite existante (.rpill) reste le
+   seul badge colore par la severite, pas de doublon possible. */
+.balises{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:5px}
+.balise{display:inline-flex;align-items:center;gap:3px;font-size:8.5px;font-weight:700;
+  padding:2px 7px;border-radius:10px;white-space:nowrap;letter-spacing:.02em}
+.balise i{font-size:9.5px}
+.balise[data-famille="theme"]{background:var(--sigl);color:var(--sig);border:1px solid var(--sigb)}
+.balise[data-famille="geo"]{background:#F1F5F9;color:#475569;border:1px solid #E2E8F0}
+.balise[data-famille="source"]{background:#ECFEFF;color:#0E7490;border:1px solid #CFFAFE}
 .asum{font-size:12px;color:var(--t2);line-height:1.5;margin-bottom:5px;
   white-space:normal;overflow-wrap:break-word}
 .aftr{display:flex;align-items:center;gap:4px;flex-wrap:wrap}
@@ -6251,6 +6265,91 @@ const EVENT_PLANIFIE_KW = {
                   'flyover construction', 'highway construction', 'road project launch'],
 };
 
+// ═══════════════════════════════════════════════════════════════════════════
+//  BALISES (TAGS) DU FLUX — enrichissement visuel automatique des actus.
+//  Reutilise au maximum l'infrastructure de classification deja en place
+//  (aucune duplication) : #Manifestation reprend EVENT_PLANIFIE_KW.manifestation
+//  telle quelle, #Securite reprend a.level (deja calcule par classify() a
+//  partir de CK_CRIT/CK_HIGH) plutot qu'une nouvelle liste de mots-cles
+//  redondante, la balise geographique reprend CY_TO_ZONE/ZONES_GEO (deja
+//  utilises par l'Agenda/Corridor), et les balises de provenance reprennent
+//  a._isSocial (deja calcule a la collecte, cf. Sentiment/Viralite plus haut
+//  dans renderOneArt) et a.sc (portee de la source, deja affichee en meta2).
+//  Uniquement 2 dictionnaires reellement nouveaux (terrorisme, meteo) : ces
+//  themes n'avaient encore aucune detection dans l'app.
+// ═══════════════════════════════════════════════════════════════════════════
+const BALISE_THEME_KW = {
+  terrorisme: ['terroriste', 'terroristes', 'terrorisme', 'jihadiste', 'jihadistes',
+               'djihadiste', 'djihadistes', 'eigs', 'isgs', 'iswap', 'jnim', 'gsim',
+               'boko haram', 'al-shabaab', 'al shabaab', 'cellule terroriste',
+               'attentat suicide', 'kamikaze', 'groupe arme terroriste', 'gat'],
+  meteo:      ['inondation', 'inondations', 'secheresse', 'cyclone', 'tempete',
+               'alerte meteo', 'canicule', 'crue', 'crues', 'pluies diluviennes',
+               'vague de chaleur', 'glissement de terrain', 'raz-de-maree', 'tornade'],
+  politique:  ['election presidentielle', 'election legislative', 'scrutin',
+               'referendum', 'parlement', 'assemblee nationale', 'conseil des ministres',
+               'remaniement ministeriel', 'coup d etat', 'putsch', 'transition politique',
+               'chef de l etat', 'premier ministre', 'gouvernement de transition'],
+};
+
+// balisesArticle(a) : liste ordonnee de balises {label, icon, famille} pour
+// un article donne (famille = 'theme'|'geo'|'source', pilote uniquement le
+// choix de couleur — voir CSS .balise[data-famille]). Purement informatif :
+// n'affecte ni le niveau de gravite (a.level, deja affiche via le pastille
+// rpill existante) ni le score d'alerte pays — aucun doublon avec l'existant.
+function balisesArticle(a) {
+  if (!a) return [];
+  const texte = normaliserAccents((a.title || '') + ' ' + (a.analysis || '')).toLowerCase();
+  const balises = [];
+
+  // ── Thematiques ──
+  Object.entries(BALISE_THEME_KW).forEach(([theme, mots]) => {
+    if (mots.some(m => texte.includes(normaliserAccents(m)))) {
+      const meta = { terrorisme: ['Terrorisme', 'ti-alert-hexagon'], meteo: ['Météo', 'ti-cloud-storm'],
+                     politique: ['Politique', 'ti-building-bank'] }[theme];
+      balises.push({ label: meta[0], icon: meta[1], famille: 'theme' });
+    }
+  });
+  if ((EVENT_PLANIFIE_KW.manifestation || []).some(m => texte.includes(normaliserAccents(m)))) {
+    balises.push({ label: 'Manifestation', icon: 'ti-speakerphone', famille: 'theme' });
+  }
+  // #Securite : deja calcule par classify() (CK_CRIT/CK_HIGH) — pas de
+  // nouvelle detection, juste un libelle pour le niveau crit/high existant.
+  if (a.level === 'crit' || a.level === 'high') {
+    balises.push({ label: 'Sécurité', icon: 'ti-shield', famille: 'theme' });
+  }
+
+  // ── Geographique : zone du pays, en plus du pays deja affiche ailleurs ──
+  if (a.cy && a.cy !== 'INT' && typeof CY_TO_ZONE !== 'undefined') {
+    const zone = CY_TO_ZONE[a.cy];
+    if (zone && ZONES_GEO[zone]) balises.push({ label: ZONES_GEO[zone].nom, icon: 'ti-map-2', famille: 'geo' });
+  }
+
+  // ── Provenance ──
+  if (a._isSocial) {
+    balises.push({ label: 'Réseaux sociaux', icon: 'ti-message-circle-2', famille: 'source' });
+  } else if (a.sc === 'local' || a.sc === 'national') {
+    balises.push({ label: 'Médias locaux', icon: 'ti-news', famille: 'source' });
+  }
+  // #AgencesOfficielles : heuristique sur le nom de la source (institutions
+  // multilaterales/agences de presse officielles identifiables par leur nom)
+  // — approximatif par nature, aucune liste exhaustive fiable n'existe.
+  const nomSrc = normaliserAccents((gs(a.primary).n || '')).toLowerCase();
+  if (['ocha', 'acled', 'unhcr', 'hcr', 'pam', 'unicef', 'onu ', 'agence de presse officielle', 'aps', 'aip', 'reuters', 'agence france presse', 'afp'].some(m => nomSrc.includes(m))) {
+    balises.push({ label: 'Agences officielles', icon: 'ti-certificate', famille: 'source' });
+  }
+
+  return balises;
+}
+
+function balisesArticleHtml(a) {
+  const balises = balisesArticle(a);
+  if (!balises.length) return '';
+  return '<div class="balises">' + balises.map(b =>
+    '<span class="balise" data-famille="' + b.famille + '"><i class="ti ' + b.icon + '"></i>' + escHtml(b.label) + '</span>'
+  ).join('') + '</div>';
+}
+
 // estEvenementPlanifie(texte) : vrai si le texte correspond a un evenement
 // planifie reconnu. typeEvenementDetecte(texte) : la categorie associee
 // (utilisee pour le badge/type dans le module Agenda). Accents normalises
@@ -9925,6 +10024,7 @@ async function renderFeed() {
         '</div>'+
         // ── Contenu editorial : remonte au-dessus du reste des badges ──
         '<div class="atit" id="trt-'+a.id+'">'+escHtml(L(a.title))+'</div>'+
+        balisesArticleHtml(a)+
         '<div class="asum" id="tra-'+a.id+'">'+escHtml(L(a.analysis))+'</div>'+
         // ── Meta secondaire : portee, ville, categorie, source RSS, sentiment, viralite ──
         '<div class="meta2">'+
