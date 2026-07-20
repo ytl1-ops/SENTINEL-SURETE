@@ -46,6 +46,16 @@ try {
   document.documentElement.style.display = 'none';
 }
 </script>
+<!-- Theme clair/sombre applique AVANT le premier paint (bloquant, tres court)
+     — evite un flash de theme clair puis bascule sombre au chargement pour
+     un utilisateur ayant deja choisi le sombre. Voir appliquerTheme()/
+     toggleTheme() plus bas pour la logique complete (bouton, libelle). -->
+<script>
+try {
+  var _thPref = localStorage.getItem('sentinel_theme');
+  if (_thPref === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+} catch (e) {}
+</script>
 <title>SENTINEL SÛRETÉ — Veille sûreté Afrique (54 pays)</title>
 <link rel="preconnect" href="https://cdn.jsdelivr.net/">
 <link rel="preconnect" href="https://api.rss2json.com/">
@@ -83,6 +93,32 @@ try {
   --font-mono:'IBM Plex Mono',monospace;
   --font-serif:'Source Serif 4',serif;
   --accent-glow:rgba(44,90,174,.18);
+  --page-bg:#E8EDF2;
+}
+/* ═══════════════════════════════════════════════════════════════════════════
+   THEME SOMBRE — bascule explicite par l'utilisateur (bouton a cote
+   d'"Actualiser", voir themeBtn/appliquerTheme). PAS le theme par defaut de
+   l'app (consigne : "pas de fond tres sombre") — un choix optionnel, pas un
+   remplacement. Seules les variables de SURFACE/TEXTE/BORDURE sont
+   redefinies (--w/--sf/--t/--t2/--lg/--gr/--bd/--bl/--bb/--n/--page-bg) :
+   l'accent de marque (--b) et les 5 couleurs de gravite (--r/--a/--g/jaune)
+   restent IDENTIQUES dans les deux themes — un rapport exporte ou une
+   capture d'ecran reste reconnaissable comme SENTINEL quel que soit le
+   theme actif. Badges de gravite "pales" (--rl/--al/--gl + bordures)
+   assombris en versions translucides pour rester lisibles sur fond sombre
+   sans redevenir des rectangles clairs eblouissants. */
+html[data-theme="dark"]{
+  --n:#EAF0F7;
+  --bl:rgba(44,90,174,.16);--bb:#2E4666;
+  --rl:rgba(139,26,26,.22);--rb:rgba(248,113,113,.4);--r:#F87171;
+  --al:rgba(124,74,0,.22);--ab:rgba(243,171,61,.4);--a:#F3AB3D;
+  --gl:rgba(15,79,42,.24);--gb:rgba(74,222,128,.4);--g:#4ADE80;
+  --gr:#B7C3D1;--lg:#8CA0B4;--bd:#28394E;
+  --sf:#141E2C;--w:#1B2839;--t:#EAF0F7;--t2:#B6C3D2;
+  --sigl:rgba(169,116,37,.2);--sigb:rgba(217,168,92,.4);--sig:#D9A85C;
+  --card-shadow:0 1px 4px rgba(0,0,0,.35);
+  --card-shadow-hover:0 4px 14px rgba(0,0,0,.5);
+  --page-bg:#0E1520;
 }
 *{box-sizing:border-box;margin:0;padding:0}
 /* width:100% + overflow-x:hidden explicites (pas seulement le comportement
@@ -93,7 +129,7 @@ try {
    une partie de la largeur avec une zone vide a droite. */
 html{height:100%;height:100dvh;width:100%;max-width:100vw;overflow-x:hidden}
 body{font-family:var(--font-body);
-  background:#E8EDF2;color:var(--t);font-size:13px;height:100vh;height:100dvh;
+  background:var(--page-bg);color:var(--t);font-size:13px;height:100vh;height:100dvh;
   width:100%;max-width:100vw;overflow:hidden;overflow-x:hidden;display:flex;flex-direction:column;
   -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
 a{text-decoration:none;color:inherit}
@@ -846,6 +882,8 @@ body.plein-ecran-module > .stbar { display:none !important; }
   background-size:34px 34px}
 .ops-vignette{position:absolute;inset:0;
   background:radial-gradient(ellipse 75% 65% at 50% 42%,rgba(244,247,251,0) 0%,rgba(220,228,239,.5) 68%,rgba(206,216,229,.85) 100%)}
+html[data-theme="dark"] .ops-vignette{
+  background:radial-gradient(ellipse 75% 65% at 50% 42%,rgba(20,30,44,0) 0%,rgba(14,21,32,.55) 68%,rgba(10,15,23,.88) 100%)}
 .ops-globe-wrap{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
   animation:opsBreathe 46s ease-in-out infinite alternate}
 @keyframes opsBreathe{0%{transform:scale(1) translateY(0)}100%{transform:scale(1.05) translateY(-1.2%)}}
@@ -2056,6 +2094,9 @@ body.sentinel-protected img{ -webkit-user-drag:none; user-drag:none; pointer-eve
     </div>
     <button class="actu-btn" onclick="doCollect()" id="actuBtn">
       <i class="ti ti-refresh spin" id="actuIco"></i> <span data-i18n="btn_actualiser">Actualiser</span>
+    </button>
+    <button class="actu-btn" onclick="toggleTheme()" id="themeBtn" title="Choisir le thème clair ou sombre" style="background:var(--sf)">
+      <i class="ti ti-moon" id="themeIco"></i> <span id="themeLabel" data-i18n="btn_theme_sombre">Sombre</span>
     </button>
     <button class="actu-btn" onclick="runDiagnostic()" id="diagBtn" title="Tester les services de collecte" style="background:var(--sf)">
       <i class="ti ti-stethoscope"></i> <span data-i18n="btn_diagnostic">Diagnostic</span>
@@ -3549,6 +3590,36 @@ body.sentinel-protected img{ -webkit-user-drag:none; user-drag:none; pointer-eve
 
 <script>
 
+// ═══════════════════════════════════════════════════════════════════════════
+//  THEME CLAIR/SOMBRE — bascule explicite (bouton "themeBtn", topbar, a cote
+//  d'Actualiser). Le theme clair reste le defaut de l'app (consigne : "pas
+//  de fond tres sombre") ; le sombre est une PREFERENCE utilisateur
+//  persistee (localStorage), jamais impose. L'attribut data-theme sur <html>
+//  est deja pose AVANT ce script (voir le petit script bloquant dans <head>)
+//  pour eviter un flash visuel au chargement — appliquerTheme() ici se
+//  charge seulement de synchroniser l'icone/le libelle du bouton, qui
+//  n'existe pas encore au moment du script du <head>.
+// ═══════════════════════════════════════════════════════════════════════════
+function appliquerTheme(theme) {
+  document.documentElement.setAttribute('data-theme', theme);
+  try { localStorage.setItem('sentinel_theme', theme); } catch (e) {}
+  const ico = document.getElementById('themeIco');
+  const label = document.getElementById('themeLabel');
+  if (ico) ico.className = 'ti ' + (theme === 'dark' ? 'ti-sun' : 'ti-moon');
+  if (label) label.textContent = theme === 'dark'
+    ? (typeof LANG !== 'undefined' && LANG === 'en' ? 'Light' : 'Clair')
+    : (typeof LANG !== 'undefined' && LANG === 'en' ? 'Dark' : 'Sombre');
+}
+function toggleTheme() {
+  const actuel = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
+  appliquerTheme(actuel === 'dark' ? 'light' : 'dark');
+}
+// Synchronise le bouton avec le theme deja pose par le script du <head>
+// (ou 'light' par defaut) des que le DOM du bouton existe.
+document.addEventListener('DOMContentLoaded', () => {
+  appliquerTheme(document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light');
+});
+
 const SRCS=[
  {id:'rfi',n:'RFI Afrique',col:'#7F77DD',cy:'INT',sc:'regional',cat:'securite',score:93,url:'https://www.rfi.fr/fr/afrique/',rss:'https://www.rfi.fr/fr/rss/actualite-afrique.xml'},
  {id:'bbc',n:'BBC Afrique',col:'#5C5CCA',cy:'INT',sc:'regional',cat:'securite',score:91,url:'https://www.bbc.com/afrique/topics/c404v14nk9xt',rss:'https://feeds.bbci.co.uk/afrique/rss.xml'},
@@ -4276,7 +4347,7 @@ const I18N = {
     empty_filtres:"Essayez d'élargir les filtres actifs.",
     empty_actualiser:'Cliquez sur Actualiser pour lancer la collecte des flux.',
     logo_sub:"Veille multi-sources · Médias + Réseaux sociaux · 54 pays d'Afrique",
-    live_pret:'Collecte...', btn_actualiser:'Actualiser', btn_diagnostic:'Diagnostic',
+    live_pret:'Collecte...', btn_actualiser:'Actualiser', btn_diagnostic:'Diagnostic', btn_theme_sombre:'Sombre',
     menu_params:'Paramètres & Administration', menu_access:'Gestion des accès', menu_logout:'Se déconnecter',
     menu_reclam:'Signaler un problème', menu_paiement:'Déclarer un paiement',
     menu_mode_emploi:"Mode d'emploi (PDF)",
@@ -4335,7 +4406,7 @@ const I18N = {
     empty_filtres:'Try widening the active filters.',
     empty_actualiser:'Click Refresh to start collecting feeds.',
     logo_sub:'Multi-source monitoring · Media + Social networks · 54 African countries',
-    live_pret:'Collecting...', btn_actualiser:'Refresh', btn_diagnostic:'Diagnostic',
+    live_pret:'Collecting...', btn_actualiser:'Refresh', btn_diagnostic:'Diagnostic', btn_theme_sombre:'Dark',
     menu_params:'Settings & Administration', menu_access:'Access management', menu_logout:'Log out',
     menu_reclam:'Report an issue', menu_paiement:'Declare a payment',
     menu_mode_emploi:'User guide (PDF)',
@@ -4430,6 +4501,13 @@ function setLang(lang) {
     if (val !== undefined) el.setAttribute('placeholder', val);
   });
   try { localStorage.setItem('sentinel_lang', LANG); } catch(_) {}
+  // Le libelle du bouton theme (Clair/Sombre) depend de l'etat ACTUEL, pas
+  // seulement de la langue — le refresh generique [data-i18n] ci-dessus vient
+  // de l'ecraser avec le texte statique du dictionnaire (toujours "Sombre"/
+  // "Dark", peu importe le theme actif) : resynchronise avec appliquerTheme().
+  if (typeof appliquerTheme === 'function') {
+    appliquerTheme(document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light');
+  }
   // Re-rendre le contenu deja affiche pour qu'il suive la langue choisie
   if (typeof renderFeed === 'function') { try { renderFeed(); } catch(_) {} }
   if (typeof updSynthese === 'function' && document.getElementById('syCont')) { try { updSynthese(); } catch(_) {} }
@@ -7954,7 +8032,7 @@ async function doCollect() {
       const summaryEl = document.createElement('div');
       const sid = 'toast_summary_' + Date.now();
       summaryEl.id = sid;
-      summaryEl.style.cssText = 'pointer-events:auto;background:var(--n);color:#fff;border-radius:8px;'+
+      summaryEl.style.cssText = 'pointer-events:auto;background:var(--nav-bg);color:#fff;border-radius:8px;'+
         'box-shadow:0 8px 24px rgba(0,0,0,.18);padding:10px 14px;cursor:pointer;font-size:11px;font-weight:600;'+
         'display:flex;align-items:center;gap:8px;';
       summaryEl.onclick = () => { switchView('flux', document.querySelector('.ntab')); summaryEl.remove(); };
