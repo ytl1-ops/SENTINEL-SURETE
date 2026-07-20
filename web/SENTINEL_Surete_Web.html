@@ -80,7 +80,7 @@ try {
   --n:#16233A;--b:#2C5AAE;--bl:#E8EEFA;--bb:#C7D6EE;
   --r:#8B1A1A;--rl:#FEF2F2;--rb:#FECACA;
   --a:#7C4A00;--al:#FFFBEB;--ab:#FDE68A;
-  --g:#0F4F2A;--gl:#F0FDF4;--gb:#BBF7D0;
+  a--g:#0F4F2A;--gl:#F0FDF4;--gb:#BBF7D0;--m:#78350F;--j:#CA8A04;
   --gr:#4A5568;--lg:#718096;--bd:#DCE4EF;
   --sf:#F4F7FB;--w:#FFFFFF;--t:#0E1826;--t2:#3A4658;
   --sig:#A97425;--sigl:#FBF3E7;--sigb:#E9CDA0;
@@ -112,7 +112,7 @@ html[data-theme="dark"]{
   --bl:rgba(44,90,174,.16);--bb:#2E4666;
   --rl:rgba(139,26,26,.22);--rb:rgba(248,113,113,.4);--r:#F87171;
   --al:rgba(124,74,0,.22);--ab:rgba(243,171,61,.4);--a:#F3AB3D;
-  --gl:rgba(15,79,42,.24);--gb:rgba(74,222,128,.4);--g:#4ADE80;
+  --gl:rgba(15,79,42,.24);--gb:rgba(74,222,128,.4);--g:#4ADE80;--m:#D9A85C;--j:#FDE047;
   --gr:#B7C3D1;--lg:#8CA0B4;--bd:#28394E;
   --sf:#141E2C;--w:#1B2839;--t:#EAF0F7;--t2:#B6C3D2;
   --sigl:rgba(169,116,37,.2);--sigb:rgba(217,168,92,.4);--sig:#D9A85C;
@@ -9785,11 +9785,11 @@ let toastShowing = false;
 
 function levelMeta(level) {
   return {
-    crit: { col:'#8B1A1A', bg:'#FEF2F2', label:'CRITIQUE', icon:'ti-alert-triangle' },
-    high: { col:'#7C4A00', bg:'#FFFBEB', label:'ÉLEVÉ',    icon:'ti-alert-circle' },
-    mod:  { col:'#4B5563', bg:'#EFF6FF', label:'MODÉRÉ',   icon:'ti-info-circle' },
-    ok:   { col:'#0F4F2A', bg:'#F0FDF4', label:'STABLE',   icon:'ti-circle-check' },
-  }[level] || { col:'#4A5568', bg:'#F4F6F9', label:'INFO', icon:'ti-bell' };
+    crit: { col:'#8B1A1A', bg:'var(--rl)', label:'CRITIQUE', icon:'ti-alert-triangle' },
+    high: { col:'#7C4A00', bg:'var(--al)', label:'ÉLEVÉ',    icon:'ti-alert-circle' },
+    mod:  { col:'#4B5563', bg:'var(--bl)', label:'MODÉRÉ',   icon:'ti-info-circle' },
+    ok:   { col:'#0F4F2A', bg:'var(--gl)', label:'STABLE',   icon:'ti-circle-check' },
+  }[level] || { col:'#4A5568', bg:'var(--sf)', label:'INFO', icon:'ti-bell' };
 }
 
 function pushToast(article) {
@@ -10686,7 +10686,7 @@ async function renderDashboard() {
   // "En tension" = tout ce qui n'est pas Stable/Modere (orange, marron, rouge)
   const enTension = scores.filter(s=>s.key==='orange'||s.key==='marron'||s.key==='rouge');
 
-  const scoreColor = s => NIV[s.key] ? NIV[s.key].col : '#0F4F2A';
+  const cv = (n,f) => { try { return (getComputedStyle(document.documentElement).getPropertyValue(n).trim())||f; } catch(_) { return f; } }; const scoreColor = s => ({rouge:cv('--r','#8B1A1A'),marron:cv('--m','#78350F'),orange:cv('--a','#7C4A00'),jaune:cv('--j','#CA8A04'),vert:cv('--g','#0F4F2A')}[s.key]) || (NIV[s.key] ? NIV[s.key].col : '#0F4F2A');
 
   // Cartes KPI reduites de ~45% en hauteur (padding/police resserres, voir
   // demande) : le bandeau du haut du Tableau de bord occupait trop de place
@@ -10777,11 +10777,11 @@ async function renderDashboard() {
       </div>
 
       <!-- Zones de risque -->
-      ${zoneCard('🔴 RISQUE GRAVE — Rouge', rouge, '#8B1A1A')}
-      ${zoneCard('🟤 RISQUE CRITIQUE — Marron', marron, '#8B1A1A')}
-      ${zoneCard('🟠 RISQUE TENDU — Orange', orange, '#7C4A00')}
-      ${zoneCard('🟡 RISQUE MODÉRÉ — Jaune', jaune, '#CA8A04')}
-      ${zoneCard('🟢 SITUATION NORMALE — Vert', vert, '#0F4F2A')}
+      ${zoneCard('🔴 RISQUE GRAVE — Rouge', rouge, cv('--r','#8B1A1A'))}
+      ${zoneCard('🟤 RISQUE CRITIQUE — Marron', marron, cv('--m','#78350F'))}
+      ${zoneCard('🟠 RISQUE TENDU — Orange', orange, cv('--a','#7C4A00'))}
+      ${zoneCard('🟡 RISQUE MODÉRÉ — Jaune', jaune, cv('--j','#CA8A04'))}
+      ${zoneCard('🟢 SITUATION NORMALE — Vert', vert, cv('--g','#0F4F2A'))}
     `;
   });
 }
