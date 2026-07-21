@@ -16005,10 +16005,10 @@ async function renderAlertCard(score) {
   // explicitement etiquete pour ne pas etre confondu avec la veille en direct.
   const dateVerifie = dateDernierIncident(score.events);
   const ligneFraicheur = derniereActuTs
-    ? `<div style="font-size:9px;color:var(--lg);">Dernière actu suivie : <strong style="color:var(--t)">${fmtAge(derniereActuTs)}</strong></div>`
-    : `<div style="font-size:9px;color:var(--lg);">Aucune actu suivie pour l'instant</div>`;
+    ? `<div style="font-size:9px;color:#6B7280;">Dernière actu suivie : <strong style="color:${n.txt}">${fmtAge(derniereActuTs)}</strong></div>`
+    : `<div style="font-size:9px;color:#6B7280;">Aucune actu suivie pour l'instant</div>`;
   const ligneVerifiee = dateVerifie
-    ? `<div style="font-size:8px;color:var(--lg);opacity:.8;">Dernier incident vérifié/corroboré : ${dateVerifie}</div>` : '';
+    ? `<div style="font-size:8px;color:#6B7280;opacity:.8;">Dernier incident vérifié/corroboré : ${dateVerifie}</div>` : '';
   const ligneCouverture = pastilleCouvertureFaible(derniereActuTs, dateVerifie);
   return `<div id="alerteCard-${score.cy}" style="background:${n.bg};border:1px solid ${n.border};border-radius:10px;overflow:hidden;box-shadow:${surligne?'0 0 0 3px rgba(44,90,174,.5), 0 4px 12px rgba(0,0,0,.12)':'0 1px 3px rgba(0,0,0,.06)'};scroll-margin-top:12px;">
     ${surligne?'<div style="background:var(--b);color:#fff;font-size:9px;font-weight:700;text-align:center;padding:3px;text-transform:uppercase;letter-spacing:.05em;">Filtre pays actif</div>':''}    <!-- EN-TÊTE PAYS -->
@@ -16016,8 +16016,8 @@ async function renderAlertCard(score) {
       <div style="display:flex;align-items:center;gap:9px;cursor:pointer;" onclick="ouvrirVuePays('${score.cy}')">
         <span style="font-size:24px;">${pays.flag}</span>
         <div>
-          <div style="font-size:13px;font-weight:700;color:var(--t);">${pays.name}</div>
-          <div style="font-size:9px;color:var(--lg);">${pays.capital}</div>
+          <div style="font-size:13px;font-weight:700;color:${n.txt};">${pays.name}</div>
+          <div style="font-size:9px;color:#6B7280;">${pays.capital}</div>
           ${ligneFraicheur}
           ${ligneVerifiee}
         </div>
